@@ -12,7 +12,7 @@ public class ReportInstanceVO implements Serializable {
     @Serial
     private static final long serialVersionUID = -7845204306008848053L;
 
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
     private String name;

@@ -40,7 +40,7 @@ public interface DataVisualizationApi {
 
     @GetMapping("/findCopyResource/{dvId}/{busiFlag}")
     @Operation(summary = "查询临时复制资源")
-    DataVisualizationVO findCopyResource(@PathVariable("dvId") Long dvId,@PathVariable("busiFlag") String busiFlag);
+    DataVisualizationVO findCopyResource(@PathVariable("dvId") Long dvId, @PathVariable("busiFlag") String busiFlag);
 
 
     @PostMapping("/saveCanvas")
@@ -66,7 +66,7 @@ public interface DataVisualizationApi {
     @DeleteMapping("/deleteLogic/{dvId}/{busiFlag}")
     @DePermit(value = {"#p0+':manage'"}, busiFlag = "#p1")
     @Operation(summary = "可视化资源删除")
-    void deleteLogic(@PathVariable("dvId") Long dvId,@PathVariable("busiFlag") String busiFlag);
+    void deleteLogic(@PathVariable("dvId") Long dvId, @PathVariable("busiFlag") String busiFlag);
 
     @PostMapping("/tree")
     @Operation(summary = "查询可视化资源树")
@@ -93,7 +93,7 @@ public interface DataVisualizationApi {
 
     @GetMapping("/findDvType/{dvId}")
     @Operation(summary = "查询可视化资源类型")
-    String findDvType(@PathVariable("dvId")Long dvId);
+    String findDvType(@PathVariable("dvId") Long dvId);
 
     /**
      * 从模板解压可视化资源 模板来源包括 模板市场、内部模板管理

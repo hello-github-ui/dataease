@@ -1,6 +1,7 @@
 package io.dataease.rmonitor.bo;
 
 import lombok.Data;
+
 import java.io.Serializable;
 
 @Data

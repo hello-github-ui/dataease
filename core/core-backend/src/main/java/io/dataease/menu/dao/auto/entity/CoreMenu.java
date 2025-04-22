@@ -3,11 +3,12 @@ package io.dataease.menu.dao.auto.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author fit2cloud
@@ -165,17 +166,17 @@ public class CoreMenu implements Serializable {
     @Override
     public String toString() {
         return "CoreMenu{" +
-        "id = " + id +
-        ", pid = " + pid +
-        ", type = " + type +
-        ", name = " + name +
-        ", component = " + component +
-        ", menuSort = " + menuSort +
-        ", icon = " + icon +
-        ", path = " + path +
-        ", hidden = " + hidden +
-        ", inLayout = " + inLayout +
-        ", auth = " + auth +
-        "}";
+            "id = " + id +
+            ", pid = " + pid +
+            ", type = " + type +
+            ", name = " + name +
+            ", component = " + component +
+            ", menuSort = " + menuSort +
+            ", icon = " + icon +
+            ", path = " + path +
+            ", hidden = " + hidden +
+            ", inLayout = " + inLayout +
+            ", auth = " + auth +
+            "}";
     }
 }

@@ -1,11 +1,12 @@
 package io.dataease.visualization.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author fit2cloud
@@ -153,17 +154,17 @@ public class VisualizationLinkJumpInfo implements Serializable {
     @Override
     public String toString() {
         return "VisualizationLinkJumpInfo{" +
-        "id = " + id +
-        ", linkJumpId = " + linkJumpId +
-        ", linkType = " + linkType +
-        ", jumpType = " + jumpType +
-        ", targetDvId = " + targetDvId +
-        ", sourceFieldId = " + sourceFieldId +
-        ", content = " + content +
-        ", checked = " + checked +
-        ", attachParams = " + attachParams +
-        ", copyFrom = " + copyFrom +
-        ", copyId = " + copyId +
-        "}";
+            "id = " + id +
+            ", linkJumpId = " + linkJumpId +
+            ", linkType = " + linkType +
+            ", jumpType = " + jumpType +
+            ", targetDvId = " + targetDvId +
+            ", sourceFieldId = " + sourceFieldId +
+            ", content = " + content +
+            ", checked = " + checked +
+            ", attachParams = " + attachParams +
+            ", copyFrom = " + copyFrom +
+            ", copyId = " + copyId +
+            "}";
     }
 }

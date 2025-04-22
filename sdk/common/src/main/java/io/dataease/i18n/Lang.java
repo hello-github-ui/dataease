@@ -12,10 +12,6 @@ public enum Lang {
         this.desc = desc;
     }
 
-    public String getDesc() {
-        return this.desc;
-    }
-
     public static Lang getLang(String lang) {
         Lang result = getLangWithoutDefault(lang);
         if (result == null) {
@@ -43,6 +39,10 @@ public enum Lang {
             return en_US;
         }
         return null;
+    }
+
+    public String getDesc() {
+        return this.desc;
     }
 
 }

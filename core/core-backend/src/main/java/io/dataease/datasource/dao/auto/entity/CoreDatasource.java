@@ -3,11 +3,12 @@ package io.dataease.datasource.dao.auto.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author fit2cloud
@@ -204,20 +205,20 @@ public class CoreDatasource implements Serializable {
     @Override
     public String toString() {
         return "CoreDatasource{" +
-        "id = " + id +
-        ", name = " + name +
-        ", description = " + description +
-        ", type = " + type +
-        ", pid = " + pid +
-        ", editType = " + editType +
-        ", configuration = " + configuration +
-        ", createTime = " + createTime +
-        ", updateTime = " + updateTime +
-        ", updateBy = " + updateBy +
-        ", createBy = " + createBy +
-        ", status = " + status +
-        ", qrtzInstance = " + qrtzInstance +
-        ", taskStatus = " + taskStatus +
-        "}";
+            "id = " + id +
+            ", name = " + name +
+            ", description = " + description +
+            ", type = " + type +
+            ", pid = " + pid +
+            ", editType = " + editType +
+            ", configuration = " + configuration +
+            ", createTime = " + createTime +
+            ", updateTime = " + updateTime +
+            ", updateBy = " + updateBy +
+            ", createBy = " + createBy +
+            ", status = " + status +
+            ", qrtzInstance = " + qrtzInstance +
+            ", taskStatus = " + taskStatus +
+            "}";
     }
 }

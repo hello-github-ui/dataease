@@ -12,19 +12,19 @@ import org.apache.ibatis.annotations.Update;
 public interface XpackShareExtMapper {
 
     @Select("""
-            select
-            s.id as share_id,
-            v.id as resource_id,
-            v.mobile_layout as ext_flag,
-            v.type,
-            s.creator,
-            s.time,
-            s.exp,
-            v.name
-            from xpack_share s
-            left join data_visualization_info v on s.resource_id = v.id
-            ${ew.customSqlSegment}
-            """)
+        select
+        s.id as share_id,
+        v.id as resource_id,
+        v.mobile_layout as ext_flag,
+        v.type,
+        s.creator,
+        s.time,
+        s.exp,
+        v.name
+        from xpack_share s
+        left join data_visualization_info v on s.resource_id = v.id
+        ${ew.customSqlSegment}
+        """)
     IPage<XpackSharePO> query(IPage<XpackSharePO> page, @Param("ew") QueryWrapper<Object> ew);
 
     @Select("select type from data_visualization_info where id = #{id}")

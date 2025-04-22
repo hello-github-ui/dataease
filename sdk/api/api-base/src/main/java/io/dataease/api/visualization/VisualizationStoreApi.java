@@ -24,6 +24,7 @@ public interface VisualizationStoreApi {
     @PostMapping("/query")
     @Operation(summary = "查询收藏资源信息")
     List<VisualizationStoreVO> query(@RequestBody VisualizationWorkbranchQueryRequest request);
+
     @GetMapping("/favorited/{id}")
     @Operation(summary = "收藏")
     boolean favorited(@PathVariable("id") Long id);

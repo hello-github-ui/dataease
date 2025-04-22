@@ -1,13 +1,13 @@
 package io.dataease.engine.trans;
 
-import io.dataease.extensions.datasource.constant.SqlPlaceholderConstants;
-import io.dataease.extensions.datasource.dto.DatasourceSchemaDTO;
-import io.dataease.extensions.datasource.dto.DatasetTableFieldDTO;
 import io.dataease.engine.constant.DeTypeConstants;
 import io.dataease.engine.constant.ExtFieldConstant;
 import io.dataease.engine.constant.SQLConstants;
 import io.dataease.engine.func.FunctionConstant;
 import io.dataease.engine.utils.Utils;
+import io.dataease.extensions.datasource.constant.SqlPlaceholderConstants;
+import io.dataease.extensions.datasource.dto.DatasetTableFieldDTO;
+import io.dataease.extensions.datasource.dto.DatasourceSchemaDTO;
 import io.dataease.extensions.datasource.model.SQLMeta;
 import io.dataease.extensions.datasource.model.SQLObj;
 import org.apache.commons.lang3.ObjectUtils;
@@ -78,7 +78,7 @@ public class Field2SQLObj {
                     fieldName = String.format(SQLConstants.CAST, originField, SQLConstants.DEFAULT_FLOAT_FORMAT);
                 } else if (Objects.equals(f.getDeType(), DeTypeConstants.DE_TIME)) {
                     fieldName = StringUtils.isEmpty(f.getDateFormat()) ? String.format(SQLConstants.DE_STR_TO_DATE, originField, SQLConstants.DEFAULT_DATE_FORMAT) :
-                            String.format(SQLConstants.DE_STR_TO_DATE, originField, f.getDateFormat());
+                        String.format(SQLConstants.DE_STR_TO_DATE, originField, f.getDateFormat());
                 } else {
                     fieldName = originField;
                 }
@@ -98,9 +98,9 @@ public class Field2SQLObj {
             fieldName = "'-'";
         }
         return SQLObj.builder()
-                .fieldName(fieldName)
-                .fieldAlias(fieldAlias)
-                .build();
+            .fieldName(fieldName)
+            .fieldAlias(fieldAlias)
+            .build();
     }
 
 }

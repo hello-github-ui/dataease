@@ -26,20 +26,20 @@ public class GridExample {
         this.extendCondition = extendCondition;
     }
 
-    public void setOrderByClause(String orderByClause) {
-        this.orderByClause = orderByClause;
-    }
-
     public String getOrderByClause() {
         return orderByClause;
     }
 
-    public void setDistinct(boolean distinct) {
-        this.distinct = distinct;
+    public void setOrderByClause(String orderByClause) {
+        this.orderByClause = orderByClause;
     }
 
     public boolean isDistinct() {
         return distinct;
+    }
+
+    public void setDistinct(boolean distinct) {
+        this.distinct = distinct;
     }
 
     public List<Criteria> getOredCriteria() {
@@ -130,51 +130,50 @@ public class GridExample {
         }
 
 
-
-        public Criteria addCondition(ConditionEntity conditionEntity){
+        public Criteria addCondition(ConditionEntity conditionEntity) {
             String field = conditionEntity.getField();
             Object value = conditionEntity.getValue();
             String operator = conditionEntity.getOperator();
             if (StringUtils.isEmpty(operator))
                 operator = "like";
-            switch (operator){
+            switch (operator) {
                 case "eq":
-                    addCriterion(field+" = ", value, field);
+                    addCriterion(field + " = ", value, field);
                     break;
                 case "ne":
-                    addCriterion(field+" <> ", value, field);
+                    addCriterion(field + " <> ", value, field);
                     break;
                 case "like":
-                    addCriterion(field+" like ", "%"+value+"%", field);
+                    addCriterion(field + " like ", "%" + value + "%", field);
                     break;
                 case "not like":
-                    addCriterion(field+" not like ", "%"+value+"%", field);
+                    addCriterion(field + " not like ", "%" + value + "%", field);
                     break;
                 case "in":
-                    List<Object> invalues = (List<Object>)value;
-                    addCriterion(field+" in", invalues, field);
+                    List<Object> invalues = (List<Object>) value;
+                    addCriterion(field + " in", invalues, field);
                     break;
                 case "not in":
-                    List<Object> notinvalues = (List<Object>)value;
-                    addCriterion(field+" not in", notinvalues, field);
+                    List<Object> notinvalues = (List<Object>) value;
+                    addCriterion(field + " not in", notinvalues, field);
                     break;
                 case "between":
-                    List<Object> values = (List<Object>)value;
+                    List<Object> values = (List<Object>) value;
                     Object v1 = values.get(0);
                     Object v2 = values.get(1);
-                    addCriterion(field+" between", v1, v2, field);
+                    addCriterion(field + " between", v1, v2, field);
                     break;
                 case "gt":
-                    addCriterion(field+" > ", value, field);
+                    addCriterion(field + " > ", value, field);
                     break;
                 case "ge":
-                    addCriterion(field+" >= ", value, field);
+                    addCriterion(field + " >= ", value, field);
                     break;
                 case "lt":
-                    addCriterion(field+" < ", value, field);
+                    addCriterion(field + " < ", value, field);
                     break;
                 case "le":
-                    addCriterion(field+" <= ", value, field);
+                    addCriterion(field + " <= ", value, field);
                     break;
                 case "not null":
                     addNotNullCriterion(field + " is not null ");
@@ -183,14 +182,11 @@ public class GridExample {
                     addCriterion(field);
                     break;
                 case "sql in":
-                    addCriterion(field+" in ", value, field);
+                    addCriterion(field + " in ", value, field);
                     break;
             }
             return (Criteria) this;
         }
-
-
-
 
 
     }
@@ -216,6 +212,46 @@ public class GridExample {
         private boolean betweenValue;
 
         private boolean listValue;
+        private boolean sqlValue;
+        private String typeHandler;
+
+        protected Criterion(String condition) {
+            super();
+            this.condition = condition;
+            this.typeHandler = null;
+            this.noValue = true;
+        }
+
+        protected Criterion(String condition, Object value, String typeHandler) {
+            super();
+            this.condition = condition;
+            this.value = value;
+            this.typeHandler = typeHandler;
+            if (value == null) {
+                this.noValue = true;
+            } else if (value instanceof List<?>) {
+                this.listValue = true;
+            } else {
+                this.singleValue = true;
+            }
+        }
+
+        protected Criterion(String condition, Object value) {
+            this(condition, value, null);
+        }
+
+        protected Criterion(String condition, Object value, Object secondValue, String typeHandler) {
+            super();
+            this.condition = condition;
+            this.value = value;
+            this.secondValue = secondValue;
+            this.typeHandler = typeHandler;
+            this.betweenValue = true;
+        }
+
+        protected Criterion(String condition, Object value, Object secondValue) {
+            this(condition, value, secondValue, null);
+        }
 
         public boolean isSqlValue() {
             return sqlValue;
@@ -224,10 +260,6 @@ public class GridExample {
         public void setSqlValue(boolean sqlValue) {
             this.sqlValue = sqlValue;
         }
-
-        private boolean sqlValue;
-
-        private String typeHandler;
 
         public String getCondition() {
             return condition;
@@ -259,44 +291,6 @@ public class GridExample {
 
         public String getTypeHandler() {
             return typeHandler;
-        }
-
-        protected Criterion(String condition) {
-            super();
-            this.condition = condition;
-            this.typeHandler = null;
-            this.noValue = true;
-        }
-
-        protected Criterion(String condition, Object value, String typeHandler) {
-            super();
-            this.condition = condition;
-            this.value = value;
-            this.typeHandler = typeHandler;
-            if(value == null){
-                this.noValue = true;
-            }else if (value instanceof List<?>) {
-                this.listValue = true;
-            } else {
-                this.singleValue = true;
-            }
-        }
-
-        protected Criterion(String condition, Object value) {
-            this(condition, value, null);
-        }
-
-        protected Criterion(String condition, Object value, Object secondValue, String typeHandler) {
-            super();
-            this.condition = condition;
-            this.value = value;
-            this.secondValue = secondValue;
-            this.typeHandler = typeHandler;
-            this.betweenValue = true;
-        }
-
-        protected Criterion(String condition, Object value, Object secondValue) {
-            this(condition, value, secondValue, null);
         }
     }
 }

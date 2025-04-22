@@ -18,6 +18,7 @@ public class VisualizationStoreServer implements VisualizationStoreApi {
 
     @Resource
     private VisualizationStoreManage visualizationStoreManage;
+
     @Override
     public void execute(VisualizationStoreRequest request) {
         visualizationStoreManage.execute(request);

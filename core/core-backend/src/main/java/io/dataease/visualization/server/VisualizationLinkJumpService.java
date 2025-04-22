@@ -153,7 +153,7 @@ public class VisualizationLinkJumpService implements VisualizationLinkJumpApi {
             result = new ArrayList<>();
             componentData = "[]";
         }
-        return new VisualizationComponentDTO(componentData,result);
+        return new VisualizationComponentDTO(componentData, result);
 
     }
 

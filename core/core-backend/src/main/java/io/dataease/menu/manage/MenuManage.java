@@ -89,17 +89,17 @@ public class MenuManage {
     private boolean isXpackMenu(CoreMenu coreMenu) {
         if (coreMenu.getId().equals(21L)) return false;
         return coreMenu.getId().equals(7L)
-                || coreMenu.getPid().equals(7L)
-                || coreMenu.getId().equals(14L)
-                || coreMenu.getId().equals(17L)
-                || coreMenu.getId().equals(18L)
-                || coreMenu.getPid().equals(21L)
-                || coreMenu.getId().equals(25L)
-                || coreMenu.getId().equals(26L)
-                || coreMenu.getId().equals(27L)
-                || coreMenu.getId().equals(28L)
-                || coreMenu.getId().equals(35L)
-                || coreMenu.getId().equals(40L)
-                || coreMenu.getId().equals(50L);
+            || coreMenu.getPid().equals(7L)
+            || coreMenu.getId().equals(14L)
+            || coreMenu.getId().equals(17L)
+            || coreMenu.getId().equals(18L)
+            || coreMenu.getPid().equals(21L)
+            || coreMenu.getId().equals(25L)
+            || coreMenu.getId().equals(26L)
+            || coreMenu.getId().equals(27L)
+            || coreMenu.getId().equals(28L)
+            || coreMenu.getId().equals(35L)
+            || coreMenu.getId().equals(40L)
+            || coreMenu.getId().equals(50L);
     }
 }

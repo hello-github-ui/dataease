@@ -4,7 +4,10 @@ import com.github.xiaoymin.knife4j.annotations.ApiSupport;
 import io.dataease.auth.DeApiPath;
 import io.dataease.extensions.datasource.dto.DatasourceDTO;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import static io.dataease.constant.AuthResourceEnum.DATASOURCE;
 

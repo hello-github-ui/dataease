@@ -7,6 +7,7 @@ import java.util.List;
 
 @Data
 public class TableField {
+    List<Object> value;
     private String name;
     private String originName;
     private String type;               //SQL type from java.sql.Types
@@ -19,7 +20,6 @@ public class TableField {
     private int deExtractType;
     private int extField;
     private String jsonPath;
-    List<Object> value;
 
 
 }

@@ -1,6 +1,7 @@
 package io.dataease.chart.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
@@ -137,7 +138,7 @@ public class CoreChartView implements Serializable {
     private Long updateTime;
 
     /**
-     * 缩略图 
+     * 缩略图
      */
     private String snapshot;
 
@@ -513,44 +514,44 @@ public class CoreChartView implements Serializable {
     @Override
     public String toString() {
         return "CoreChartView{" +
-        "id = " + id +
-        ", title = " + title +
-        ", sceneId = " + sceneId +
-        ", tableId = " + tableId +
-        ", type = " + type +
-        ", render = " + render +
-        ", resultCount = " + resultCount +
-        ", resultMode = " + resultMode +
-        ", xAxis = " + xAxis +
-        ", xAxisExt = " + xAxisExt +
-        ", yAxis = " + yAxis +
-        ", yAxisExt = " + yAxisExt +
-        ", extStack = " + extStack +
-        ", extBubble = " + extBubble +
-        ", extLabel = " + extLabel +
-        ", extTooltip = " + extTooltip +
-        ", customAttr = " + customAttr +
-        ", customStyle = " + customStyle +
-        ", customFilter = " + customFilter +
-        ", drillFields = " + drillFields +
-        ", senior = " + senior +
-        ", createBy = " + createBy +
-        ", createTime = " + createTime +
-        ", updateTime = " + updateTime +
-        ", snapshot = " + snapshot +
-        ", stylePriority = " + stylePriority +
-        ", chartType = " + chartType +
-        ", isPlugin = " + isPlugin +
-        ", dataFrom = " + dataFrom +
-        ", viewFields = " + viewFields +
-        ", refreshViewEnable = " + refreshViewEnable +
-        ", refreshUnit = " + refreshUnit +
-        ", refreshTime = " + refreshTime +
-        ", linkageActive = " + linkageActive +
-        ", jumpActive = " + jumpActive +
-        ", copyFrom = " + copyFrom +
-        ", copyId = " + copyId +
-        ", aggregate = " + aggregate +
-        "}";
+            "id = " + id +
+            ", title = " + title +
+            ", sceneId = " + sceneId +
+            ", tableId = " + tableId +
+            ", type = " + type +
+            ", render = " + render +
+            ", resultCount = " + resultCount +
+            ", resultMode = " + resultMode +
+            ", xAxis = " + xAxis +
+            ", xAxisExt = " + xAxisExt +
+            ", yAxis = " + yAxis +
+            ", yAxisExt = " + yAxisExt +
+            ", extStack = " + extStack +
+            ", extBubble = " + extBubble +
+            ", extLabel = " + extLabel +
+            ", extTooltip = " + extTooltip +
+            ", customAttr = " + customAttr +
+            ", customStyle = " + customStyle +
+            ", customFilter = " + customFilter +
+            ", drillFields = " + drillFields +
+            ", senior = " + senior +
+            ", createBy = " + createBy +
+            ", createTime = " + createTime +
+            ", updateTime = " + updateTime +
+            ", snapshot = " + snapshot +
+            ", stylePriority = " + stylePriority +
+            ", chartType = " + chartType +
+            ", isPlugin = " + isPlugin +
+            ", dataFrom = " + dataFrom +
+            ", viewFields = " + viewFields +
+            ", refreshViewEnable = " + refreshViewEnable +
+            ", refreshUnit = " + refreshUnit +
+            ", refreshTime = " + refreshTime +
+            ", linkageActive = " + linkageActive +
+            ", jumpActive = " + jumpActive +
+            ", copyFrom = " + copyFrom +
+            ", copyId = " + copyId +
+            ", aggregate = " + aggregate +
+            "}";
     }
 }

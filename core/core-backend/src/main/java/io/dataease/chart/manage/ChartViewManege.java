@@ -3,10 +3,6 @@ package io.dataease.chart.manage;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.dataease.extensions.datasource.dto.DatasetTableFieldDTO;
-import io.dataease.extensions.datasource.model.SQLObj;
-import io.dataease.extensions.view.dto.*;
-import io.dataease.extensions.view.filter.FilterTreeObj;
 import io.dataease.api.chart.vo.ViewSelectorVO;
 import io.dataease.chart.dao.auto.entity.CoreChartView;
 import io.dataease.chart.dao.auto.mapper.CoreChartViewMapper;
@@ -19,6 +15,10 @@ import io.dataease.engine.constant.ExtFieldConstant;
 import io.dataease.engine.func.FunctionConstant;
 import io.dataease.engine.utils.Utils;
 import io.dataease.exception.DEException;
+import io.dataease.extensions.datasource.dto.DatasetTableFieldDTO;
+import io.dataease.extensions.datasource.model.SQLObj;
+import io.dataease.extensions.view.dto.*;
+import io.dataease.extensions.view.filter.FilterTreeObj;
 import io.dataease.i18n.Translator;
 import io.dataease.utils.BeanUtils;
 import io.dataease.utils.IDUtils;
@@ -327,10 +327,10 @@ public class ChartViewManege {
     public List<ViewSelectorVO> viewOption(Long resourceId) {
         List<ViewSelectorVO> result = extChartViewMapper.queryViewOption(resourceId);
         DataVisualizationInfo dvInfo = visualizationInfoMapper.selectById(resourceId);
-        if(dvInfo != null && !CollectionUtils.isEmpty(result)){
+        if (dvInfo != null && !CollectionUtils.isEmpty(result)) {
             String componentData = dvInfo.getComponentData();
-            return result.stream().filter(item ->componentData.indexOf(String.valueOf(item.getId()))>0).toList();
-        }else{
+            return result.stream().filter(item -> componentData.indexOf(String.valueOf(item.getId())) > 0).toList();
+        } else {
             return result;
         }
     }

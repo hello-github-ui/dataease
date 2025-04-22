@@ -16,8 +16,7 @@ import java.util.List;
 @AllArgsConstructor
 public class VisualizationComponentDTO {
 
-    private String bashComponentData;
-
     List<VisualizationViewTableVO> visualizationViewTables;
+    private String bashComponentData;
 
 }

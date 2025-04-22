@@ -45,17 +45,19 @@ import java.util.stream.Collectors;
 @Component("calciteProvider")
 public class CalciteProvider extends Provider {
 
-    @Resource
-    protected CoreDatasourceMapper coreDatasourceMapper;
-    @Resource
-    private EngineManage engineManage;
-    protected ExtendedJdbcClassLoader extendedJdbcClassLoader;
-    private Map<Long, ExtendedJdbcClassLoader> customJdbcClassLoaders = new HashMap<>();
+    public static int capacity = 10;
+    private static String split = "DE";
     private final String FILE_PATH = "/opt/dataease2.0/drivers";
     private final String CUSTOM_PATH = "/opt/dataease2.0/custom-drivers/";
-    private static String split = "DE";
+    @Resource
+    protected CoreDatasourceMapper coreDatasourceMapper;
+    protected ExtendedJdbcClassLoader extendedJdbcClassLoader;
+    @Resource
+    private EngineManage engineManage;
+    private Map<Long, ExtendedJdbcClassLoader> customJdbcClassLoaders = new HashMap<>();
     @Resource
     private CommonThreadPool commonThreadPool;
+    private Connection connection = null;
 
     @PostConstruct
     public void init() throws Exception {
@@ -110,7 +112,6 @@ public class CalciteProvider extends Provider {
         }
         return tables;
     }
-
 
     @Override
     public String checkStatus(DatasourceRequest datasourceRequest) throws Exception {
@@ -184,7 +185,6 @@ public class CalciteProvider extends Provider {
         map.put("data", list);
         return map;
     }
-
 
     private List<TableField> fetchResultField(ResultSet rs) throws Exception {
         List<TableField> fieldList = new ArrayList<>();
@@ -607,13 +607,13 @@ public class CalciteProvider extends Provider {
                 }
 
                 sql = String.format("SELECT \n" +
-                        "    c.name ,t.name ,ep.value  \n" +
-                        "FROM \n" +
-                        "    sys.columns AS c\n" +
-                        "LEFT JOIN  sys.extended_properties AS ep ON c.object_id = ep.major_id AND c.column_id = ep.minor_id\n" +
-                        "LEFT JOIN sys.types AS t ON c.user_type_id = t.user_type_id\n" +
-                        "LEFT JOIN sys.objects AS o ON c.object_id = o.object_id\n" +
-                        "WHERE  o.name = '%s'", datasourceRequest.getTable());
+                    "    c.name ,t.name ,ep.value  \n" +
+                    "FROM \n" +
+                    "    sys.columns AS c\n" +
+                    "LEFT JOIN  sys.extended_properties AS ep ON c.object_id = ep.major_id AND c.column_id = ep.minor_id\n" +
+                    "LEFT JOIN sys.types AS t ON c.user_type_id = t.user_type_id\n" +
+                    "LEFT JOIN sys.objects AS o ON c.object_id = o.object_id\n" +
+                    "WHERE  o.name = '%s'", datasourceRequest.getTable());
                 break;
             case pg:
                 configuration = JsonUtil.parseObject(datasourceRequest.getDatasource().getConfiguration(), Pg.class);
@@ -621,40 +621,40 @@ public class CalciteProvider extends Provider {
                     DEException.throwException(Translator.get("i18n_schema_is_empty"));
                 }
                 sql = String.format("SELECT\n" +
-                        "    a.attname AS ColumnName,\n" +
-                        "    t.typname,\n" +
-                        "    b.description AS ColumnDescription\n" +
-                        "FROM\n" +
-                        "    pg_class c\n" +
-                        "    JOIN pg_attribute a ON a.attrelid = c.oid\n" +
-                        "    LEFT JOIN pg_description b ON a.attrelid = b.objoid AND a.attnum = b.objsubid\n" +
-                        "    JOIN pg_type t ON a.atttypid = t.oid\n" +
-                        "where\n" +
-                        " \tc.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = '%s') \n" +
-                        "    AND c.relname = '%s'\n" +
-                        "    AND a.attnum > 0\n" +
-                        "    AND NOT a.attisdropped\n" +
-                        "ORDER BY\n" +
-                        "    a.attnum;", configuration.getSchema(), datasourceRequest.getTable());
+                    "    a.attname AS ColumnName,\n" +
+                    "    t.typname,\n" +
+                    "    b.description AS ColumnDescription\n" +
+                    "FROM\n" +
+                    "    pg_class c\n" +
+                    "    JOIN pg_attribute a ON a.attrelid = c.oid\n" +
+                    "    LEFT JOIN pg_description b ON a.attrelid = b.objoid AND a.attnum = b.objsubid\n" +
+                    "    JOIN pg_type t ON a.atttypid = t.oid\n" +
+                    "where\n" +
+                    " \tc.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = '%s') \n" +
+                    "    AND c.relname = '%s'\n" +
+                    "    AND a.attnum > 0\n" +
+                    "    AND NOT a.attisdropped\n" +
+                    "ORDER BY\n" +
+                    "    a.attnum;", configuration.getSchema(), datasourceRequest.getTable());
                 break;
             case redshift:
                 configuration = JsonUtil.parseObject(datasourceRequest.getDatasource().getConfiguration(), CK.class);
                 sql = String.format("SELECT\n" +
-                        "    a.attname AS ColumnName,\n" +
-                        "    t.typname,\n" +
-                        "    b.description AS ColumnDescription\n" +
-                        "FROM\n" +
-                        "    pg_class c\n" +
-                        "    JOIN pg_attribute a ON a.attrelid = c.oid\n" +
-                        "    LEFT JOIN pg_description b ON a.attrelid = b.objoid AND a.attnum = b.objsubid\n" +
-                        "    JOIN pg_type t ON a.atttypid = t.oid\n" +
-                        "WHERE\n" +
-                        "    c.relname = '%s'\n" +
-                        "    AND a.attnum > 0\n" +
-                        "    AND NOT a.attisdropped\n" +
-                        "ORDER BY\n" +
-                        "    a.attnum\n" +
-                        "   ", datasourceRequest.getTable());
+                    "    a.attname AS ColumnName,\n" +
+                    "    t.typname,\n" +
+                    "    b.description AS ColumnDescription\n" +
+                    "FROM\n" +
+                    "    pg_class c\n" +
+                    "    JOIN pg_attribute a ON a.attrelid = c.oid\n" +
+                    "    LEFT JOIN pg_description b ON a.attrelid = b.objoid AND a.attnum = b.objsubid\n" +
+                    "    JOIN pg_type t ON a.atttypid = t.oid\n" +
+                    "WHERE\n" +
+                    "    c.relname = '%s'\n" +
+                    "    AND a.attnum > 0\n" +
+                    "    AND NOT a.attisdropped\n" +
+                    "ORDER BY\n" +
+                    "    a.attnum\n" +
+                    "   ", datasourceRequest.getTable());
                 break;
             case ck:
                 configuration = JsonUtil.parseObject(datasourceRequest.getDatasource().getConfiguration(), CK.class);
@@ -669,14 +669,14 @@ public class CalciteProvider extends Provider {
                     database = databasePrams[0];
                 }
                 sql = String.format(" SELECT\n" +
-                        "    name,\n" +
-                        "    type,\n" +
-                        "    comment\n" +
-                        "FROM\n" +
-                        "    system.columns\n" +
-                        "WHERE\n" +
-                        "    database = '%s'  \n" +
-                        "    AND table = '%s' ", database, datasourceRequest.getTable());
+                    "    name,\n" +
+                    "    type,\n" +
+                    "    comment\n" +
+                    "FROM\n" +
+                    "    system.columns\n" +
+                    "WHERE\n" +
+                    "    database = '%s'  \n" +
+                    "    AND table = '%s' ", database, datasourceRequest.getTable());
                 break;
             case impala:
                 sql = String.format("DESCRIBE `%s`", datasourceRequest.getTable());
@@ -689,7 +689,7 @@ public class CalciteProvider extends Provider {
     }
 
     private TableField getTableFieldDesc(DatasourceRequest datasourceRequest, ResultSet resultSet) throws
-            SQLException {
+        SQLException {
         TableField tableField = new TableField();
         tableField.setOriginName(resultSet.getString(1));
         tableField.setType(resultSet.getString(2).toUpperCase());
@@ -992,31 +992,31 @@ public class CalciteProvider extends Provider {
                     DEException.throwException(Translator.get("i18n_schema_is_empty"));
                 }
                 tableSqls.add("SELECT   \n" +
-                        "    t.name AS TableName,  \n" +
-                        "    ep.value AS TableDescription  \n" +
-                        "FROM   \n" +
-                        "    sys.tables t  \n" +
-                        "LEFT OUTER JOIN   sys.schemas sc ON sc.schema_id =t.schema_id \n" +
-                        "LEFT OUTER JOIN   \n" +
-                        "    sys.extended_properties ep ON t.object_id = ep.major_id   \n" +
-                        "                               AND ep.minor_id = 0   \n" +
-                        "                               AND ep.class = 1  \n" +
-                        "                               AND ep.name = 'MS_Description'\n" +
-                        "where sc.name ='DS_SCHEMA'"
-                                .replace("DS_SCHEMA", configuration.getSchema()));
+                    "    t.name AS TableName,  \n" +
+                    "    ep.value AS TableDescription  \n" +
+                    "FROM   \n" +
+                    "    sys.tables t  \n" +
+                    "LEFT OUTER JOIN   sys.schemas sc ON sc.schema_id =t.schema_id \n" +
+                    "LEFT OUTER JOIN   \n" +
+                    "    sys.extended_properties ep ON t.object_id = ep.major_id   \n" +
+                    "                               AND ep.minor_id = 0   \n" +
+                    "                               AND ep.class = 1  \n" +
+                    "                               AND ep.name = 'MS_Description'\n" +
+                    "where sc.name ='DS_SCHEMA'"
+                        .replace("DS_SCHEMA", configuration.getSchema()));
                 tableSqls.add("SELECT   \n" +
-                        "    t.name AS TableName,  \n" +
-                        "    ep.value AS TableDescription  \n" +
-                        "FROM   \n" +
-                        "    sys.views t  \n" +
-                        "LEFT OUTER JOIN   sys.schemas sc ON sc.schema_id =t.schema_id \n" +
-                        "LEFT OUTER JOIN   \n" +
-                        "    sys.extended_properties ep ON t.object_id = ep.major_id   \n" +
-                        "                               AND ep.minor_id = 0   \n" +
-                        "                               AND ep.class = 1  \n" +
-                        "                               AND ep.name = 'MS_Description'\n" +
-                        "where sc.name ='DS_SCHEMA'"
-                                .replace("DS_SCHEMA", configuration.getSchema()));
+                    "    t.name AS TableName,  \n" +
+                    "    ep.value AS TableDescription  \n" +
+                    "FROM   \n" +
+                    "    sys.views t  \n" +
+                    "LEFT OUTER JOIN   sys.schemas sc ON sc.schema_id =t.schema_id \n" +
+                    "LEFT OUTER JOIN   \n" +
+                    "    sys.extended_properties ep ON t.object_id = ep.major_id   \n" +
+                    "                               AND ep.minor_id = 0   \n" +
+                    "                               AND ep.class = 1  \n" +
+                    "                               AND ep.name = 'MS_Description'\n" +
+                    "where sc.name ='DS_SCHEMA'"
+                        .replace("DS_SCHEMA", configuration.getSchema()));
                 break;
             case pg:
                 configuration = JsonUtil.parseObject(datasourceRequest.getDatasource().getConfiguration(), Pg.class);
@@ -1024,24 +1024,24 @@ public class CalciteProvider extends Provider {
                     DEException.throwException(Translator.get("i18n_schema_is_empty"));
                 }
                 tableSqls.add("SELECT  \n" +
-                        "    relname AS TableName,  \n" +
-                        "    obj_description(relfilenode::regclass, 'pg_class') AS TableDescription  \n" +
-                        "FROM  \n" +
-                        "    pg_class  \n" +
-                        "WHERE  \n" +
-                        "    relkind = 'r'  \n" +
-                        "    AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'SCHEMA') ".replace("SCHEMA", configuration.getSchema()));
+                    "    relname AS TableName,  \n" +
+                    "    obj_description(relfilenode::regclass, 'pg_class') AS TableDescription  \n" +
+                    "FROM  \n" +
+                    "    pg_class  \n" +
+                    "WHERE  \n" +
+                    "    relkind = 'r'  \n" +
+                    "    AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'SCHEMA') ".replace("SCHEMA", configuration.getSchema()));
                 break;
             case redshift:
                 configuration = JsonUtil.parseObject(datasourceRequest.getDatasource().getConfiguration(), CK.class);
                 tableSqls.add("SELECT  \n" +
-                        "    relname AS TableName,  \n" +
-                        "    obj_description(relfilenode::regclass, 'pg_class') AS TableDescription  \n" +
-                        "FROM  \n" +
-                        "    pg_class  \n" +
-                        "WHERE  \n" +
-                        "    relkind = 'r'  \n" +
-                        "    AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'SCHEMA') ".replace("SCHEMA", configuration.getSchema()));
+                    "    relname AS TableName,  \n" +
+                    "    obj_description(relfilenode::regclass, 'pg_class') AS TableDescription  \n" +
+                    "FROM  \n" +
+                    "    pg_class  \n" +
+                    "WHERE  \n" +
+                    "    relkind = 'r'  \n" +
+                    "    AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'SCHEMA') ".replace("SCHEMA", configuration.getSchema()));
                 break;
             case ck:
                 configuration = JsonUtil.parseObject(datasourceRequest.getDatasource().getConfiguration(), CK.class);
@@ -1135,11 +1135,6 @@ public class CalciteProvider extends Provider {
         }
         return null;
     }
-
-
-    private Connection connection = null;
-
-    public static int capacity = 10;
 
     public void initConnectionPool() {
         LogUtil.info("Begin to init datasource pool...");

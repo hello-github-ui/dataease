@@ -12,19 +12,19 @@ public class Oracle extends DatasourceConfiguration {
     private String extraParams = "";
 
     public String getJdbc() {
-        if(StringUtils.isNoneEmpty(getUrlType()) && !getUrlType().equalsIgnoreCase("hostName")){
+        if (StringUtils.isNoneEmpty(getUrlType()) && !getUrlType().equalsIgnoreCase("hostName")) {
             return getJdbcUrl();
         }
         if (StringUtils.isNotEmpty(getConnectionType()) && getConnectionType().equalsIgnoreCase("serviceName")) {
             return "jdbc:oracle:thin:@HOSTNAME:PORT/DATABASE"
-                    .replace("HOSTNAME", getLHost().trim())
-                    .replace("PORT", getLPort().toString().trim())
-                    .replace("DATABASE", getDataBase().trim());
-        }else {
+                .replace("HOSTNAME", getLHost().trim())
+                .replace("PORT", getLPort().toString().trim())
+                .replace("DATABASE", getDataBase().trim());
+        } else {
             return "jdbc:oracle:thin:@HOSTNAME:PORT:DATABASE"
-                    .replace("HOSTNAME", getLHost().trim())
-                    .replace("PORT", getLPort().toString().trim())
-                    .replace("DATABASE", getDataBase().trim());
+                .replace("HOSTNAME", getLHost().trim())
+                .replace("PORT", getLPort().toString().trim())
+                .replace("DATABASE", getDataBase().trim());
         }
     }
 }

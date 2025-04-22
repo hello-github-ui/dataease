@@ -4,7 +4,10 @@ package io.dataease.dataset.manage;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.dataease.api.permissions.dataset.api.ColumnPermissionsApi;
 import io.dataease.api.permissions.dataset.api.RowPermissionsApi;
-import io.dataease.api.permissions.dataset.dto.*;
+import io.dataease.api.permissions.dataset.dto.DataSetColumnPermissionsDTO;
+import io.dataease.api.permissions.dataset.dto.DataSetRowPermissionsTreeDTO;
+import io.dataease.api.permissions.dataset.dto.DatasetRowPermissionsTreeRequest;
+import io.dataease.api.permissions.dataset.dto.Item;
 import io.dataease.api.permissions.user.vo.UserFormVO;
 import io.dataease.api.permissions.variable.dto.SysVariableValueDto;
 import io.dataease.api.permissions.variable.dto.SysVariableValueItem;
@@ -23,7 +26,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.stream.Collectors;
 

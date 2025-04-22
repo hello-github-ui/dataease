@@ -12,7 +12,7 @@ import java.util.List;
 
 @Getter
 @Setter
-public class DataSetRowPermissionsTreeDTO  {
+public class DataSetRowPermissionsTreeDTO {
 
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;

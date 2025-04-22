@@ -27,9 +27,9 @@ public class VisualizationBackgroundService implements VisualizationBackgroundAp
     @Override
     public Map<String, List<VisualizationBackgroundVO>> findAll() {
         List<VisualizationBackground> result = mapper.selectList(new QueryWrapper<>());
-        return result.stream().map(vb ->{
+        return result.stream().map(vb -> {
             VisualizationBackgroundVO vbVO = new VisualizationBackgroundVO();
-            BeanUtils.copyBean(vbVO,vb);
+            BeanUtils.copyBean(vbVO, vb);
             return vbVO;
         }).collect(Collectors.groupingBy(VisualizationBackgroundVO::getClassification));
     }

@@ -15,7 +15,7 @@ public class PermissionOrigin implements Serializable {
     @Serial
     private static final long serialVersionUID = 1455588932869130794L;
 
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     @Schema(description = "关联ID")
     private Long id;
     @Schema(description = "关联名称")

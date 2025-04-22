@@ -317,10 +317,10 @@ public class DatasourceSyncManage {
     public void addSchedule(CoreDatasourceTask datasourceTask) throws DEException {
         if (StringUtils.equalsIgnoreCase(datasourceTask.getSyncRate(), DatasourceTaskServer.ScheduleType.RIGHTNOW.toString())) {
             scheduleManager.addOrUpdateSingleJob(new JobKey(datasourceTask.getId().toString(), datasourceTask.getDsId().toString()),
-                    new TriggerKey(datasourceTask.getId().toString(), datasourceTask.getDsId().toString()),
-                    ExtractDataJob.class,
-                    new Date(datasourceTask.getStartTime()),
-                    scheduleManager.getDefaultJobDataMap(datasourceTask.getDsId().toString(), datasourceTask.getCron(), datasourceTask.getId().toString(), datasourceTask.getUpdateType()));
+                new TriggerKey(datasourceTask.getId().toString(), datasourceTask.getDsId().toString()),
+                ExtractDataJob.class,
+                new Date(datasourceTask.getStartTime()),
+                scheduleManager.getDefaultJobDataMap(datasourceTask.getDsId().toString(), datasourceTask.getCron(), datasourceTask.getId().toString(), datasourceTask.getUpdateType()));
         } else {
             Date endTime;
             if (StringUtils.equalsIgnoreCase(datasourceTask.getEndLimit().toString(), "1")) {
@@ -338,10 +338,10 @@ public class DatasourceSyncManage {
             }
 
             scheduleManager.addOrUpdateCronJob(new JobKey(datasourceTask.getId().toString(), datasourceTask.getDsId().toString()),
-                    new TriggerKey(datasourceTask.getId().toString(), datasourceTask.getDsId().toString()),
-                    ExtractDataJob.class,
-                    datasourceTask.getCron(), new Date(datasourceTask.getStartTime()), endTime,
-                    scheduleManager.getDefaultJobDataMap(datasourceTask.getDsId().toString(), datasourceTask.getCron(), datasourceTask.getId().toString(), datasourceTask.getUpdateType()));
+                new TriggerKey(datasourceTask.getId().toString(), datasourceTask.getDsId().toString()),
+                ExtractDataJob.class,
+                datasourceTask.getCron(), new Date(datasourceTask.getStartTime()), endTime,
+                scheduleManager.getDefaultJobDataMap(datasourceTask.getDsId().toString(), datasourceTask.getCron(), datasourceTask.getId().toString(), datasourceTask.getUpdateType()));
         }
     }
 

@@ -1,12 +1,12 @@
 package io.dataease.visualization.dao.auto.mapper;
 
-import io.dataease.visualization.dao.auto.entity.VisualizationLinkJumpInfo;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import io.dataease.visualization.dao.auto.entity.VisualizationLinkJumpInfo;
 import org.apache.ibatis.annotations.Mapper;
 
 /**
  * <p>
- *  Mapper 接口
+ * Mapper 接口
  * </p>
  *
  * @author fit2cloud

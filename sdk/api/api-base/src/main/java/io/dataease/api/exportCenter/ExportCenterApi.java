@@ -21,21 +21,21 @@ public interface ExportCenterApi {
 
 
     @PostMapping("/exportTasks/{status}")
-    public List<ExportTaskDTO> exportTasks(@PathVariable String status) ;
+    public List<ExportTaskDTO> exportTasks(@PathVariable String status);
 
     @GetMapping("/delete/{id}")
-    public void  delete(@PathVariable String id);
+    public void delete(@PathVariable String id);
 
     @PostMapping("/delete")
-    public void  delete(@RequestBody List<String> ids);
+    public void delete(@RequestBody List<String> ids);
 
     @PostMapping("/deleteAll/{type}")
-    public void  deleteAll(@PathVariable String type);
+    public void deleteAll(@PathVariable String type);
 
     @GetMapping("/download/{id}")
-    public void download(@PathVariable String id, HttpServletResponse response) throws Exception ;
+    public void download(@PathVariable String id, HttpServletResponse response) throws Exception;
 
     @PostMapping("/retry/{id}")
-    public void  retry(@PathVariable String id);
+    public void retry(@PathVariable String id);
 
 }

@@ -52,9 +52,9 @@ public class MixHandler extends YoyChartHandler {
     @Override
     public Map<String, Object> buildNormalResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data) {
         boolean isDrill = filterResult
-                .getFilterList()
-                .stream()
-                .anyMatch(ele -> ele.getFilterType() == 1);
+            .getFilterList()
+            .stream()
+            .anyMatch(ele -> ele.getFilterType() == 1);
         var xAxisBase = (List<ChartViewFieldDTO>) formatResult.getContext().get("xAxisBase");
         var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);

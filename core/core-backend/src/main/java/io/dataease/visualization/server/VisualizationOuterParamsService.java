@@ -43,7 +43,7 @@ public class VisualizationOuterParamsService implements VisualizationOuterParams
 
     @Override
     public VisualizationOuterParamsDTO queryWithVisualizationId(String visualizationId) {
-        VisualizationOuterParamsDTO visualizationOuterParamsDTO =  extOuterParamsMapper.queryWithVisualizationId(visualizationId);
+        VisualizationOuterParamsDTO visualizationOuterParamsDTO = extOuterParamsMapper.queryWithVisualizationId(visualizationId);
         return visualizationOuterParamsDTO;
     }
 
@@ -59,21 +59,21 @@ public class VisualizationOuterParamsService implements VisualizationOuterParams
         String paramsId = UUID.randomUUID().toString();
         outerParamsDTO.setParamsId(paramsId);
         VisualizationOuterParams newOuterParams = new VisualizationOuterParams();
-        BeanUtils.copyBean(newOuterParams,outerParamsDTO);
+        BeanUtils.copyBean(newOuterParams, outerParamsDTO);
         outerParamsMapper.insert(newOuterParams);
         Optional.ofNullable(outerParamsDTO.getOuterParamsInfoArray()).orElse(new ArrayList<>()).forEach(outerParamsInfo -> {
             String paramsInfoId = UUID.randomUUID().toString();
             outerParamsInfo.setParamsInfoId(paramsInfoId);
             outerParamsInfo.setParamsId(paramsId);
             VisualizationOuterParamsInfo newOuterParamsInfo = new VisualizationOuterParamsInfo();
-            BeanUtils.copyBean(newOuterParamsInfo,outerParamsInfo);
+            BeanUtils.copyBean(newOuterParamsInfo, outerParamsInfo);
             outerParamsInfoMapper.insert(newOuterParamsInfo);
             Optional.ofNullable(outerParamsInfo.getTargetViewInfoList()).orElse(new ArrayList<>()).forEach(targetViewInfo -> {
                 String targetViewInfoId = UUID.randomUUID().toString();
                 targetViewInfo.setTargetId(targetViewInfoId);
                 targetViewInfo.setParamsInfoId(paramsInfoId);
                 VisualizationOuterParamsTargetViewInfo newOuterParamsTargetViewInfo = new VisualizationOuterParamsTargetViewInfo();
-                BeanUtils.copyBean(newOuterParamsTargetViewInfo,targetViewInfo);
+                BeanUtils.copyBean(newOuterParamsTargetViewInfo, targetViewInfo);
                 outerParamsTargetViewInfoMapper.insert(newOuterParamsTargetViewInfo);
             });
         });

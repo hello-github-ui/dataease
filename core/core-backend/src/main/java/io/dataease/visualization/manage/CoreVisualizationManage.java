@@ -175,10 +175,10 @@ public class CoreVisualizationManage {
             return new ArrayList<>();
         }
         return pos.stream().map(po ->
-                new VisualizationResourceVO(
-                        po.getId(), po.getResourceId(), po.getName(),
-                        po.getType(), String.valueOf(po.getCreator()), String.valueOf(po.getLastEditor()), po.getLastEditTime(),
-                        po.getFavorite(), 9,po.getExtFlag())).toList();
+            new VisualizationResourceVO(
+                po.getId(), po.getResourceId(), po.getName(),
+                po.getType(), String.valueOf(po.getCreator()), String.valueOf(po.getLastEditor()), po.getLastEditTime(),
+                po.getFavorite(), 9, po.getExtFlag())).toList();
     }
 
     public IPage<VisualizationResourcePO> queryVisualizationPage(int goPage, int pageSize, VisualizationWorkbranchQueryRequest request) {

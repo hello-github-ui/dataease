@@ -8,10 +8,8 @@ import io.dataease.template.dao.auto.mapper.DeTemplateVersionMapper;
 import io.dataease.utils.JsonUtil;
 import io.dataease.visualization.server.StaticResourceServer;
 import jakarta.annotation.Resource;
-import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
-import org.springframework.data.repository.init.ResourceReader;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
@@ -36,6 +34,19 @@ public class TemplateLocalParseManage {
     @Resource(type = ResourceLoader.class)
     private ResourceLoader resourceLoader;
 
+    public static String readFileContent(File file) throws IOException {
+        StringBuilder content = new StringBuilder();
+        try (InputStream inputStream = Files.newInputStream(file.toPath());
+             InputStreamReader inputStreamReader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+             BufferedReader bufferedReader = new BufferedReader(inputStreamReader)) {
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                content.append(line);
+            }
+        }
+        return content.toString();
+    }
+
     public void doInit() throws Exception {
         org.springframework.core.io.Resource[] templateFiles = getAllFilesInResourceDirectory("template");
         if (templateFiles != null && templateFiles.length > 0) {
@@ -49,7 +60,8 @@ public class TemplateLocalParseManage {
                     version.setScript(templateName);
                     version.setInstalledOn(LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES));
                     try {
-                        String content = new String(templateFile.getInputStream().readAllBytes());;
+                        String content = new String(templateFile.getInputStream().readAllBytes());
+                        ;
                         DataVisualizationBaseRequest template = JsonUtil.parseObject(content, DataVisualizationBaseRequest.class);
                         parseCore(template);
                         version.setSuccess(true);
@@ -71,7 +83,6 @@ public class TemplateLocalParseManage {
         staticResourceServer.saveFilesToServe(template.getStaticResource());
     }
 
-
     public org.springframework.core.io.Resource[] getAllFilesInResourceDirectory(String directoryName) throws Exception {
         // 创建一个 PathMatchingResourcePatternResolver 对象
         PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(resourceLoader);
@@ -80,19 +91,6 @@ public class TemplateLocalParseManage {
         org.springframework.core.io.Resource[] resources = resolver.getResources("classpath:template/*");
 
         return resources;
-    }
-
-    public static String readFileContent(File file) throws IOException {
-        StringBuilder content = new StringBuilder();
-        try (InputStream inputStream = Files.newInputStream(file.toPath());
-             InputStreamReader inputStreamReader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
-             BufferedReader bufferedReader = new BufferedReader(inputStreamReader)) {
-            String line;
-            while ((line = bufferedReader.readLine()) != null) {
-                content.append(line);
-            }
-        }
-        return content.toString();
     }
 
 }

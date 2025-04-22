@@ -15,6 +15,7 @@ public class DateUtils {
         LocalDateTime timeByMilli = Instant.ofEpochMilli(time).atZone(ZoneId.of("Asia/Shanghai")).toLocalDateTime();
         return format.format(timeByMilli);
     }
+
     public static String time2String(Long time) {
         String pattern = "yyyy-MM-dd HH:mm:ss";
         return time2String(time, pattern);

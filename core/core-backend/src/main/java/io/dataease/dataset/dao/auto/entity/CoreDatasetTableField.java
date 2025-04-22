@@ -1,6 +1,7 @@
 package io.dataease.dataset.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
@@ -299,28 +300,28 @@ public class CoreDatasetTableField implements Serializable {
     @Override
     public String toString() {
         return "CoreDatasetTableField{" +
-        "id = " + id +
-        ", datasourceId = " + datasourceId +
-        ", datasetTableId = " + datasetTableId +
-        ", datasetGroupId = " + datasetGroupId +
-        ", chartId = " + chartId +
-        ", originName = " + originName +
-        ", name = " + name +
-        ", description = " + description +
-        ", dataeaseName = " + dataeaseName +
-        ", fieldShortName = " + fieldShortName +
-        ", groupType = " + groupType +
-        ", type = " + type +
-        ", size = " + size +
-        ", deType = " + deType +
-        ", deExtractType = " + deExtractType +
-        ", extField = " + extField +
-        ", checked = " + checked +
-        ", columnIndex = " + columnIndex +
-        ", lastSyncTime = " + lastSyncTime +
-        ", accuracy = " + accuracy +
-        ", dateFormat = " + dateFormat +
-        ", dateFormatType = " + dateFormatType +
-        "}";
+            "id = " + id +
+            ", datasourceId = " + datasourceId +
+            ", datasetTableId = " + datasetTableId +
+            ", datasetGroupId = " + datasetGroupId +
+            ", chartId = " + chartId +
+            ", originName = " + originName +
+            ", name = " + name +
+            ", description = " + description +
+            ", dataeaseName = " + dataeaseName +
+            ", fieldShortName = " + fieldShortName +
+            ", groupType = " + groupType +
+            ", type = " + type +
+            ", size = " + size +
+            ", deType = " + deType +
+            ", deExtractType = " + deExtractType +
+            ", extField = " + extField +
+            ", checked = " + checked +
+            ", columnIndex = " + columnIndex +
+            ", lastSyncTime = " + lastSyncTime +
+            ", accuracy = " + accuracy +
+            ", dateFormat = " + dateFormat +
+            ", dateFormatType = " + dateFormatType +
+            "}";
     }
 }

@@ -1,6 +1,7 @@
 package io.dataease.visualization.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
@@ -97,12 +98,12 @@ public class VisualizationOuterParamsTargetViewInfo implements Serializable {
     @Override
     public String toString() {
         return "VisualizationOuterParamsTargetViewInfo{" +
-        "targetId = " + targetId +
-        ", paramsInfoId = " + paramsInfoId +
-        ", targetViewId = " + targetViewId +
-        ", targetFieldId = " + targetFieldId +
-        ", copyFrom = " + copyFrom +
-        ", copyId = " + copyId +
-        "}";
+            "targetId = " + targetId +
+            ", paramsInfoId = " + paramsInfoId +
+            ", targetViewId = " + targetViewId +
+            ", targetFieldId = " + targetFieldId +
+            ", copyFrom = " + copyFrom +
+            ", copyId = " + copyId +
+            "}";
     }
 }

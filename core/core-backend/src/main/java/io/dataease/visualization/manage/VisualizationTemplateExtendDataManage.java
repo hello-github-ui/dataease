@@ -1,8 +1,8 @@
 package io.dataease.visualization.manage;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import io.dataease.extensions.view.dto.ChartViewDTO;
 import io.dataease.exception.DEException;
+import io.dataease.extensions.view.dto.ChartViewDTO;
 import io.dataease.template.dao.auto.entity.VisualizationTemplateExtendData;
 import io.dataease.template.dao.auto.mapper.VisualizationTemplateExtendDataMapper;
 import io.dataease.utils.JsonUtil;
@@ -26,16 +26,16 @@ public class VisualizationTemplateExtendDataManage {
 
     public ChartViewDTO getChartDataInfo(Long viewId, ChartViewDTO view) {
         QueryWrapper queryWrapper = new QueryWrapper();
-        queryWrapper.eq("view_id",viewId);
+        queryWrapper.eq("view_id", viewId);
         List<VisualizationTemplateExtendData> extendDataList = extendDataMapper.selectList(queryWrapper);
         if (CollectionUtils.isNotEmpty(extendDataList)) {
-            try{
-                ChartViewDTO chartViewTemplate = JsonUtil.parseObject(extendDataList.get(0).getViewDetails(),ChartViewDTO.class);
-                if(chartViewTemplate != null){
+            try {
+                ChartViewDTO chartViewTemplate = JsonUtil.parseObject(extendDataList.get(0).getViewDetails(), ChartViewDTO.class);
+                if (chartViewTemplate != null) {
                     view.setData(chartViewTemplate.getData());
                 }
-            }catch (Exception e){
-                LogUtil.error("未获取内置数据："+viewId);
+            } catch (Exception e) {
+                LogUtil.error("未获取内置数据：" + viewId);
             }
 
         } else {

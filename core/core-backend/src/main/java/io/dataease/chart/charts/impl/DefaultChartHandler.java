@@ -82,9 +82,9 @@ public class DefaultChartHandler extends AbstractChartPlugin {
 
     public Map<String, Object> buildResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data) {
         boolean isDrill = filterResult
-                .getFilterList()
-                .stream()
-                .anyMatch(ele -> ele.getFilterType() == 1);
+            .getFilterList()
+            .stream()
+            .anyMatch(ele -> ele.getFilterType() == 1);
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
         var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);
         Map<String, Object> result = ChartDataBuild.transChartData(xAxis, yAxis, view, data, isDrill);
@@ -267,7 +267,7 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                 continue;
             }
             if (StringUtils.isNotEmpty(compareCalc.getType())
-                    && !StringUtils.equalsIgnoreCase(compareCalc.getType(), "none")) {
+                && !StringUtils.equalsIgnoreCase(compareCalc.getType(), "none")) {
                 Long compareFieldId = compareCalc.getField();// 选中字段
                 // 数据字段下标
                 int dataIndex = xAxis.size() + i;
@@ -319,10 +319,10 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                                         item[dataIndex] = null;
                                     } else {
                                         item[dataIndex] = new BigDecimal(cValue)
-                                                .divide(new BigDecimal(lastValue).abs(), 8, RoundingMode.HALF_UP)
-                                                .subtract(new BigDecimal(1))
-                                                .setScale(8, RoundingMode.HALF_UP)
-                                                .toString();
+                                            .divide(new BigDecimal(lastValue).abs(), 8, RoundingMode.HALF_UP)
+                                            .subtract(new BigDecimal(1))
+                                            .setScale(8, RoundingMode.HALF_UP)
+                                            .toString();
                                     }
                                 }
                             }
@@ -347,8 +347,8 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                             continue;
                         }
                         item[dataIndex] = new BigDecimal(cValue)
-                                .divide(sum, 8, RoundingMode.HALF_UP)
-                                .toString();
+                            .divide(sum, 8, RoundingMode.HALF_UP)
+                            .toString();
                     }
                 }
             }
@@ -438,11 +438,11 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                 return StringUtils.equalsIgnoreCase(calcType, "year_mom");
             case "y_M":
                 return StringUtils.equalsIgnoreCase(calcType, "month_mom")
-                        || StringUtils.equalsIgnoreCase(calcType, "year_yoy");
+                    || StringUtils.equalsIgnoreCase(calcType, "year_yoy");
             case "y_M_d":
                 return StringUtils.equalsIgnoreCase(calcType, "day_mom")
-                        || StringUtils.equalsIgnoreCase(calcType, "month_yoy")
-                        || StringUtils.equalsIgnoreCase(calcType, "year_yoy");
+                    || StringUtils.equalsIgnoreCase(calcType, "month_yoy")
+                    || StringUtils.equalsIgnoreCase(calcType, "year_yoy");
         }
         return false;
     }
@@ -456,7 +456,7 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                     continue;
                 }
                 if (StringUtils.isNotEmpty(compareCalc.getType())
-                        && !StringUtils.equalsIgnoreCase(compareCalc.getType(), "none")) {
+                    && !StringUtils.equalsIgnoreCase(compareCalc.getType(), "none")) {
                     if (Arrays.asList(ChartConstants.M_Y).contains(compareCalc.getType())) {
                         if (StringUtils.equalsIgnoreCase(compareCalc.getField() + "", filterDTO.getFieldId()) && filterDTO.getFilterType() == 0) {
                             // -1 year

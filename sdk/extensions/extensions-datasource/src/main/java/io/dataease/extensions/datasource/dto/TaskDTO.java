@@ -12,7 +12,7 @@ public class TaskDTO implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1175287571828910222L;
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
     private String updateType;
     private String syncRate;

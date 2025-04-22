@@ -32,15 +32,17 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.X509Certificate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 import static io.dataease.result.ResultCode.SYSTEM_INNER_ERROR;
 
 public class HttpClientUtil {
 
-    private static Logger logger = LoggerFactory.getLogger(HttpClientUtil.class);
-
     private static final String HTTPS = "https";
+    private static Logger logger = LoggerFactory.getLogger(HttpClientUtil.class);
 
     /**
      * 根据url构建HttpClient（区分http和https）
@@ -58,8 +60,8 @@ public class HttpClientUtil {
                 builder.loadTrustMaterial(null, (X509Certificate[] x509Certificates, String s) -> true);
                 SSLConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(builder.build(), new String[]{"TLSv1.1", "TLSv1.2", "SSLv3"}, null, NoopHostnameVerifier.INSTANCE);
                 Registry<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create()
-                        .register("http", new PlainConnectionSocketFactory())
-                        .register("https", socketFactory).build();
+                    .register("http", new PlainConnectionSocketFactory())
+                    .register("https", socketFactory).build();
                 HttpClientConnectionManager connManager = new PoolingHttpClientConnectionManager(registry);
                 CloseableHttpClient httpClient = HttpClients.custom().setConnectionManager(connManager).build();
                 return httpClient;

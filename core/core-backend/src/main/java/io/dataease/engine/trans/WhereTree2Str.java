@@ -1,16 +1,16 @@
 package io.dataease.engine.trans;
 
-import io.dataease.extensions.datasource.constant.SqlPlaceholderConstants;
-import io.dataease.extensions.datasource.dto.DatasourceSchemaDTO;
 import io.dataease.api.permissions.dataset.dto.DataSetRowPermissionsTreeDTO;
+import io.dataease.engine.constant.ExtFieldConstant;
+import io.dataease.engine.constant.SQLConstants;
+import io.dataease.engine.utils.Utils;
+import io.dataease.extensions.datasource.constant.SqlPlaceholderConstants;
+import io.dataease.extensions.datasource.dto.DatasetTableFieldDTO;
+import io.dataease.extensions.datasource.dto.DatasourceSchemaDTO;
 import io.dataease.extensions.datasource.model.SQLMeta;
 import io.dataease.extensions.datasource.model.SQLObj;
 import io.dataease.extensions.view.dto.DatasetRowPermissionsTreeItem;
 import io.dataease.extensions.view.dto.DatasetRowPermissionsTreeObj;
-import io.dataease.extensions.datasource.dto.DatasetTableFieldDTO;
-import io.dataease.engine.constant.ExtFieldConstant;
-import io.dataease.engine.constant.SQLConstants;
-import io.dataease.engine.utils.Utils;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -170,9 +170,9 @@ public class WhereTree2Str {
                 }
             }
             SQLObj build = SQLObj.builder()
-                    .whereField(whereName)
-                    .whereTermAndValue(whereTerm + whereValue)
-                    .build();
+                .whereField(whereName)
+                .whereTermAndValue(whereTerm + whereValue)
+                .build();
             res = build.getWhereField() + " " + build.getWhereTermAndValue();
         }
         return res;

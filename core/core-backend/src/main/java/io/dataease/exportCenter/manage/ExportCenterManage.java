@@ -41,10 +41,14 @@ import java.util.concurrent.TimeUnit;
 @Component
 @Transactional(rollbackFor = Exception.class)
 public class ExportCenterManage {
-    @Resource
-    private CoreExportTaskMapper exportTaskMapper;
+    private final static String DATA_URL_TITLE = "data:image/jpeg;base64,";
+    private static final String exportData_path = "/opt/dataease2.0/data/exportData/";
+    private static final String LOG_RETENTION = "30";
+    static private List<String> STATUS = Arrays.asList("SUCCESS", "FAILED", "PENDING", "IN_PROGRESS", "ALL");
     @Resource
     DataVisualizationServer dataVisualizationServer;
+    @Resource
+    private CoreExportTaskMapper exportTaskMapper;
     @Resource
     private CoreChartViewMapper coreChartViewMapper;
     @Autowired
@@ -55,14 +59,10 @@ public class ExportCenterManage {
     private int core;
     @Value("${export.max.size:10}")
     private int max;
-
     @Value("${export.dataset.limit:100000}")
     private int limit;
-    private final static String DATA_URL_TITLE = "data:image/jpeg;base64,";
-    private static final String exportData_path = "/opt/dataease2.0/data/exportData/";
     @Value("${extract.page.size:50000}")
     private Integer extractPageSize;
-    static private List<String> STATUS = Arrays.asList("SUCCESS", "FAILED", "PENDING", "IN_PROGRESS", "ALL");
     private ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
     private int keepAliveSeconds = 600;
     private Map<String, Future> Running_Task = new HashMap<>();
@@ -158,7 +158,7 @@ public class ExportCenterManage {
 
     public void retry(String id) {
         CoreExportTask exportTask = exportTaskMapper.selectById(id);
-        if(!exportTask.getExportStatus().equalsIgnoreCase("FAILED")){
+        if (!exportTask.getExportStatus().equalsIgnoreCase("FAILED")) {
             DEException.throwException("正在导出中!");
         }
         exportTask.setExportStatus("PENDING");
@@ -198,7 +198,8 @@ public class ExportCenterManage {
     }
 
     @XpackInteract(value = "exportCenter", before = false)
-    public void setOrg(ExportTaskDTO exportTaskDTO) {}
+    public void setOrg(ExportTaskDTO exportTaskDTO) {
+    }
 
     private ExportCenterManage proxy() {
         return CommonBeanFactory.getBean(ExportCenterManage.class);
@@ -318,7 +319,6 @@ public class ExportCenterManage {
         Running_Task.put(exportTask.getId(), future);
     }
 
-
     private void setFileSize(String filePath, CoreExportTask exportTask) {
         File file = new File(filePath);
         long length = file.length();
@@ -339,9 +339,6 @@ public class ExportCenterManage {
         exportTask.setFileSize(size);
         exportTask.setFileSizeUnit(unit);
     }
-
-
-    private static final String LOG_RETENTION = "30";
 
     public void cleanLog() {
         String key = "basic.exportFileLiveTime";

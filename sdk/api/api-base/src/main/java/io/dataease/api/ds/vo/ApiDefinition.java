@@ -16,7 +16,7 @@ public class ApiDefinition {
     private String url;
     private String method = "GET";
     private List<TableField> fields;
-    private List<Map<String, Object>> jsonFields =new ArrayList<>();
+    private List<Map<String, Object>> jsonFields = new ArrayList<>();
     private ApiDefinitionRequest request;
     private String status;
     private List<Map<String, Object>> data = new ArrayList<>();

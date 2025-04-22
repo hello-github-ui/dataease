@@ -20,6 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ProviderFactory {
 
+    private static final Map<String, DataEaseDatasourcePlugin> templateMap = new ConcurrentHashMap<>();
+
     public static Provider getProvider(String type) throws DEException {
         List<String> list = Arrays.stream(DatasourceConfiguration.DatasourceType.values()).map(DatasourceConfiguration.DatasourceType::getType).toList();
         if (list.contains(type)) {
@@ -35,9 +37,6 @@ public class ProviderFactory {
     public static Provider getDefaultProvider() {
         return SpringContextUtil.getApplicationContext().getBean("calciteProvider", Provider.class);
     }
-
-
-    private static final Map<String, DataEaseDatasourcePlugin> templateMap = new ConcurrentHashMap<>();
 
     public static Provider getInstance(String type) {
         if (!LicenseUtil.licenseValid()) DEException.throwException("插件功能只对企业版本可用！");

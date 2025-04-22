@@ -74,6 +74,7 @@ import static io.dataease.datasource.server.DatasourceTaskServer.ScheduleType.RI
 @RestController
 @RequestMapping("/datasource")
 public class DatasourceServer implements DatasourceApi {
+    private static final ObjectMapper objectMapper = new ObjectMapper();
     @Resource
     private CoreDatasourceMapper datasourceMapper;
     @Resource
@@ -86,8 +87,6 @@ public class DatasourceServer implements DatasourceApi {
     private DatasourceSyncManage datasourceSyncManage;
     @Resource
     private TaskLogExtMapper taskLogExtMapper;
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-
     @Resource
     private DataSourceManage dataSourceManage;
     @Resource
@@ -106,22 +105,42 @@ public class DatasourceServer implements DatasourceApi {
 
     @Autowired(required = false)
     private PluginManageApi pluginManage;
+    private TypeReference<List<ApiDefinition>> listTypeReference = new TypeReference<List<ApiDefinition>>() {
+    };
+    @Resource
+    private CommonThreadPool commonThreadPool;
+    private boolean isUpdatingStatus = false;
+
+    private static void checkParams(String configurationStr) {
+        DatasourceConfiguration configuration = JsonUtil.parseObject(configurationStr, DatasourceConfiguration.class);
+        if (configuration.getInitialPoolSize() < configuration.getMinPoolSize()) {
+            DEException.throwException("初始连接数不能小于最小连接数！");
+        }
+        if (configuration.getInitialPoolSize() > configuration.getMaxPoolSize()) {
+            DEException.throwException("初始连接数不能大于最大连接数！");
+        }
+        if (configuration.getMaxPoolSize() < configuration.getMinPoolSize()) {
+            DEException.throwException("最大连接数不能小于最小连接数！");
+        }
+        if (configuration.getQueryTimeout() < 0) {
+            DEException.throwException("查询超时不能小于0！");
+        }
+    }
+
+    private static void checkName(List<String> tables) {
+        for (int i = 0; i < tables.size() - 1; i++) {
+            for (int j = i + 1; j < tables.size(); j++) {
+                if (tables.get(i).equalsIgnoreCase(tables.get(j))) {
+                    DEException.throwException(Translator.get("i18n_table_name_repeat") + tables.get(i));
+                }
+            }
+        }
+    }
 
     @Override
     public List<DatasourceDTO> query(String keyWord) {
         return null;
     }
-
-    public enum UpdateType {
-        all_scope, add_scope
-    }
-
-    private TypeReference<List<ApiDefinition>> listTypeReference = new TypeReference<List<ApiDefinition>>() {
-    };
-    @Resource
-    private CommonThreadPool commonThreadPool;
-
-    private boolean isUpdatingStatus = false;
 
     private void getParents(Long pid, List<Long> ids) {
         CoreDatasource parent = datasourceMapper.selectById(pid);// 查找父级folder
@@ -447,32 +466,6 @@ public class DatasourceServer implements DatasourceApi {
         return dataSourceDTO;
     }
 
-    private static void checkParams(String configurationStr) {
-        DatasourceConfiguration configuration = JsonUtil.parseObject(configurationStr, DatasourceConfiguration.class);
-        if (configuration.getInitialPoolSize() < configuration.getMinPoolSize()) {
-            DEException.throwException("初始连接数不能小于最小连接数！");
-        }
-        if (configuration.getInitialPoolSize() > configuration.getMaxPoolSize()) {
-            DEException.throwException("初始连接数不能大于最大连接数！");
-        }
-        if (configuration.getMaxPoolSize() < configuration.getMinPoolSize()) {
-            DEException.throwException("最大连接数不能小于最小连接数！");
-        }
-        if (configuration.getQueryTimeout() < 0) {
-            DEException.throwException("查询超时不能小于0！");
-        }
-    }
-
-    private static void checkName(List<String> tables) {
-        for (int i = 0; i < tables.size() - 1; i++) {
-            for (int j = i + 1; j < tables.size(); j++) {
-                if (tables.get(i).equalsIgnoreCase(tables.get(j))) {
-                    DEException.throwException(Translator.get("i18n_table_name_repeat") + tables.get(i));
-                }
-            }
-        }
-    }
-
     private String excelDataTableName(String name) {
         return StringUtils.substring(name, 6, name.length() - 11);
     }
@@ -657,7 +650,6 @@ public class DatasourceServer implements DatasourceApi {
         }
     }
 
-
     @Override
     public DatasourceDTO validate(Long datasourceId) throws DEException {
         CoreDatasource coreDatasource = new CoreDatasource();
@@ -685,9 +677,9 @@ public class DatasourceServer implements DatasourceApi {
                 cron = "0 0/minute * *  * ? *".replace("minute", interval.toString());
         }
         scheduleManager.addOrUpdateCronJob(new JobKey("Datasource", "check_status"),
-                new TriggerKey("Datasource", "check_status"),
-                CheckDsStatusJob.class,
-                cron, new Date(System.currentTimeMillis()), null, new JobDataMap());
+            new TriggerKey("Datasource", "check_status"),
+            CheckDsStatusJob.class,
+            cron, new Date(System.currentTimeMillis()), null, new JobDataMap());
     }
 
     private DatasourceDTO validate(CoreDatasource coreDatasource) {
@@ -889,7 +881,6 @@ public class DatasourceServer implements DatasourceApi {
         }
     }
 
-
     public void updateDemoDs() {
     }
 
@@ -948,7 +939,6 @@ public class DatasourceServer implements DatasourceApi {
         }
         return pager;
     }
-
 
     public void updateDatasourceStatus() {
         QueryWrapper<CoreDatasource> wrapper = new QueryWrapper<>();
@@ -1016,7 +1006,6 @@ public class DatasourceServer implements DatasourceApi {
         return coreDsFinishPageMapper.selectById(AuthUtils.getUser().getUserId()) == null;
     }
 
-
     public void setShowFinishPage() throws DEException {
         CoreDsFinishPage coreDsFinishPage = new CoreDsFinishPage();
         coreDsFinishPage.setId(AuthUtils.getUser().getUserId());
@@ -1027,5 +1016,9 @@ public class DatasourceServer implements DatasourceApi {
         DatasourceDTO datasourceDTO = new DatasourceDTO();
         BeanUtils.copyBean(datasourceDTO, record);
         return datasourceDTO;
+    }
+
+    public enum UpdateType {
+        all_scope, add_scope
     }
 }

@@ -13,7 +13,7 @@ import java.util.List;
 @Data
 public class TemplateManageRequest extends VisualizationTemplateVO {
     private String sort;
-    private String withBlobs="N";
+    private String withBlobs = "N";
 
     private String optType;
 
@@ -26,7 +26,7 @@ public class TemplateManageRequest extends VisualizationTemplateVO {
     private String categoryId;
 
     private List<String> categories;
-    
+
     private List<String> templateNames;
 
     private List<String> templateArray;
@@ -35,9 +35,9 @@ public class TemplateManageRequest extends VisualizationTemplateVO {
 
     }
 
-    public TemplateManageRequest(String pid,String dvType) {
+    public TemplateManageRequest(String pid, String dvType) {
         super.setPid(pid);
         super.setDvType(dvType);
-        withBlobs="N";
+        withBlobs = "N";
     }
 }

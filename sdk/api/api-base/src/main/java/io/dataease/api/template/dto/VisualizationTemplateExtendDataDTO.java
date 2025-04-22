@@ -1,7 +1,5 @@
 package io.dataease.api.template.dto;
 
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import io.dataease.api.template.vo.VisualizationTemplateExtendDataVO;
 import io.dataease.utils.IDUtils;
 import lombok.Data;

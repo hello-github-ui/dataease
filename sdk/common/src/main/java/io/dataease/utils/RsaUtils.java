@@ -24,25 +24,17 @@ import java.util.Base64;
 @Component
 public class RsaUtils {
 
+    private static final int MAX_ENCRYPT_BLOCK = 117;
+    private static final int MAX_DECRYPT_BLOCK = 128;
+    private static final String PK_SEPARATOR = "-pk_separator-";
+    private static final String IV_KEY = "0000000000000000";
+    private static RsaManage rsaManage;
+
     static {
         if (ObjectUtils.isNotEmpty(Security.getProvider("BC"))) {
             Security.removeProvider("BC");
         }
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-    }
-
-
-    private static final int MAX_ENCRYPT_BLOCK = 117;
-
-    private static final int MAX_DECRYPT_BLOCK = 128;
-
-    private static final String PK_SEPARATOR = "-pk_separator-";
-
-    private static RsaManage rsaManage;
-
-    @Resource
-    public void setRsaManage(RsaManage rsaManage) {
-        RsaUtils.rsaManage = rsaManage;
     }
 
     private static KeyPair getKeyPair() {
@@ -176,8 +168,6 @@ public class RsaUtils {
         return pk + separator + aesKey;
     }
 
-    private static final String IV_KEY = "0000000000000000";
-
     private static String generateAesKey() {
         return RandomStringUtils.randomAlphanumeric(16);
     }
@@ -199,5 +189,10 @@ public class RsaUtils {
             throw new RuntimeException(e);
         }
 
+    }
+
+    @Resource
+    public void setRsaManage(RsaManage rsaManage) {
+        RsaUtils.rsaManage = rsaManage;
     }
 }

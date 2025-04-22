@@ -1,7 +1,5 @@
 package io.dataease.chart.charts.impl.pie;
 
-import io.dataease.chart.charts.impl.DefaultChartHandler;
-import io.dataease.chart.charts.impl.ExtQuotaChartHandler;
 import io.dataease.chart.charts.impl.YoyChartHandler;
 import io.dataease.extensions.view.dto.AxisFormatResult;
 import io.dataease.extensions.view.dto.ChartAxis;

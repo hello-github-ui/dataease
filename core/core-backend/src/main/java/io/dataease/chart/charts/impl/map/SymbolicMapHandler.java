@@ -46,9 +46,9 @@ public class SymbolicMapHandler extends GroupChartHandler {
 
     private Map<String, Object> customBuildResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data, List<ChartViewFieldDTO> detailFields, List<String[]> detailData) {
         boolean isDrill = filterResult
-                .getFilterList()
-                .stream()
-                .anyMatch(ele -> ele.getFilterType() == 1);
+            .getFilterList()
+            .stream()
+            .anyMatch(ele -> ele.getFilterType() == 1);
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
         var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);
         Map<String, Object> result = ChartDataBuild.transSymbolicMapNormalWithDetail(xAxis, yAxis, data, detailFields, detailData);
@@ -93,7 +93,7 @@ public class SymbolicMapHandler extends GroupChartHandler {
             String sql = (String) sqlMap.get("sql");
             sql = Utils.replaceSchemaAlias(sql, dsMap);
             SQLMeta sqlMeta2 = new SQLMeta();
-            Table2SQLObj.table2sqlobj(sqlMeta2, null, "(" +  sql + ")", crossDs);
+            Table2SQLObj.table2sqlobj(sqlMeta2, null, "(" + sql + ")", crossDs);
             Field2SQLObj.field2sqlObj(sqlMeta2, allFieldsTmp, allFieldsTmp, crossDs, dsMap);
             String querySQL;
             querySQL = SQLProvider.createQuerySQL(sqlMeta2, false, needOrder, false);

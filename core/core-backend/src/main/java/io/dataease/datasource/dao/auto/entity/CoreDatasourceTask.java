@@ -3,11 +3,12 @@ package io.dataease.datasource.dao.auto.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author fit2cloud
@@ -227,22 +228,22 @@ public class CoreDatasourceTask implements Serializable {
     @Override
     public String toString() {
         return "CoreDatasourceTask{" +
-        "id = " + id +
-        ", dsId = " + dsId +
-        ", name = " + name +
-        ", updateType = " + updateType +
-        ", startTime = " + startTime +
-        ", syncRate = " + syncRate +
-        ", cron = " + cron +
-        ", simpleCronValue = " + simpleCronValue +
-        ", simpleCronType = " + simpleCronType +
-        ", endLimit = " + endLimit +
-        ", endTime = " + endTime +
-        ", createTime = " + createTime +
-        ", lastExecTime = " + lastExecTime +
-        ", lastExecStatus = " + lastExecStatus +
-        ", extraData = " + extraData +
-        ", taskStatus = " + taskStatus +
-        "}";
+            "id = " + id +
+            ", dsId = " + dsId +
+            ", name = " + name +
+            ", updateType = " + updateType +
+            ", startTime = " + startTime +
+            ", syncRate = " + syncRate +
+            ", cron = " + cron +
+            ", simpleCronValue = " + simpleCronValue +
+            ", simpleCronType = " + simpleCronType +
+            ", endLimit = " + endLimit +
+            ", endTime = " + endTime +
+            ", createTime = " + createTime +
+            ", lastExecTime = " + lastExecTime +
+            ", lastExecStatus = " + lastExecStatus +
+            ", extraData = " + extraData +
+            ", taskStatus = " + taskStatus +
+            "}";
     }
 }

@@ -4,7 +4,7 @@ import java.io.Serializable;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author fit2cloud
@@ -69,10 +69,10 @@ public class Area implements Serializable {
     @Override
     public String toString() {
         return "Area{" +
-        "id = " + id +
-        ", level = " + level +
-        ", name = " + name +
-        ", pid = " + pid +
-        "}";
+            "id = " + id +
+            ", level = " + level +
+            ", name = " + name +
+            ", pid = " + pid +
+            "}";
     }
 }

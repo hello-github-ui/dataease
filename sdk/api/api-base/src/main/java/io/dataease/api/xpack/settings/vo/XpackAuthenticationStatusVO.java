@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.io.Serial;
 import java.io.Serializable;
+
 @Schema(description = "状态VO")
 @Data
 public class XpackAuthenticationStatusVO implements Serializable {

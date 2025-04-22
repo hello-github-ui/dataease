@@ -1,13 +1,13 @@
 package io.dataease.engine.trans;
 
+import io.dataease.engine.constant.SQLConstants;
+import io.dataease.engine.utils.Utils;
 import io.dataease.extensions.datasource.constant.SqlPlaceholderConstants;
+import io.dataease.extensions.datasource.dto.DatasetTableFieldDTO;
 import io.dataease.extensions.datasource.dto.DatasourceSchemaDTO;
 import io.dataease.extensions.datasource.model.SQLMeta;
 import io.dataease.extensions.datasource.model.SQLObj;
 import io.dataease.extensions.view.dto.ChartExtFilterDTO;
-import io.dataease.extensions.datasource.dto.DatasetTableFieldDTO;
-import io.dataease.engine.constant.SQLConstants;
-import io.dataease.engine.utils.Utils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -123,8 +123,8 @@ public class ExtWhere2Str {
                 } else if (StringUtils.containsIgnoreCase(request.getOperator(), "between")) {
                     if (request.getDatasetTableField().getDeType() == 1) {
                         if (request.getDatasetTableField().getDeExtractType() == 2
-                                || request.getDatasetTableField().getDeExtractType() == 3
-                                || request.getDatasetTableField().getDeExtractType() == 4) {
+                            || request.getDatasetTableField().getDeExtractType() == 3
+                            || request.getDatasetTableField().getDeExtractType() == 4) {
                             whereValue = String.format(SQLConstants.WHERE_VALUE_BETWEEN, value.get(0), value.get(1));
                         } else {
                             whereName = String.format(SQLConstants.UNIX_TIMESTAMP, whereName);
@@ -142,9 +142,9 @@ public class ExtWhere2Str {
                     }
                 }
                 list.add(SQLObj.builder()
-                        .whereField(whereName)
-                        .whereTermAndValue(whereTerm + whereValue)
-                        .build());
+                    .whereField(whereName)
+                    .whereTermAndValue(whereTerm + whereValue)
+                    .build());
             }
             List<String> strList = new ArrayList<>();
             list.forEach(ele -> strList.add("(" + ele.getWhereField() + " " + ele.getWhereTermAndValue() + ")"));

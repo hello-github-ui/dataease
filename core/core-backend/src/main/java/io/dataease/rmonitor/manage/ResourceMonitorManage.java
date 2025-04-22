@@ -79,7 +79,7 @@ public class ResourceMonitorManage {
     }
 
     private String convertBusiFlag(String key) {
-        if (StringUtils.equals("dashboard", key)){
+        if (StringUtils.equals("dashboard", key)) {
             return "panel";
         } else if (StringUtils.equals("dataV", key)) {
             return "screen";

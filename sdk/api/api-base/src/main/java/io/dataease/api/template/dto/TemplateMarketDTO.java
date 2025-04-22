@@ -46,7 +46,7 @@ public class TemplateMarketDTO implements Comparable<TemplateMarketDTO> {
         this.id = manageDTO.getId();
         this.title = manageDTO.getName();
         this.mainCategory = manageDTO.getCategoryName();
-        this.categories = manageDTO.getCategoryNames().stream().map(category->new MarketCategoryVO(category)).collect(Collectors.toList());
+        this.categories = manageDTO.getCategoryNames().stream().map(category -> new MarketCategoryVO(category)).collect(Collectors.toList());
         this.categoryNames = manageDTO.getCategoryNames();
         this.metas = new MarketMetasVO(manageDTO.getSnapshot());
         this.templateType = "dataV".equalsIgnoreCase(manageDTO.getDvType()) ? "SCREEN" : "PANEL";
@@ -66,8 +66,8 @@ public class TemplateMarketDTO implements Comparable<TemplateMarketDTO> {
         this.metas = new MarketMetasVO(templateUrl);
         this.thumbnail = themeRepo;
         this.templateType = templateType;
-        this.categories = new ArrayList<>(Arrays.asList(new MarketCategoryVO(categoryName))) ;
-        this.categoryNames = new ArrayList<>(Arrays.asList(categoryName)) ;
+        this.categories = new ArrayList<>(Arrays.asList(new MarketCategoryVO(categoryName)));
+        this.categoryNames = new ArrayList<>(Arrays.asList(categoryName));
         if (recentUseTime != null) {
             this.recentUseTime = recentUseTime;
             this.categories.add(new MarketCategoryVO("最近使用"));

@@ -19,10 +19,9 @@ import java.lang.reflect.Method;
 @Component
 public class DeTrafficAop {
 
+    final private static String errorMsg = "当前API【%s】设定并发阈值为【%s】，现已经达到限流阈值，请稍后再试！";
     @Resource
     private CoreApiTrafficMapper coreApiTrafficMapper;
-
-    final private static String errorMsg = "当前API【%s】设定并发阈值为【%s】，现已经达到限流阈值，请稍后再试！";
 
     @Around(value = "@annotation(io.dataease.traffic.DeTraffic)")
     public Object trafficAround(ProceedingJoinPoint point) throws Throwable {

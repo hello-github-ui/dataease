@@ -35,6 +35,7 @@ public interface ResourceMonitorMapper {
 
     @Delete("delete from core_dataset_group")
     void delFreeDataset();
+
     @Delete("delete from data_visualization_info")
     void delFreeVisual();
 

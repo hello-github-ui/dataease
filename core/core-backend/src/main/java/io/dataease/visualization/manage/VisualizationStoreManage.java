@@ -86,10 +86,10 @@ public class VisualizationStoreManage {
     public List<VisualizationStoreVO> formatResult(List<StorePO> pos) {
         if (CollectionUtils.isEmpty(pos)) return new ArrayList<>();
         return pos.stream().map(po ->
-                new VisualizationStoreVO(
-                        po.getStoreId(), po.getResourceId(), po.getName(),
-                        po.getType(), String.valueOf(po.getCreator()), ObjectUtils.isEmpty(po.getEditor()) ? null : String.valueOf(po.getEditor()),
-                        po.getEditTime(), 9,po.getExtFlag())).toList();
+            new VisualizationStoreVO(
+                po.getStoreId(), po.getResourceId(), po.getName(),
+                po.getType(), String.valueOf(po.getCreator()), ObjectUtils.isEmpty(po.getEditor()) ? null : String.valueOf(po.getEditor()),
+                po.getEditTime(), 9, po.getExtFlag())).toList();
     }
 
     public IPage<StorePO> queryStorePage(int goPage, int pageSize, VisualizationWorkbranchQueryRequest request) {

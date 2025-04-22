@@ -15,7 +15,8 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.*;
+import java.util.Base64;
+import java.util.List;
 
 @RestController
 @RequestMapping("/engine")
@@ -45,18 +46,18 @@ public class EngineServer implements EngineApi {
         }
         CoreDeEngine coreDeEngine = new CoreDeEngine();
         BeanUtils.copyBean(coreDeEngine, datasourceDTO);
-        if(coreDeEngine.getId() == null){
+        if (coreDeEngine.getId() == null) {
             coreDeEngine.setId(IDUtils.snowID());
             datasourceDTO.setId(coreDeEngine.getId());
             deEngineMapper.insert(coreDeEngine);
-        }else {
+        } else {
             deEngineMapper.updateById(coreDeEngine);
         }
         calciteProvider.update(datasourceDTO);
     }
 
     @Override
-    public void validate(DatasourceDTO datasourceDTO) throws Exception{
+    public void validate(DatasourceDTO datasourceDTO) throws Exception {
         CoreDeEngine coreDeEngine = new CoreDeEngine();
         BeanUtils.copyBean(coreDeEngine, datasourceDTO);
         coreDeEngine.setConfiguration(new String(Base64.getDecoder().decode(coreDeEngine.getConfiguration())));

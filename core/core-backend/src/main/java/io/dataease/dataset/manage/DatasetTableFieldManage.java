@@ -236,10 +236,10 @@ public class DatasetTableFieldManage {
         Map<String, ColumnPermissionItem> desensitizationList = new HashMap<>();
         Long userId = AuthUtils.getUser() == null ? null : AuthUtils.getUser().getUserId();
         List<DatasetTableFieldDTO> tmp = permissionManage
-                .filterColumnPermissions(fields, desensitizationList, id, userId)
-                .stream()
-                .sorted(Comparator.comparing(DatasetTableFieldDTO::getGroupType))
-                .toList();
+            .filterColumnPermissions(fields, desensitizationList, id, userId)
+            .stream()
+            .sorted(Comparator.comparing(DatasetTableFieldDTO::getGroupType))
+            .toList();
         tmp.forEach(ele -> ele.setDesensitized(desensitizationList.containsKey(ele.getDataeaseName())));
         return tmp;
     }
@@ -251,23 +251,23 @@ public class DatasetTableFieldManage {
         SQLObj tableObj = new SQLObj();
         tableObj.setTableAlias("");
         List<DatasetTableFieldDTO> tmp = permissionManage
-                .filterColumnPermissions(fields, desensitizationList, id, userId)
-                .stream()
-                .filter(ele -> {
-                    boolean flag = true;
-                    if (Objects.equals(ele.getExtField(), ExtFieldConstant.EXT_CALC)) {
-                        String originField = Utils.calcFieldRegex(ele.getOriginName(), tableObj, fields, true, null);
-                        for (String func : FunctionConstant.AGG_FUNC) {
-                            if (Utils.matchFunction(func, originField)) {
-                                flag = false;
-                                break;
-                            }
+            .filterColumnPermissions(fields, desensitizationList, id, userId)
+            .stream()
+            .filter(ele -> {
+                boolean flag = true;
+                if (Objects.equals(ele.getExtField(), ExtFieldConstant.EXT_CALC)) {
+                    String originField = Utils.calcFieldRegex(ele.getOriginName(), tableObj, fields, true, null);
+                    for (String func : FunctionConstant.AGG_FUNC) {
+                        if (Utils.matchFunction(func, originField)) {
+                            flag = false;
+                            break;
                         }
                     }
-                    return flag;
-                })
-                .sorted(Comparator.comparing(DatasetTableFieldDTO::getGroupType))
-                .toList();
+                }
+                return flag;
+            })
+            .sorted(Comparator.comparing(DatasetTableFieldDTO::getGroupType))
+            .toList();
         tmp.forEach(ele -> ele.setDesensitized(desensitizationList.containsKey(ele.getDataeaseName())));
         return tmp;
     }

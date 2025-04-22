@@ -40,6 +40,7 @@ public interface LoginApi {
     @ApiOperationSupport(order = 3)
     @PostMapping("/login/platformLogin/{origin}")
     TokenVO platformLogin(@PathVariable("origin") Integer origin);
+
     @Operation(summary = "登出")
     @ApiOperationSupport(order = 4)
     @GetMapping("/logout")

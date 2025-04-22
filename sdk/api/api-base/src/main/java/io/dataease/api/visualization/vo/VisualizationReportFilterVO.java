@@ -1,12 +1,10 @@
 package io.dataease.api.visualization.vo;
 
-import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author fit2cloud
@@ -161,17 +159,17 @@ public class VisualizationReportFilterVO implements Serializable {
     @Override
     public String toString() {
         return "VisualizationReportFilter{" +
-                "id = " + id +
-                ", reportId = " + reportId +
-                ", taskId = " + taskId +
-                ", resourceId = " + resourceId +
-                ", dvType = " + dvType +
-                ", componentId = " + componentId +
-                ", filterId = " + filterId +
-                ", filterInfo = " + filterInfo +
-                ", filterVersion = " + filterVersion +
-                ", createTime = " + createTime +
-                ", createUser = " + createUser +
-                "}";
+            "id = " + id +
+            ", reportId = " + reportId +
+            ", taskId = " + taskId +
+            ", resourceId = " + resourceId +
+            ", dvType = " + dvType +
+            ", componentId = " + componentId +
+            ", filterId = " + filterId +
+            ", filterInfo = " + filterInfo +
+            ", filterVersion = " + filterVersion +
+            ", createTime = " + createTime +
+            ", createUser = " + createUser +
+            "}";
     }
 }

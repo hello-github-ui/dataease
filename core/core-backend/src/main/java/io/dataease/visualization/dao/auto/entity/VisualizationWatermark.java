@@ -1,6 +1,7 @@
 package io.dataease.visualization.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
@@ -84,11 +85,11 @@ public class VisualizationWatermark implements Serializable {
     @Override
     public String toString() {
         return "VisualizationWatermark{" +
-        "id = " + id +
-        ", version = " + version +
-        ", settingContent = " + settingContent +
-        ", createBy = " + createBy +
-        ", createTime = " + createTime +
-        "}";
+            "id = " + id +
+            ", version = " + version +
+            ", settingContent = " + settingContent +
+            ", createBy = " + createBy +
+            ", createTime = " + createTime +
+            "}";
     }
 }

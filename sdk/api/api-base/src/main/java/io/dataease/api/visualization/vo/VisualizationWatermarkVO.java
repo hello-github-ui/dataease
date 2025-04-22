@@ -1,6 +1,6 @@
 package io.dataease.api.visualization.vo;
 
-public class VisualizationWatermarkVO{
+public class VisualizationWatermarkVO {
 
     /**
      * 主键
@@ -70,11 +70,11 @@ public class VisualizationWatermarkVO{
     @Override
     public String toString() {
         return "VisualizationWatermark{" +
-        "id = " + id +
-        ", version = " + version +
-        ", settingContent = " + settingContent +
-        ", createBy = " + createBy +
-        ", createTime = " + createTime +
-        "}";
+            "id = " + id +
+            ", version = " + version +
+            ", settingContent = " + settingContent +
+            ", createBy = " + createBy +
+            ", createTime = " + createTime +
+            "}";
     }
 }

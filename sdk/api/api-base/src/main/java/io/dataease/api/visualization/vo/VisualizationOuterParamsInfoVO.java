@@ -1,7 +1,5 @@
 package io.dataease.api.visualization.vo;
 
-import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
@@ -97,12 +95,12 @@ public class VisualizationOuterParamsInfoVO implements Serializable {
     @Override
     public String toString() {
         return "VisualizationOuterParamsInfo{" +
-        "paramsInfoId = " + paramsInfoId +
-        ", paramsId = " + paramsId +
-        ", paramName = " + paramName +
-        ", checked = " + checked +
-        ", copyFrom = " + copyFrom +
-        ", copyId = " + copyId +
-        "}";
+            "paramsInfoId = " + paramsInfoId +
+            ", paramsId = " + paramsId +
+            ", paramName = " + paramName +
+            ", checked = " + checked +
+            ", copyFrom = " + copyFrom +
+            ", copyId = " + copyId +
+            "}";
     }
 }

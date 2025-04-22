@@ -1,7 +1,7 @@
 package io.dataease.visualization.dao.auto.mapper;
 
-import io.dataease.visualization.dao.auto.entity.VisualizationWatermark;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import io.dataease.visualization.dao.auto.entity.VisualizationWatermark;
 import org.apache.ibatis.annotations.Mapper;
 
 /**

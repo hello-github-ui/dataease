@@ -57,6 +57,8 @@ import static io.dataease.chart.manage.ChartDataManage.START_END_SEPARATOR;
  */
 @Component
 public class DatasetDataManage {
+    private static final List<String> notFullDs = List.of("mysql", "mariadb", "Excel", "API");
+    private static Logger logger = LoggerFactory.getLogger(DatasetDataManage.class);
     @Resource
     private DatasetSQLManage datasetSQLManage;
     @Resource
@@ -73,10 +75,6 @@ public class DatasetDataManage {
     private DatasetTableSqlLogManage datasetTableSqlLogManage;
     @Autowired(required = false)
     private PluginManageApi pluginManage;
-
-    private static Logger logger = LoggerFactory.getLogger(DatasetDataManage.class);
-
-    private static final List<String> notFullDs = List.of("mysql", "mariadb", "Excel", "API");
 
     public List<DatasetTableFieldDTO> getTableFields(DatasetTableDTO datasetTableDTO) throws Exception {
         List<DatasetTableFieldDTO> list = null;
@@ -116,7 +114,7 @@ public class DatasetDataManage {
                 sql = provider.replaceTablePlaceHolder(sql, originSql);
             }
             datasourceRequest.setQuery(sql.replaceAll("\r\n", " ")
-                    .replaceAll("\n", " "));
+                .replaceAll("\n", " "));
             logger.info("calcite data table field sql: " + datasourceRequest.getQuery());
             // 获取数据源表的原始字段
             if (StringUtils.equalsIgnoreCase(type, DatasetTableType.DB)) {
@@ -395,7 +393,7 @@ public class DatasetDataManage {
                             obj.put(fields.get(j).getDataeaseName(), ChartDataBuild.desensitizationValue(desensitizationList.get(fields.get(j).getDataeaseName()), String.valueOf(row[j])));
                         } else {
                             obj.put(ObjectUtils.isNotEmpty(fields.get(j).getDataeaseName()) ?
-                                    fields.get(j).getDataeaseName() : fields.get(j).getOriginName(), row[j]);
+                                fields.get(j).getDataeaseName() : fields.get(j).getOriginName(), row[j]);
                         }
                     }
                 }
@@ -417,7 +415,7 @@ public class DatasetDataManage {
                 if (Objects.equals(datasetTableFieldDTO.getExtField(), ExtFieldConstant.EXT_NORMAL)) {
                     for (DatasetTableFieldDTO fieldDTO : unionFields) {
                         if (Objects.equals(datasetTableFieldDTO.getDatasetTableId(), fieldDTO.getDatasetTableId())
-                                && Objects.equals(datasetTableFieldDTO.getOriginName(), fieldDTO.getOriginName())) {
+                            && Objects.equals(datasetTableFieldDTO.getOriginName(), fieldDTO.getOriginName())) {
                             datasetTableFieldDTO.setDataeaseName(fieldDTO.getDataeaseName());
                             datasetTableFieldDTO.setFieldShortName(fieldDTO.getFieldShortName());
                         }

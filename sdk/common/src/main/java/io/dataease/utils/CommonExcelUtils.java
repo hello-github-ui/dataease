@@ -22,7 +22,7 @@ import java.util.Map;
 
 public class CommonExcelUtils {
 
-    public static void writeExcel(HttpServletResponse response, List objects, Class clazz,List<Map<Integer, String>> errMsgList, String fileName) throws IOException {
+    public static void writeExcel(HttpServletResponse response, List objects, Class clazz, List<Map<Integer, String>> errMsgList, String fileName) throws IOException {
         String sheetName = fileName;
         writeExcel(response, objects, clazz, errMsgList, fileName, sheetName);
     }

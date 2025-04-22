@@ -27,6 +27,7 @@ public class SubstituteUserServer {
         result.put("language", "zh-CN");
         return result;
     }
+
     @GetMapping("/personInfo")
     public UserFormVO personInfo() {
         UserFormVO userFormVO = new UserFormVO();

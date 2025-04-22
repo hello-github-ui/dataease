@@ -53,7 +53,7 @@ public class VisualizationLinkageService implements VisualizationLinkageApi {
     public Map<String, VisualizationLinkageDTO> getViewLinkageGather(VisualizationLinkageRequest request) {
         if (CollectionUtils.isNotEmpty(request.getTargetViewIds())) {
             List<VisualizationLinkageDTO> linkageDTOList = extVisualizationLinkageMapper.getViewLinkageGather(request.getDvId(), request.getSourceViewId(), request.getTargetViewIds());
-            return linkageDTOList.stream().collect(Collectors.toMap(targetViewId ->String.valueOf(targetViewId), PanelViewLinkageDTO -> PanelViewLinkageDTO));
+            return linkageDTOList.stream().collect(Collectors.toMap(targetViewId -> String.valueOf(targetViewId), PanelViewLinkageDTO -> PanelViewLinkageDTO));
         }
         return new HashMap<>();
     }
@@ -67,7 +67,7 @@ public class VisualizationLinkageService implements VisualizationLinkageApi {
     @Transactional
     public BaseRspModel saveLinkage(VisualizationLinkageRequest request) {
         Long updateTime = System.currentTimeMillis();
-        List<VisualizationLinkageDTO> linkageInfo =  request.getLinkageInfo();
+        List<VisualizationLinkageDTO> linkageInfo = request.getLinkageInfo();
         Long sourceViewId = request.getSourceViewId();
         Long dvId = request.getDvId();
 
@@ -79,9 +79,9 @@ public class VisualizationLinkageService implements VisualizationLinkageApi {
         extVisualizationLinkageMapper.deleteViewLinkage(dvId, sourceViewId);
 
         //重新建立关系
-        for (VisualizationLinkageDTO linkageDTO:linkageInfo) {
+        for (VisualizationLinkageDTO linkageDTO : linkageInfo) {
             //去掉source view 的信息
-            if(sourceViewId.equals(linkageDTO.getTargetViewId())){
+            if (sourceViewId.equals(linkageDTO.getTargetViewId())) {
                 continue;
             }
             List<VisualizationLinkageFieldVO> linkageFields = linkageDTO.getLinkageFields();
@@ -101,7 +101,7 @@ public class VisualizationLinkageService implements VisualizationLinkageApi {
                     linkageField.setLinkageId(linkageId);
                     linkageField.setUpdateTime(updateTime);
                     VisualizationLinkageField fieldInsert = new VisualizationLinkageField();
-                    visualizationLinkageFieldMapper.insert(BeanUtils.copyBean(fieldInsert,linkageField));
+                    visualizationLinkageFieldMapper.insert(BeanUtils.copyBean(fieldInsert, linkageField));
                 });
             }
         }

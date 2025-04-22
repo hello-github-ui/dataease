@@ -2,7 +2,7 @@
 #*.class
 #
 ## Log file
-#*.log
+*.log
 #
 ## BlueJ files
 #*.ctxt
@@ -20,14 +20,14 @@
 #*.rar
 .idea/
 target/
-#.vscode/
+.vscode/
 #.lh/
-#*.iml
-#hs_err_pid*
-#node_modules/
+*.iml
+hs_err_pid*
+node_modules/
 #dist/
-#package-lock.json
-#.DS_Store
+package-lock.json
+.DS_Store
 #.stylelintcache
 #core/core-frontend/release/
 #plugins/vite-test

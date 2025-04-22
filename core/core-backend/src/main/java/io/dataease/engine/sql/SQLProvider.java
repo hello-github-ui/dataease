@@ -1,9 +1,9 @@
 package io.dataease.engine.sql;
 
+import io.dataease.engine.constant.SQLConstants;
 import io.dataease.extensions.datasource.model.SQLMeta;
 import io.dataease.extensions.datasource.model.SQLObj;
 import io.dataease.extensions.view.dto.ChartViewDTO;
-import io.dataease.engine.constant.SQLConstants;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.stringtemplate.v4.ST;
@@ -59,9 +59,9 @@ public class SQLProvider {
                 xOrders = new ArrayList<>();
                 SQLObj sqlObj = xFields.get(0);
                 SQLObj result = SQLObj.builder()
-                        .orderField(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
-                        .orderAlias(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
-                        .orderDirection("ASC").build();
+                    .orderField(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
+                    .orderAlias(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
+                    .orderDirection("ASC").build();
                 xOrders.add(result);
             }
         }
@@ -104,9 +104,9 @@ public class SQLProvider {
         st_sql.add("isGroup", isGroup);
 
         SQLObj tableSQL = SQLObj.builder()
-                .tableName(String.format(SQLConstants.BRACKETS, sql))
-                .tableAlias(String.format(SQLConstants.TABLE_ALIAS_PREFIX, 1))
-                .build();
+            .tableName(String.format(SQLConstants.BRACKETS, sql))
+            .tableAlias(String.format(SQLConstants.TABLE_ALIAS_PREFIX, 1))
+            .build();
         if (ObjectUtils.isNotEmpty(tableSQL)) st.add("table", tableSQL);
 
         List<String> aggWheres = new ArrayList<>();
@@ -121,9 +121,9 @@ public class SQLProvider {
             if (ObjectUtils.isNotEmpty(xFields) || ObjectUtils.isNotEmpty(yFields)) {
                 SQLObj sqlObj = ObjectUtils.isNotEmpty(xFields) ? xFields.get(0) : yFields.get(0);
                 SQLObj result = SQLObj.builder()
-                        .orderField(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
-                        .orderAlias(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
-                        .orderDirection("ASC").build();
+                    .orderField(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
+                    .orderAlias(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
+                    .orderDirection("ASC").build();
                 orders.add(result);
             }
         }

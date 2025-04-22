@@ -17,6 +17,33 @@ public class ScheduleManager {
     @Resource
     private Scheduler scheduler;
 
+    public static void startJobs(Scheduler sched) {
+        try {
+            sched.start();
+        } catch (Exception e) {
+            LogUtil.error(e.getMessage(), e);
+            DEException.throwException(e);
+        }
+    }
+
+    public static CronTrigger getCronTrigger(String cron) {
+        if (!CronExpression.isValidExpression(cron)) {
+            String msg = Translator.get("I18N_CRON_ERROR");
+            DEException.throwException(msg + " : " + cron);
+        }
+        return TriggerBuilder.newTrigger().withIdentity("Calculate Date")
+            .withSchedule(CronScheduleBuilder.cronSchedule(cron)).build();
+
+    }
+
+    public static Date getNTimeByCron(String cron, Date start) {
+        CronTrigger trigger = getCronTrigger(cron);
+        if (start == null) {
+            start = trigger.getStartTime();
+        }
+        return trigger.getFireTimeAfter(start);
+    }
+
     /**
      * 添加 simpleJob
      *
@@ -39,15 +66,15 @@ public class ScheduleManager {
         JobDetail jd = jobBuilder.build();
 
         SimpleTrigger trigger = TriggerBuilder.newTrigger().withIdentity(triggerKey)
-                .withSchedule(
-                        SimpleScheduleBuilder.simpleSchedule().withIntervalInHours(repeatIntervalTime).repeatForever())
-                .startNow().build();
+            .withSchedule(
+                SimpleScheduleBuilder.simpleSchedule().withIntervalInHours(repeatIntervalTime).repeatForever())
+            .startNow().build();
 
         scheduler.scheduleJob(jd, trigger);
     }
 
     public void addSimpleJob(JobKey jobKey, TriggerKey triggerKey, Class<? extends Job> cls, int repeatIntervalTime)
-            throws SchedulerException {
+        throws SchedulerException {
         addSimpleJob(jobKey, triggerKey, cls, repeatIntervalTime);
     }
 
@@ -143,7 +170,7 @@ public class ScheduleManager {
      * @throws SchedulerException
      */
     public void modifyCronJobTime(TriggerKey triggerKey, String cron, Date startTime, Date endTime)
-            throws SchedulerException {
+        throws SchedulerException {
 
         LogUtil.info("modifyCronJobTime: " + triggerKey.getName() + "," + triggerKey.getGroup());
 
@@ -281,15 +308,6 @@ public class ScheduleManager {
         }
     }
 
-    public static void startJobs(Scheduler sched) {
-        try {
-            sched.start();
-        } catch (Exception e) {
-            LogUtil.error(e.getMessage(), e);
-            DEException.throwException(e);
-        }
-    }
-
     public void shutdownJobs(Scheduler sched) {
         try {
             if (!sched.isShutdown()) {
@@ -341,7 +359,7 @@ public class ScheduleManager {
     }
 
     public void addOrUpdateSimpleJob(JobKey jobKey, TriggerKey triggerKey, Class clz, int intervalTime)
-            throws SchedulerException {
+        throws SchedulerException {
         addOrUpdateSimpleJob(jobKey, triggerKey, clz, intervalTime, null);
     }
 
@@ -400,24 +418,6 @@ public class ScheduleManager {
         }
 
         return returnMap;
-    }
-
-    public static CronTrigger getCronTrigger(String cron) {
-        if (!CronExpression.isValidExpression(cron)) {
-            String msg = Translator.get("I18N_CRON_ERROR");
-            DEException.throwException(msg + " : " + cron);
-        }
-        return TriggerBuilder.newTrigger().withIdentity("Calculate Date")
-                .withSchedule(CronScheduleBuilder.cronSchedule(cron)).build();
-
-    }
-
-    public static Date getNTimeByCron(String cron, Date start) {
-        CronTrigger trigger = getCronTrigger(cron);
-        if (start == null) {
-            start = trigger.getStartTime();
-        }
-        return trigger.getFireTimeAfter(start);
     }
 
     public void fireNow(String jobName, String jobGroup) throws SchedulerException {

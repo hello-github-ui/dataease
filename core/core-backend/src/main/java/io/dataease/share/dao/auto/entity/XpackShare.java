@@ -1,6 +1,7 @@
 package io.dataease.share.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
@@ -162,17 +163,17 @@ public class XpackShare implements Serializable {
     @Override
     public String toString() {
         return "XpackShare{" +
-        "id = " + id +
-        ", creator = " + creator +
-        ", time = " + time +
-        ", exp = " + exp +
-        ", uuid = " + uuid +
-        ", pwd = " + pwd +
-        ", resourceId = " + resourceId +
-        ", oid = " + oid +
-        ", type = " + type +
-        ", autoPwd = " + autoPwd +
-        ", ticketRequire = " + ticketRequire +
-        "}";
+            "id = " + id +
+            ", creator = " + creator +
+            ", time = " + time +
+            ", exp = " + exp +
+            ", uuid = " + uuid +
+            ", pwd = " + pwd +
+            ", resourceId = " + resourceId +
+            ", oid = " + oid +
+            ", type = " + type +
+            ", autoPwd = " + autoPwd +
+            ", ticketRequire = " + ticketRequire +
+            "}";
     }
 }

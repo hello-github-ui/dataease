@@ -23,7 +23,6 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -38,6 +37,30 @@ import java.util.Map;
 public class StaticResourceServer implements StaticResourceApi {
 
     private final Path staticDir = Paths.get("/opt/dataease2.0/data/static-resource/");
+
+    private static boolean isValidSVG(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return false;
+        }
+
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        dbf.setNamespaceAware(true);
+
+        try (InputStream inputStream = file.getInputStream()) {
+            DocumentBuilder db = dbf.newDocumentBuilder();
+            Document doc = db.parse(inputStream);
+
+            // 检查根元素是否是<svg>
+            if ("svg".equals(doc.getDocumentElement().getNodeName())) {
+                return true;
+            } else {
+                return false;
+            }
+        } catch (ParserConfigurationException | SAXException | IOException e) {
+            // 如果出现任何解析错误，说明该文件不是合法的SVG
+            return false;
+        }
+    }
 
     @Override
     public void upload(String fileId, MultipartFile file) {
@@ -72,7 +95,7 @@ public class StaticResourceServer implements StaticResourceApi {
             return false;
         }
         // 判断是否为SVG
-        if(isValidSVG(file)){
+        if (isValidSVG(file)) {
             return true;
         }
         // 判断其他图片
@@ -125,29 +148,5 @@ public class StaticResourceServer implements StaticResourceApi {
     @Override
     public Map<String, String> urlTest() {
         return null;
-    }
-
-    private static boolean isValidSVG(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            return false;
-        }
-
-        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-        dbf.setNamespaceAware(true);
-
-        try (InputStream inputStream = file.getInputStream()) {
-            DocumentBuilder db = dbf.newDocumentBuilder();
-            Document doc = db.parse(inputStream);
-
-            // 检查根元素是否是<svg>
-            if ("svg".equals(doc.getDocumentElement().getNodeName())) {
-                return true;
-            } else {
-                return false;
-            }
-        } catch (ParserConfigurationException | SAXException | IOException e) {
-            // 如果出现任何解析错误，说明该文件不是合法的SVG
-            return false;
-        }
     }
 }

@@ -413,9 +413,9 @@ public class SqlparserUtils {
         }
 
         SqlParser.Config config =
-                SqlParser.config()
-                        .withLex(Lex.JAVA)
-                        .withIdentifierMaxLength(256);
+            SqlParser.config()
+                .withLex(Lex.JAVA)
+                .withIdentifierMaxLength(256);
         SqlParser sqlParser = SqlParser.create(tmpSql, config);
         SqlNode sqlNode;
         try {

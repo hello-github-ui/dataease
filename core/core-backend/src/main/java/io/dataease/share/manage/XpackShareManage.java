@@ -181,9 +181,9 @@ public class XpackShareManage {
     public List<XpackShareGridVO> formatResult(List<XpackSharePO> pos) {
         if (CollectionUtils.isEmpty(pos)) return new ArrayList<>();
         return pos.stream().map(po ->
-                new XpackShareGridVO(
-                        po.getShareId(), po.getResourceId(), po.getName(), po.getCreator().toString(),
-                        po.getTime(), po.getExp(), 9, po.getExtFlag(), po.getType())).toList();
+            new XpackShareGridVO(
+                po.getShareId(), po.getResourceId(), po.getName(), po.getCreator().toString(),
+                po.getTime(), po.getExp(), 9, po.getExtFlag(), po.getType())).toList();
     }
 
     private XpackShareManage proxy() {
@@ -253,7 +253,7 @@ public class XpackShareManage {
         List<XpackShare> result = xpackShareMapper.selectList(queryWrapper);
         if (CollectionUtils.isNotEmpty(result)) {
             return result.stream()
-                    .collect(Collectors.toMap(xpackShare -> String.valueOf(xpackShare.getResourceId()), XpackShare::getUuid));
+                .collect(Collectors.toMap(xpackShare -> String.valueOf(xpackShare.getResourceId()), XpackShare::getUuid));
         }
         return new HashMap<>();
     }

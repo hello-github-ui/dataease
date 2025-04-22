@@ -27,6 +27,10 @@ import java.util.List;
 public class MysqlEngineProvider extends EngineProvider {
 
 
+    private static final String creatTableSql =
+        "CREATE TABLE IF NOT EXISTS `TABLE_NAME`" +
+            "Column_Fields;";
+
     public void exec(EngineRequest engineRequest) throws Exception {
         DatasourceConfiguration configuration = JsonUtil.parseObject(engineRequest.getEngine().getConfiguration(), Mysql.class);
         int queryTimeout = configuration.getQueryTimeout();
@@ -40,11 +44,6 @@ public class MysqlEngineProvider extends EngineProvider {
             throw e;
         }
     }
-
-    private static final String creatTableSql =
-            "CREATE TABLE IF NOT EXISTS `TABLE_NAME`" +
-                    "Column_Fields;";
-
 
     @Override
     public String createView(String name, String viewSQL) {
@@ -67,7 +66,7 @@ public class MysqlEngineProvider extends EngineProvider {
                 }
             }
             values.append("('").append(String.join("','", Arrays.asList(strings1)))
-                    .append("'),");
+                .append("'),");
         }
         return (insertSql + values.substring(0, values.length() - 1)).replaceAll("'null'", "null");
     }
@@ -86,7 +85,7 @@ public class MysqlEngineProvider extends EngineProvider {
     @Override
     public String replaceTable(String name) {
         String replaceTableSql = "rename table `FROM_TABLE` to `FROM_TABLE_tmp`, `TO_TABLE` to `FROM_TABLE`, `FROM_TABLE_tmp` to `TO_TABLE`"
-                .replace("FROM_TABLE", name).replace("TO_TABLE", TableUtils.tmpName(name));
+            .replace("FROM_TABLE", name).replace("TO_TABLE", TableUtils.tmpName(name));
         String dropTableSql = "DROP TABLE IF EXISTS `TABLE_NAME`".replace("TABLE_NAME", TableUtils.tmpName(name));
         return replaceTableSql + ";" + dropTableSql;
     }

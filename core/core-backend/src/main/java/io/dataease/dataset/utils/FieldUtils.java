@@ -5,7 +5,7 @@ package io.dataease.dataset.utils;
  */
 public class FieldUtils {
     public static int transType2DeType(String type) {
-        type = type.replaceAll("\\((.*?)\\)","");
+        type = type.replaceAll("\\((.*?)\\)", "");
         switch (type) {
             case "CHAR":
             case "VARCHAR":

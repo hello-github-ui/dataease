@@ -1,6 +1,7 @@
 package io.dataease.chart.utils;
 
-import io.dataease.api.chart.dto.*;
+import io.dataease.api.chart.dto.ScatterChartDataDTO;
+import io.dataease.api.chart.dto.Series;
 import io.dataease.extensions.view.dto.*;
 import io.dataease.i18n.Lang;
 import io.dataease.i18n.Translator;
@@ -423,7 +424,7 @@ public class ChartDataBuild {
                     axisChartDataDTO.setValue(new BigDecimal(0));
                 }
                 axisChartDataDTO.setCategory(StringUtils.defaultIfBlank(yAxis.get(j).getChartShowName(), yAxis.get(j).getName()));
-                buildDynamicValue(view, axisChartDataDTO, row, size, ObjectUtils.isNotEmpty(extBubble)?extSize-1:extSize);
+                buildDynamicValue(view, axisChartDataDTO, row, size, ObjectUtils.isNotEmpty(extBubble) ? extSize - 1 : extSize);
                 // pop
                 if (ObjectUtils.isNotEmpty(extBubble)) {
                     try {
@@ -572,7 +573,7 @@ public class ChartDataBuild {
                     axisChartDataDTO.setValue(new BigDecimal(0));
                 }
                 String category = StringUtils.defaultIfBlank(b.toString(),
-                        StringUtils.defaultIfBlank(yAxis.get(j).getChartShowName(), yAxis.get(j).getName()));
+                    StringUtils.defaultIfBlank(yAxis.get(j).getChartShowName(), yAxis.get(j).getName()));
                 axisChartDataDTO.setCategory(category);
                 categories.add(category);
 
@@ -1121,9 +1122,9 @@ public class ChartDataBuild {
                 if (ObjectUtils.isNotEmpty(extBubble) && extBubble.size() > 0) {
                     try {
                         scatterChartDataDTO.setValue(new Object[]{
-                                a.toString(),
-                                StringUtils.isEmpty(d[i]) ? null : new BigDecimal(d[i]),
-                                StringUtils.isEmpty(d[xAxis.size() + yAxis.size()]) ? null : new BigDecimal(d[xAxis.size() + yAxis.size()])
+                            a.toString(),
+                            StringUtils.isEmpty(d[i]) ? null : new BigDecimal(d[i]),
+                            StringUtils.isEmpty(d[xAxis.size() + yAxis.size()]) ? null : new BigDecimal(d[xAxis.size() + yAxis.size()])
                         });
                     } catch (Exception e) {
                         scatterChartDataDTO.setValue(new Object[]{a.toString(), new BigDecimal(0), new BigDecimal(0)});
@@ -1131,8 +1132,8 @@ public class ChartDataBuild {
                 } else {
                     try {
                         scatterChartDataDTO.setValue(new Object[]{
-                                a.toString(),
-                                StringUtils.isEmpty(d[i]) ? null : new BigDecimal(d[i])
+                            a.toString(),
+                            StringUtils.isEmpty(d[i]) ? null : new BigDecimal(d[i])
                         });
                     } catch (Exception e) {
                         scatterChartDataDTO.setValue(new Object[]{a.toString(), new BigDecimal(0)});
@@ -1787,7 +1788,7 @@ public class ChartDataBuild {
                 return temp;
             })).collect(Collectors.toList());
             //详情只要一个
-            row.put("details", !detailValueMapList.isEmpty() ?Collections.singletonList(detailValueMapList.getFirst()):detailValueMapList);
+            row.put("details", !detailValueMapList.isEmpty() ? Collections.singletonList(detailValueMapList.getFirst()) : detailValueMapList);
         });
 
         ChartViewFieldDTO detailFieldDTO = new ChartViewFieldDTO();

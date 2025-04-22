@@ -38,12 +38,12 @@ public class DataSourceInitStartListener implements ApplicationListener<Applicat
     public void onApplicationEvent(ApplicationReadyEvent applicationReadyEvent) {
         try {
             engineManage.initSimpleEngine();
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
         try {
             calciteProvider.initConnectionPool();
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
         List<CoreDatasourceTask> list = datasourceTaskServer.listAll();
@@ -70,12 +70,11 @@ public class DataSourceInitStartListener implements ApplicationListener<Applicat
         try {
             List<CoreSysSetting> coreSysSettings = sysParameterManage.groupList("basic.");
             datasourceServer.addJob(coreSysSettings);
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
     }
-
 
 
 }

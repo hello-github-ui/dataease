@@ -23,6 +23,10 @@ import java.util.List;
 public class H2EngineProvider extends EngineProvider {
 
 
+    private static final String creatTableSql =
+        "CREATE TABLE IF NOT EXISTS `TABLE_NAME`" +
+            "Column_Fields;";
+
     public void exec(EngineRequest engineRequest) throws Exception {
         DatasourceConfiguration configuration = JsonUtil.parseObject(engineRequest.getEngine().getConfiguration(), H2.class);
         int queryTimeout = configuration.getQueryTimeout();
@@ -36,11 +40,6 @@ public class H2EngineProvider extends EngineProvider {
             throw e;
         }
     }
-
-    private static final String creatTableSql =
-            "CREATE TABLE IF NOT EXISTS `TABLE_NAME`" +
-                    "Column_Fields;";
-
 
     @Override
     public String createView(String name, String viewSQL) {
@@ -63,7 +62,7 @@ public class H2EngineProvider extends EngineProvider {
                 }
             }
             values.append("('").append(String.join("','", Arrays.asList(strings1)))
-                    .append("'),");
+                .append("'),");
         }
         return (insertSql + values.substring(0, values.length() - 1)).replaceAll("'null'", "null");
     }
