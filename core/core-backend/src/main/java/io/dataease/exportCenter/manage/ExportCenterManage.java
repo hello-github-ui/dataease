@@ -20,6 +20,7 @@ import io.dataease.websocket.WsMessage;
 import io.dataease.websocket.WsService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -30,9 +31,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.io.*;
 import java.net.InetAddress;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -110,6 +116,32 @@ public class ExportCenterManage {
         }
     }
 
+//    /**
+//     * 根据导出任务ID，向客户端响应Excel文件，实现文件下载
+//     *
+//     * @param id       导出任务ID
+//     * @param response HttpServletResponse，用于写出文件流
+//     * @throws Exception 读取文件或写出流异常
+//     */
+//    public void download(String id, HttpServletResponse response) throws Exception {
+//        CoreExportTask exportTask = exportTaskMapper.selectById(id);
+//        OutputStream outputStream = response.getOutputStream();
+//        // 设置响应内容类型为Excel
+//        response.setContentType("application/vnd.ms-excel");
+//        // 设置响应头，附件形式下载，文件名为导出任务文件名
+//        response.setHeader("Content-disposition", "attachment;filename=" + exportTask.getFileName());
+//        InputStream fileInputStream = new FileInputStream(exportData_path + id + "/" + exportTask.getFileName());
+//        byte[] buffer = new byte[4096];
+//        int bytesRead;
+//        while ((bytesRead = fileInputStream.read(buffer)) != -1) {
+//            outputStream.write(buffer, 0, bytesRead);
+//        }
+//        outputStream.flush();
+//        outputStream.close();
+//        fileInputStream.close();
+//        response.flushBuffer();
+//    }
+
     /**
      * 根据导出任务ID，向客户端响应Excel文件，实现文件下载
      *
@@ -118,22 +150,94 @@ public class ExportCenterManage {
      * @throws Exception 读取文件或写出流异常
      */
     public void download(String id, HttpServletResponse response) throws Exception {
+        /*
+        原始的下载方法存在问题：
+        1. 文件名没有做编码处理，当文件名中包含空格，中文或特殊字符时，会导致下载的文件名乱码或失败。
+        2. 资源关闭有问题，outputStream.close();fileInputStream.close(); 当发生异常时，这些资源并不会关闭掉。
+        3. 没有校验文件是否存在，直接打开了文件流，若文件不存在或路径错误时，会抛出异常。
+        4. 响应头中未设置文件大小，客户端无法显示下载进度
+         */
         CoreExportTask exportTask = exportTaskMapper.selectById(id);
-        OutputStream outputStream = response.getOutputStream();
+        // 文件是否存在校验
+        File file = new File(exportData_path + id + "/" + exportTask.getFileName());
+        if (!file.exists()) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+
+        // 文件名编码处理
+        // 获取原始文件名
+        String encodedFileName = exportTask.getFileName();
+        // 获取 HttpServletRequest
+        HttpServletRequest request = null;
+        try {
+            // Spring Web 环境下获取当前请求
+            RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+            if (requestAttributes != null) {
+                request = ((ServletRequestAttributes) requestAttributes).getRequest();
+            }
+        } catch (Exception e) {
+            // 当获取失败时，编码失败，使用默认文件名
+        }
+
+        if (request != null) {
+            encodedFileName = encodeFileName(encodedFileName, request);
+        }
+
         // 设置响应内容类型为Excel
         response.setContentType("application/vnd.ms-excel");
         // 设置响应头，附件形式下载，文件名为导出任务文件名
-        response.setHeader("Content-disposition", "attachment;filename=" + exportTask.getFileName());
-        InputStream fileInputStream = new FileInputStream(exportData_path + id + "/" + exportTask.getFileName());
-        byte[] buffer = new byte[4096];
-        int bytesRead;
-        while ((bytesRead = fileInputStream.read(buffer)) != -1) {
-            outputStream.write(buffer, 0, bytesRead);
+        // response.setHeader("Content-Disposition", "attachment; filename=\"" + encodedFileName + "\"");
+        response.setHeader("Content-disposition", "attachment;filename=" + encodedFileName);
+        // 设置响应大小
+        response.setContentLengthLong(file.length());
+
+        try (InputStream fileInputStream = new FileInputStream(file);
+             OutputStream outputStream = response.getOutputStream()) {
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            while ((bytesRead = fileInputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+            outputStream.flush();
+        } catch (IOException e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
-        outputStream.flush();
-        outputStream.close();
-        fileInputStream.close();
-        response.flushBuffer();
+    }
+
+    /**
+     * 根据请求头User-Agent，针对不同浏览器对文件名进行编码，避免下载时文件名乱码
+     *
+     * @param fileName 原始文件名
+     * @param request  HttpServletRequest，用于获取User-Agent
+     * @return 编码后的文件名
+     */
+    private String encodeFileName(String fileName, HttpServletRequest request) {
+        String userAgent = request.getHeader("User-Agent");
+        String encodedFileName = fileName;
+        try {
+            if (userAgent != null) {
+                userAgent = userAgent.toLowerCase();
+                if (userAgent.contains("msie") || userAgent.contains("trident")) {
+                    // IE浏览器
+                    encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+                } else if (userAgent.contains("firefox")) {
+                    // Firefox浏览器
+                    encodedFileName = "=?UTF-8?B?" +
+                        Base64.getEncoder().encodeToString(fileName.getBytes(StandardCharsets.UTF_8)) + "?=";
+                } else if (userAgent.contains("chrome") || userAgent.contains("safari") || userAgent.contains("edge")) {
+                    // Chrome、Safari、Edge浏览器
+                    encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+                } else {
+                    // 其他浏览器默认编码
+                    encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+                }
+            }
+        } catch (Exception e) {
+            // 编码异常时，返回原为你教案名
+            encodedFileName = fileName;
+        }
+        return encodedFileName;
     }
 
     /**
