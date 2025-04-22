@@ -4,7 +4,12 @@ import {
 } from '@/views/chart/components/js/panel/types/impl/g2plot'
 import { Line as G2Line, LineOptions } from '@antv/g2plot/esm/plots/line'
 import { getPadding } from '../../common/common_antv'
-import { flow, hexColorToRGBA, parseJson } from '@/views/chart/components/js/util'
+import {
+  flow,
+  hexColorToRGBA,
+  parseJson,
+  setUpGroupSeriesColor
+} from '@/views/chart/components/js/util'
 import { cloneDeep, isEmpty } from 'lodash-es'
 import { valueFormatter } from '@/views/chart/components/js/formatter'
 import {
@@ -15,6 +20,7 @@ import {
 import { Datum } from '@antv/g2plot/esm/types/common'
 import { useI18n } from '@/hooks/web/useI18n'
 import { DEFAULT_LABEL } from '@/views/chart/components/editor/util/chart'
+import { clearExtremum, extremumEvt } from '@/views/chart/components/js/extremumUitl'
 
 const { t } = useI18n()
 const DEFAULT_DATA = []
@@ -25,7 +31,8 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
   properties = LINE_EDITOR_PROPERTY
   propertyInner = {
     ...LINE_EDITOR_PROPERTY_INNER,
-    'label-selector': ['seriesLabelFormatter'],
+    'basic-style-selector': [...LINE_EDITOR_PROPERTY_INNER['basic-style-selector'], 'seriesColor'],
+    'label-selector': ['seriesLabelFormatter', 'showExtremum'],
     'tooltip-selector': [
       ...LINE_EDITOR_PROPERTY_INNER['tooltip-selector'],
       'seriesTooltipFormatter'
@@ -42,6 +49,7 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
   drawChart(drawOptions: G2PlotDrawOptions<G2Line>): G2Line {
     const { chart, action, container } = drawOptions
     if (!chart.data.data?.length) {
+      clearExtremum(chart)
       return
     }
     const data = cloneDeep(chart.data.data)
@@ -101,7 +109,7 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
     const newChart = new G2Line(container, options)
 
     newChart.on('point:click', action)
-
+    extremumEvt(newChart, chart, options, container)
     return newChart
   }
 
@@ -113,7 +121,7 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
         label: false
       }
     }
-    const labelAttr = parseJson(chart.customAttr).label
+    const { label: labelAttr } = parseJson(chart.customAttr)
     const formatterMap = labelAttr.seriesLabelFormatter?.reduce((pre, next) => {
       pre[next.id] = next
       return pre
@@ -123,7 +131,11 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
       fields: [],
       ...tmpOptions.label,
       offsetY: -8,
-      formatter: (data: Datum) => {
+      layout: [{ type: 'hide-overlap' }, { type: 'limit-in-plot' }],
+      formatter: (data: Datum, _point) => {
+        if (data.EXTREME) {
+          return ''
+        }
         if (!labelAttr.seriesLabelFormatter?.length) {
           return data.value
         }
@@ -269,10 +281,14 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
       tooltip
     }
   }
-
+  public setupSeriesColor(chart: ChartObj, data?: any[]): ChartBasicStyle['seriesColor'] {
+    return setUpGroupSeriesColor(chart, data)
+  }
   protected setupOptions(chart: Chart, options: LineOptions): LineOptions {
     return flow(
       this.configTheme,
+      this.configEmptyDataStrategy,
+      this.configGroupColor,
       this.configLabel,
       this.configTooltip,
       this.configBasicStyle,
@@ -281,8 +297,7 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
       this.configXAxis,
       this.configYAxis,
       this.configSlider,
-      this.configAnalyse,
-      this.configEmptyDataStrategy
+      this.configAnalyse
     )(chart, options)
   }
 

@@ -5,11 +5,12 @@ import { storeToRefs } from 'pinia'
 import { nextTick, onMounted, ref } from 'vue'
 import { ElFormItem } from 'element-plus-secondary'
 
-import { merge } from 'lodash-es'
+import { merge, cloneDeep } from 'lodash-es'
 import { useEmitt } from '@/hooks/web/useEmitt'
 import ComponentColorSelector from '@/components/dashboard/subject-setting/dashboard-style/ComponentColorSelector.vue'
 import OverallSetting from '@/components/dashboard/subject-setting/dashboard-style/OverallSetting.vue'
 import CanvasBackground from '@/components/visualization/component-background/CanvasBackground.vue'
+import SeniorStyleSetting from '@/components/dashboard/subject-setting/dashboard-style/SeniorStyleSetting.vue'
 const dvMainStore = dvMainStoreWithOut()
 const snapshotStore = snapshotStoreWithOut()
 const { canvasStyleData, canvasViewInfo } = storeToRefs(dvMainStore)
@@ -28,22 +29,39 @@ const onColorChange = val => {
 
 const onBaseChange = () => {
   snapshotStore.recordSnapshotCache('renderChart')
+  useEmitt().emitter.emit('initScroll')
 }
 
 const themeAttrChange = (custom, property, value) => {
   if (canvasAttrInit) {
     Object.keys(canvasViewInfo.value).forEach(function (viewId) {
-      const viewInfo = canvasViewInfo.value[viewId]
-      if (custom === 'customAttr') {
-        merge(viewInfo['customAttr'], value)
-      } else {
-        Object.keys(value).forEach(function (key) {
-          if (viewInfo[custom][property][key] !== undefined) {
-            viewInfo[custom][property][key] = value[key]
+      try {
+        const viewInfo = canvasViewInfo.value[viewId]
+        if (custom === 'customAttr') {
+          if (viewInfo.type === 'flow-map') {
+            const { customAttr } = viewInfo
+            const tmpValue = cloneDeep(value)
+            const miscObj = cloneDeep(customAttr.misc)
+            for (const key in miscObj) {
+              if (miscObj.hasOwnProperty(key) && tmpValue.misc?.[key] !== undefined) {
+                tmpValue.misc[key] = miscObj[key]
+              }
+            }
+            merge(viewInfo['customAttr'], tmpValue)
+          } else {
+            merge(viewInfo['customAttr'], value)
           }
-        })
+        } else {
+          Object.keys(value).forEach(function (key) {
+            if (viewInfo[custom][property][key] !== undefined) {
+              viewInfo[custom][property][key] = value[key]
+            }
+          })
+        }
+        useEmitt().emitter.emit('renderChart-' + viewId, viewInfo)
+      } catch (e) {
+        console.warn('themeAttrChange-error')
       }
-      useEmitt().emitter.emit('renderChart-' + viewId, viewInfo)
     })
     snapshotStore.recordSnapshotCache('renderChart')
   }
@@ -66,7 +84,7 @@ onMounted(() => {
                   effect="dark"
                   size="middle"
                   :min="600"
-                  :max="4096"
+                  :max="50000"
                   v-model="canvasStyleData.width"
                   @change="onBaseChange"
                   controls-position="right"
@@ -79,7 +97,7 @@ onMounted(() => {
                   effect="dark"
                   size="middle"
                   :min="600"
-                  :max="4096"
+                  :max="50000"
                   v-model="canvasStyleData.height"
                   @change="onBaseChange"
                   controls-position="right"
@@ -97,6 +115,14 @@ onMounted(() => {
       </el-collapse-item>
       <el-collapse-item effect="dark" title="刷新配置" name="overallSetting">
         <overall-setting themes="dark" />
+      </el-collapse-item>
+      <el-collapse-item
+        effect="dark"
+        title="高级样式设置"
+        name="seniorStyleSetting"
+        class="no-padding no-border-bottom"
+      >
+        <senior-style-setting themes="dark"></senior-style-setting>
       </el-collapse-item>
     </el-collapse>
   </div>
@@ -225,7 +251,7 @@ onMounted(() => {
 
 .re-update-span {
   cursor: pointer;
-  color: #3370ff;
+  color: var(--ed-color-primary);
   size: 14px;
   line-height: 22px;
   font-weight: 400;

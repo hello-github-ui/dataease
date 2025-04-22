@@ -13,7 +13,7 @@ import {
   getPadding,
   getTooltipSeriesTotalMap
 } from '@/views/chart/components/js/panel/common/common_antv'
-import { parseJson, flow } from '@/views/chart/components/js/util'
+import { parseJson, flow, setUpSingleDimensionSeriesColor } from '@/views/chart/components/js/util'
 import { Label } from '@antv/g2plot/lib/types/label'
 import { valueFormatter } from '@/views/chart/components/js/formatter'
 import { Datum } from '@antv/g2plot/esm/types/common'
@@ -71,7 +71,12 @@ export class Rose extends G2PlotChartView<RoseOptions, G2Rose> {
             end: [{ trigger: 'interval:mouseleave', action: 'tooltip:hide' }]
           }
         }
-      ]
+      ],
+      meta: {
+        field: {
+          type: 'cat'
+        }
+      }
     }
     const options = this.setupOptions(chart, baseOptions)
     // custom color
@@ -203,17 +208,31 @@ export class Rose extends G2PlotChartView<RoseOptions, G2Rose> {
   }
 
   setupDefaultOptions(chart: ChartObj): ChartObj {
-    const customAttr = chart.customAttr
+    const { customAttr, customStyle } = chart
     const { label } = customAttr
     if (!['inner', 'outer'].includes(label.position)) {
       label.position = 'outer'
     }
+    customAttr.label = {
+      ...label,
+      show: true,
+      showDimension: true,
+      showProportion: true,
+      reserveDecimalCount: 2
+    }
+    const { legend } = customStyle
+    legend.show = false
     return chart
+  }
+
+  public setupSeriesColor(chart: ChartObj, data?: any[]): ChartBasicStyle['seriesColor'] {
+    return setUpSingleDimensionSeriesColor(chart, data)
   }
 
   protected setupOptions(chart: Chart, options: RoseOptions): RoseOptions {
     return flow(
       this.configBasicStyle,
+      this.configSingleDimensionColor,
       this.configTheme,
       this.configLabel,
       this.configLegend,
@@ -229,7 +248,7 @@ export class Rose extends G2PlotChartView<RoseOptions, G2Rose> {
 export class RoseDonut extends Rose {
   propertyInner: EditorPropertyInner = {
     ...PIE_EDITOR_PROPERTY_INNER,
-    'basic-style-selector': ['colors', 'alpha', 'radius', 'innerRadius']
+    'basic-style-selector': ['colors', 'alpha', 'radius', 'innerRadius', 'seriesColor']
   }
   protected configBasicStyle(chart: Chart, options: RoseOptions): RoseOptions {
     const customAttr = parseJson(chart.customAttr)

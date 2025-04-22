@@ -68,7 +68,7 @@ const toolTip = computed(() => {
   return props.themes === 'dark' ? 'ndark' : 'dark'
 })
 watch(
-  [() => props.quotaData, () => props.item],
+  [() => props.quotaData, () => props.item, () => props.chart.type],
   () => {
     getItemTagType()
   },
@@ -82,10 +82,10 @@ watch(
   },
   { deep: true }
 )
-
+const AXIS_FORMAT_VIEW = ['table-normal', 'table-info', 'table-pivot', 'indicator', 'rich-text']
 const showValueFormatter = computed<boolean>(() => {
   return (
-    (props.chart.type === 'table-normal' || props.chart.type === 'table-info') &&
+    AXIS_FORMAT_VIEW.includes(props.chart.type) &&
     (props.item.deType === 2 || props.item.deType === 3)
   )
 })
@@ -118,7 +118,7 @@ const isEnableCompare = () => {
   // 暂时只支持类别轴/维度的时间类型字段
   if (
     t1.length > 0 &&
-    chart.value.type !== 'text' &&
+    chart.value.type !== 'indicator' &&
     chart.value.type !== 'label' &&
     chart.value.type !== 'gauge' &&
     chart.value.type !== 'liquid'
@@ -178,12 +178,23 @@ const beforeSort = type => {
   }
 }
 
+const switchChartType = param => {
+  item.value.chartType = param.type
+  emit('onQuotaItemChange', item.value)
+}
+
 const summary = param => {
   item.value.summary = param.type
   emit('onQuotaItemChange', item.value)
 }
 
 const beforeSummary = type => {
+  return {
+    type: type
+  }
+}
+
+const beforeSwitchType = type => {
   return {
     type: type
   }
@@ -334,14 +345,65 @@ onMounted(() => {
           class="drop-style"
           :class="themes === 'dark' ? 'dark-dimension-quota' : ''"
         >
+          <!--          <el-dropdown-item @click.prevent v-if="chart.type === 'chart-mix'">
+            <el-dropdown
+              :effect="themes"
+              placement="right-start"
+              popper-class="data-dropdown_popper_mr9"
+              style="width: 100%"
+              @command="switchChartType"
+            >
+              <span class="el-dropdown-link inner-dropdown-menu menu-item-padding">
+                <span class="menu-item-content">
+                  <el-icon>
+                    <Icon name="icon_dashboard_outlined" />
+                  </el-icon>
+                  <span>{{ t('chart.chart_type') }}</span>
+                </span>
+                <el-icon>
+                  <Icon name="icon_right_outlined"></Icon>
+                </el-icon>
+              </span>
+              <template #dropdown>
+                <el-dropdown-menu
+                  :effect="themes"
+                  class="drop-style sub"
+                  :class="themes === 'dark' ? 'dark-dimension-quota' : ''"
+                >
+                  <el-dropdown-item class="menu-item-padding" :command="beforeSwitchType('bar')">
+                    <span
+                      class="sub-menu-content"
+                      :class="'bar' === item.chartType ? 'content-active' : ''"
+                    >
+                      {{ t('chart.chart_bar') }}
+                      <el-icon class="sub-menu-content&#45;&#45;icon">
+                        <Icon name="icon_done_outlined" v-if="'bar' === item.chartType" />
+                      </el-icon>
+                    </span>
+                  </el-dropdown-item>
+                  <el-dropdown-item class="menu-item-padding" :command="beforeSwitchType('line')">
+                    <span
+                      class="sub-menu-content"
+                      :class="'line' === item.chartType ? 'content-active' : ''"
+                    >
+                      {{ t('chart.chart_line') }}
+                      <el-icon class="sub-menu-content&#45;&#45;icon">
+                        <Icon name="icon_done_outlined" v-if="'line' === item.chartType" />
+                      </el-icon>
+                    </span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </el-dropdown-item>-->
           <el-dropdown-item
             @click.prevent
             v-if="!item.chartId && chart.type !== 'table-info' && item.summary !== ''"
-            :divided="chart.type === 'chart-mix'"
           >
             <el-dropdown
               :effect="themes"
               placement="right-start"
+              popper-class="data-dropdown_popper_mr9"
               style="width: 100%; height: 100%"
               @command="summary"
             >
@@ -522,6 +584,7 @@ onMounted(() => {
             <el-dropdown
               placement="right-start"
               :effect="themes"
+              popper-class="data-dropdown_popper_mr9"
               style="width: 100%; height: 100%"
               @command="quickCalc"
             >
@@ -602,13 +665,17 @@ onMounted(() => {
           <el-dropdown-item
             @click.prevent
             v-if="
-              props.type !== 'extLabel' && props.type !== 'extTooltip' && props.type !== 'extBubble'
+              props.type !== 'extLabel' &&
+              props.type !== 'extTooltip' &&
+              props.type !== 'extBubble' &&
+              !chart.type.includes('chart-mix')
             "
             :divided="chart.type !== 'table-info'"
           >
             <el-dropdown
               :effect="themes"
               placement="right-start"
+              popper-class="data-dropdown_popper_mr9"
               style="width: 100%; height: 100%"
               @command="sort"
             >
@@ -675,6 +742,7 @@ onMounted(() => {
             "
             :icon="Filter"
             :command="beforeClickItem('filter')"
+            :divided="chart.type.includes('chart-mix')"
           >
             <span>{{ t('chart.filter') }}...</span>
           </el-dropdown-item>
@@ -787,7 +855,7 @@ span {
   width: 100%;
 
   &.content-active {
-    color: #3370ff;
+    color: var(--ed-color-primary);
   }
 
   .sub-menu-content--icon {
@@ -897,6 +965,9 @@ span {
 }
 </style>
 <style lang="less">
+.data-dropdown_popper_mr9 {
+  margin-left: -9px !important;
+}
 .menu-item-padding {
   span {
     font-size: 14px;
@@ -908,7 +979,7 @@ span {
   }
 
   .sub-menu-content--icon {
-    color: #3370ff;
+    color: var(--ed-color-primary);
     margin-right: -7px;
   }
   :nth-child(1).ed-icon {
@@ -929,7 +1000,7 @@ span {
   }
 
   .sub-menu-content--icon {
-    color: #3370ff;
+    color: var(--ed-color-primary);
     margin-right: -7px !important;
   }
 }

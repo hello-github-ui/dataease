@@ -4,6 +4,7 @@ import { useI18n } from '@/hooks/web/useI18n'
 import { COLOR_PANEL, DEFAULT_TABLE_CELL } from '@/views/chart/components/editor/util/chart'
 import { ElSpace } from 'element-plus-secondary'
 import { cloneDeep, defaultsDeep } from 'lodash-es'
+import { convertToAlphaColor, isAlphaColor } from '@/views/chart/components/js/util'
 
 const { t } = useI18n()
 
@@ -56,6 +57,19 @@ const init = () => {
   const tableCell = props.chart?.customAttr?.tableCell
   if (tableCell) {
     state.tableCellForm = defaultsDeep(cloneDeep(tableCell), cloneDeep(DEFAULT_TABLE_CELL))
+    const alpha = props.chart.customAttr.basicStyle.alpha
+    if (!isAlphaColor(state.tableCellForm.tableItemBgColor)) {
+      state.tableCellForm.tableItemBgColor = convertToAlphaColor(
+        state.tableCellForm.tableItemBgColor,
+        alpha
+      )
+    }
+    if (!isAlphaColor(state.tableCellForm.tableItemSubBgColor)) {
+      state.tableCellForm.tableItemSubBgColor = convertToAlphaColor(
+        state.tableCellForm.tableItemSubBgColor,
+        alpha
+      )
+    }
   }
 }
 const showProperty = prop => props.propertyInner?.includes(prop)
@@ -79,7 +93,37 @@ onMounted(() => {
         :trigger-width="108"
         v-model="state.tableCellForm.tableItemBgColor"
         :predefine="predefineColors"
+        show-alpha
         @change="changeTableCell('tableItemBgColor')"
+      />
+    </el-form-item>
+    <el-form-item
+      :class="'form-item-' + themes"
+      class="form-item"
+      v-if="showProperty('enableTableCrossBG')"
+      label=""
+    >
+      <el-checkbox
+        v-model="state.tableCellForm.enableTableCrossBG"
+        :label="t('chart.stripe')"
+        :effect="themes"
+        @change="changeTableCell('enableTableCrossBG')"
+      />
+    </el-form-item>
+    <el-form-item
+      :class="'form-item-' + themes"
+      class="form-item"
+      label=""
+      v-if="showProperty('tableItemSubBgColor')"
+    >
+      <el-color-picker
+        v-model="state.tableCellForm.tableItemSubBgColor"
+        :effect="themes"
+        :predefine="predefineColors"
+        :disabled="!state.tableCellForm.enableTableCrossBG"
+        is-custom
+        show-alpha
+        @change="changeTableCell('tableItemSubBgColor')"
       />
     </el-form-item>
     <el-space>
@@ -117,17 +161,64 @@ onMounted(() => {
           />
         </el-select>
       </el-form-item>
+    </el-space>
+    <el-space>
+      <el-form-item class="form-item" :class="'form-item-' + themes">
+        <el-checkbox
+          :effect="themes"
+          class="icon-checkbox"
+          v-model="state.tableCellForm.isBolder"
+          @change="changeTableCell('isBolder')"
+        >
+          <el-tooltip effect="dark" placement="top">
+            <template #content>
+              {{ t('chart.bolder') }}
+            </template>
+            <div
+              class="icon-btn"
+              :class="{ dark: themes === 'dark', active: state.tableCellForm.isBolder }"
+            >
+              <el-icon>
+                <Icon name="icon_bold_outlined" />
+              </el-icon>
+            </div>
+          </el-tooltip>
+        </el-checkbox>
+      </el-form-item>
+
+      <el-form-item class="form-item" :class="'form-item-' + themes">
+        <el-checkbox
+          :effect="themes"
+          class="icon-checkbox"
+          v-model="state.tableCellForm.isItalic"
+          @change="changeTableCell('isItalic')"
+        >
+          <el-tooltip effect="dark" placement="top">
+            <template #content>
+              {{ t('chart.italic') }}
+            </template>
+            <div
+              class="icon-btn"
+              :class="{ dark: themes === 'dark', active: state.tableCellForm.isItalic }"
+            >
+              <el-icon>
+                <Icon name="icon_italic_outlined" />
+              </el-icon>
+            </div>
+          </el-tooltip>
+        </el-checkbox>
+      </el-form-item>
+
+      <div class="position-divider" :class="'position-divider--' + themes"></div>
       <el-form-item
         class="form-item"
         :class="'form-item-' + themes"
         v-if="showProperty('tableItemAlign')"
       >
-        <template #label>&nbsp;</template>
-
         <el-radio-group
           class="icon-radio-group"
           v-model="state.tableCellForm.tableItemAlign"
-          @change="changeTableCell('tableHeaderAlign')"
+          @change="changeTableCell('tableItemAlign')"
         >
           <el-radio label="left">
             <el-tooltip effect="dark" placement="top">
@@ -206,6 +297,34 @@ onMounted(() => {
         </el-form-item>
       </el-col>
     </el-row>
+    <el-form-item
+      class="form-item"
+      :class="'form-item-' + themes"
+      v-if="showProperty('showHorizonBorder')"
+    >
+      <el-checkbox
+        size="small"
+        :effect="themes"
+        v-model="state.tableCellForm.showHorizonBorder"
+        @change="changeTableCell('showHorizonBorder')"
+      >
+        {{ t('chart.table_cell_show_horizon_border') }}
+      </el-checkbox>
+    </el-form-item>
+    <el-form-item
+      class="form-item"
+      :class="'form-item-' + themes"
+      v-if="showProperty('showVerticalBorder')"
+    >
+      <el-checkbox
+        size="small"
+        :effect="themes"
+        v-model="state.tableCellForm.showVerticalBorder"
+        @change="changeTableCell('showVerticalBorder')"
+      >
+        {{ t('chart.table_cell_show_vertical_border') }}
+      </el-checkbox>
+    </el-form-item>
   </el-form>
 </template>
 
@@ -227,8 +346,8 @@ onMounted(() => {
   &.dark {
     color: #a6a6a6;
     &.active {
-      color: #3370ff;
-      background-color: rgba(51, 112, 255, 0.1);
+      color: var(--ed-color-primary);
+      background-color: var(--ed-color-primary-1a, rgba(51, 112, 255, 0.1));
     }
     &:hover {
       background-color: rgba(255, 255, 255, 0.1);
@@ -236,8 +355,8 @@ onMounted(() => {
   }
 
   &.active {
-    color: #3370ff;
-    background-color: rgba(51, 112, 255, 0.1);
+    color: var(--ed-color-primary);
+    background-color: var(--ed-color-primary-1a, rgba(51, 112, 255, 0.1));
   }
 
   &:hover {
@@ -256,6 +375,24 @@ onMounted(() => {
     display: none;
   }
   :deep(.ed-radio__label) {
+    padding: 0;
+  }
+}
+.position-divider {
+  width: 1px;
+  height: 18px;
+  margin-bottom: 8px;
+  background: rgba(31, 35, 41, 0.15);
+
+  &.position-divider--dark {
+    background: rgba(235, 235, 235, 0.15);
+  }
+}
+.icon-checkbox {
+  :deep(.ed-checkbox__input) {
+    display: none;
+  }
+  :deep(.ed-checkbox__label) {
     padding: 0;
   }
 }

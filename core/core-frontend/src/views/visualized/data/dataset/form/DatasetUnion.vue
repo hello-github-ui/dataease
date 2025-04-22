@@ -1,21 +1,22 @@
 <script lang="ts" setup>
-import { reactive, computed, ref, nextTick, inject, type Ref } from 'vue'
+import { reactive, computed, ref, nextTick, inject, type Ref, watch, unref } from 'vue'
 import AddSql from './AddSql.vue'
 import { useI18n } from '@/hooks/web/useI18n'
 import zeroNodeImg from '@/assets/img/drag.png'
+import { ElMessageBox, type Action } from 'element-plus-secondary'
 import { guid } from './util'
 import { HandleMore } from '@/components/handle-more'
 import { propTypes } from '@/utils/propTypes'
 import UnionFieldList from './UnionFieldList.vue'
-import type { Node } from './UnionEdit.vue'
+import type { Node, Field } from './util'
 import { getTableField } from '@/api/dataset'
-import type { Field } from './UnionFieldList.vue'
 import type { SqlNode } from './AddSql.vue'
 import { cloneDeep } from 'lodash-es'
 import type { Table } from '@/api/dataset'
+import { useAppearanceStoreWithOut } from '@/store/modules/appearance'
+const appearanceStore = useAppearanceStoreWithOut()
 const state = reactive({
   nodeList: [],
-  pathList: [],
   visualNode: null,
   visualNodeParent: null,
   visualPath: null
@@ -28,10 +29,15 @@ const props = defineProps({
   getDsName: propTypes.func
 })
 
+const primaryColor = computed(() => {
+  return appearanceStore.themeColor === 'custom' ? appearanceStore.customColor : '#3370FF'
+})
+
 const iconName = {
   left: 'icon_left-association',
   right: 'icon_right-association',
-  inner: 'icon_intersect'
+  inner: 'icon_intersect',
+  full: 'icon_full-association'
 }
 const { t } = useI18n()
 const editSqlField = ref(false)
@@ -95,17 +101,47 @@ const dfsNodeList = computed(() => {
 })
 
 const dfsNodeNameList = (list, arr) => {
-  return list.forEach(ele => {
-    arr.push(ele.tableName)
+  list.forEach(ele => {
+    arr.push(`${ele.tableName}${ele.datasourceId}`)
     if (ele.children?.length) {
       dfsNodeNameList(ele.children, arr)
     }
   })
 }
 
+const dfsForDsId = (arr, datasourceId) => {
+  return arr.every(ele => {
+    if (ele.children?.length) {
+      return dfsForDsId(ele.children, datasourceId)
+    }
+    return ele.datasourceId === datasourceId
+  })
+}
+
+const crossDatasources = computed(() => {
+  const { datasourceId, children = [] } = state.nodeList[0] || {}
+  if (datasourceId && !!children.length) {
+    return !dfsForDsId(children, datasourceId)
+  }
+  return false
+})
+
+let isUpdate = false
+
+watch(
+  () => state.nodeList,
+  () => {
+    if (isUpdate) {
+      emits('changeUpdate')
+    }
+  },
+  { deep: true }
+)
+
 const initState = nodeList => {
   Object.assign(state.nodeList, nodeList)
   nextTick(() => {
+    isUpdate = true
     emits('addComplete')
   })
 }
@@ -127,9 +163,38 @@ const delNode = (id, arr) => {
     return false
   })
 }
+let fakeDelId = []
 
+const collectId = arr => {
+  arr.forEach(ele => {
+    fakeDelId = [...fakeDelId, ...ele.currentDsFields.map(itx => itx.id)]
+    if (ele.children?.length) {
+      collectId(ele.children)
+    }
+  })
+}
+
+const delNodeFake = (id, arr) => {
+  arr.forEach(ele => {
+    if (id === ele.id) {
+      fakeDelId = [...ele.currentDsFields.map(itx => itx.id)]
+      if (ele.children?.length) {
+        collectId(ele.children)
+      }
+    } else if (ele.children?.length) {
+      delNodeFake(id, ele.children)
+    }
+  })
+}
+
+const changeSqlId = ref([])
+const changedNodeId = ref([])
 const saveSqlNode = (val: SqlNode, cb) => {
-  const { tableName, id, sql, datasourceId, sqlVariableDetails = null } = val
+  const { tableName, id, sql, datasourceId, sqlVariableDetails = null, changeFlag = false } = val
+  if (changeFlag) {
+    changedNodeId.value = changedNodeId.value.filter(itx => itx.from !== id && id !== itx.to)
+    !changeSqlId.value.includes(id) && changeSqlId.value.push(id)
+  }
   if (state.visualNode) {
     Object.assign(state.visualNode, {
       info: JSON.stringify({ table: tableName, sql }),
@@ -153,7 +218,8 @@ const saveSqlNode = (val: SqlNode, cb) => {
         tableName,
         type: 'sql'
       }).then(res => {
-        ;((res as unknown as Field[]) || []).forEach(ele => {
+        nodeField.value = res as unknown as Field[]
+        nodeField.value.forEach(ele => {
           ele.checked = true
         })
         state.nodeList[0].currentDsFields = cloneDeep(res)
@@ -168,7 +234,40 @@ const saveSqlNode = (val: SqlNode, cb) => {
   dfsNodeBack([obj], [id], state.nodeList)
 }
 
+const setChangeStatus = (to, from) => {
+  if (changedNodeId.value.some(ele => ele.from === from && ele.to === to)) return
+  changedNodeId.value.push({ from, to })
+}
+
 const closeSqlNode = () => {
+  if (
+    state.nodeList.length === 1 &&
+    !state.nodeList[0].children?.length &&
+    changeSqlId.value.length === 1
+  ) {
+    currentNode.value = state.nodeList[0]
+    const { datasourceId, id, info, tableName } = currentNode.value
+    getTableField({
+      datasourceId,
+      id,
+      info,
+      tableName,
+      type: 'sql'
+    }).then(res => {
+      const idOriginNameMap = allfields.value.reduce((pre, next) => {
+        pre[`${next.datasetTableId}${next.originName}`] = next.id
+        return pre
+      }, {})
+      nodeField.value = res as unknown as Field[]
+      nodeField.value.forEach(ele => {
+        ele.id = idOriginNameMap[`${id}${ele.originName}`]
+        ele.checked = true
+      })
+      state.nodeList[0].currentDsFields = cloneDeep(res)
+      editUnion.value = true
+    })
+    changeSqlId.value = []
+  }
   if (state.visualNode?.confirm) {
     nextTick(() => {
       emits('joinEditor', [
@@ -196,6 +295,14 @@ const changeNodeFields = val => {
 }
 
 const closeEditUnion = () => {
+  nodeField.value = []
+  currentNode.value = null
+  const [fir] = state.nodeList
+  if (fir.isShadow) {
+    delete fir.isShadow
+    state.nodeList = []
+    emits('addComplete')
+  }
   editUnion.value = false
 }
 let num = +new Date()
@@ -223,9 +330,76 @@ const delUpdateDsFields = (id, arr: Node[]) => {
     return false
   })
 }
+const delUpdateDsFieldsFake = (id, arr: Node[]) => {
+  arr.forEach(ele => {
+    if (id === ele.id) {
+      fakeDelId = [...ele.currentDsFields.map(itx => itx.id)]
+    }
+    if (ele.children?.length) {
+      delUpdateDsFieldsFake(id, ele.children)
+    }
+  })
+}
 
 const confirmEditUnion = () => {
+  delUpdateDsFieldsFake(currentNode.value.id, state.nodeList)
+  const currentIds = currentNode.value.currentDsFields.map(ele => ele.id)
+  let ids = fakeDelId.filter(ele => !currentIds.includes(ele))
+  fakeDelId = []
+  if (!!ids.length) {
+    const idArr = allfields.value.reduce((pre, next) => {
+      if (next.extField === 2) {
+        const idMap = next.originName.match(/\[(.+?)\]/g)
+        const result = idMap.map(itm => {
+          return itm.slice(1, -1)
+        })
+        result.forEach(ele => {
+          if (ids.includes(ele)) {
+            pre.push(ele)
+          }
+        })
+      }
+      return pre
+    }, [])
+
+    if (!!idArr.length) {
+      ElMessageBox.confirm(
+        `字段${allfields.value
+          .filter(ele => [...new Set(idArr)].includes(ele.id) && ele.extField !== 2)
+          .map(ele => ele.name)
+          .join(',')}未被选择，其相关的新建字段将被删除，是否继续？`,
+        {
+          confirmButtonText: t('dataset.confirm'),
+          cancelButtonText: t('common.cancel'),
+          showCancelButton: true,
+          confirmButtonType: 'danger',
+          type: 'warning',
+          autofocus: false,
+          showClose: false,
+          callback: (action: Action) => {
+            if (action === 'confirm') {
+              delUpdateDsFields(currentNode.value.id, state.nodeList)
+              const [fir] = state.nodeList
+              if (fir.isShadow) {
+                delete fir.isShadow
+              }
+              closeEditUnion()
+              nextTick(() => {
+                emits('updateAllfields')
+              })
+            }
+          }
+        }
+      )
+      return
+    }
+  }
+
   delUpdateDsFields(currentNode.value.id, state.nodeList)
+  const [fir] = state.nodeList
+  if (fir.isShadow) {
+    delete fir.isShadow
+  }
   closeEditUnion()
   nextTick(() => {
     emits('updateAllfields')
@@ -258,6 +432,53 @@ const handleCommand = (ele, command) => {
   }
 
   if (command === 'del') {
+    delNodeFake(ele.id, state.nodeList)
+    if (!!fakeDelId.length) {
+      const idArr = allfields.value.reduce((pre, next) => {
+        if (next.extField === 2) {
+          const idMap = next.originName.match(/\[(.+?)\]/g)
+          const result = idMap.map(itm => {
+            return itm.slice(1, -1)
+          })
+          result.forEach(ele => {
+            if (fakeDelId.includes(ele)) {
+              pre.push(ele)
+            }
+          })
+        }
+        return pre
+      }, [])
+      fakeDelId = []
+
+      if (!!idArr.length) {
+        ElMessageBox.confirm(
+          `字段${allfields.value
+            .filter(ele => [...new Set(idArr)].includes(ele.id) && ele.extField !== 2)
+            .map(ele => ele.name)
+            .join(',')}未被选择，其相关的新建字段将被删除，是否继续？`,
+          {
+            confirmButtonText: t('dataset.confirm'),
+            cancelButtonText: t('common.cancel'),
+            showCancelButton: true,
+            confirmButtonType: 'danger',
+            type: 'warning',
+            autofocus: false,
+            showClose: false,
+            callback: (action: Action) => {
+              if (action === 'confirm') {
+                delNode(ele.id, state.nodeList)
+                nextTick(() => {
+                  emits('addComplete')
+                  emits('updateAllfields')
+                })
+              }
+            }
+          }
+        )
+        return
+      }
+    }
+
     delNode(ele.id, state.nodeList)
     nextTick(() => {
       emits('addComplete')
@@ -410,7 +631,7 @@ const flatPathList = computed(() => {
   return flatArr
 })
 
-const dfsNode = (arr, nodeListLocation, x = 0, y = 0) => {
+const dfsNode = (arr = [], nodeListLocation, x = 0, y = 0) => {
   arr.map((ele, index) => {
     const pre = nodeListLocation[index - 1]
     if (!ele.children?.length) {
@@ -490,10 +711,26 @@ const dfsNodeShadow = (arr, { tableName, id }, position, parent) => {
 }
 
 const flatLine = (item, flatNodeList) => {
+  let sqlChangeFlag = changeSqlId.value.includes(item.id)
+  if (item.children?.length) {
+    sqlChangeFlag = item.children.some(itx => changeSqlId.value.includes(itx.id)) || sqlChangeFlag
+  }
   const from = { ...item, d: '' }
   ;(item.children || []).forEach(ele => {
+    let loaclSqlChangeFlag = true
+    changedNodeId.value.some(element => {
+      if (
+        (element.from === item.id && ele.id === element.to) ||
+        (element.from === ele.id && item.id === element.to)
+      ) {
+        loaclSqlChangeFlag = false
+        return true
+      }
+      return false
+    })
     flatNodeList.push({
       from,
+      sqlChangeFlag: loaclSqlChangeFlag && sqlChangeFlag,
       isShadow: ele.isShadow || item.isShadow,
       to: {
         ...ele
@@ -610,12 +847,13 @@ const dragenter_handler = ev => {
 const drop_handler = ev => {
   ev.preventDefault()
   let data = ev.dataTransfer.getData('text')
-  const { tableName, type, datasourceId } = JSON.parse(data) as Table
+  const { tableName, type, datasourceId, name: noteName } = JSON.parse(data) as Table
   const extraData = {
     info: JSON.stringify({
       table: tableName,
       sql: ''
     }),
+    noteName,
     unionType: 'left',
     unionFields: [],
     currentDsFields: [],
@@ -643,6 +881,7 @@ const drop_handler = ev => {
     state.nodeList.push({
       tableName,
       type,
+      isShadow: true,
       datasourceId,
       id: guid(),
       ...extraData
@@ -656,13 +895,17 @@ const drop_handler = ev => {
       info: currentNode.value.info,
       tableName,
       type
-    }).then(res => {
-      ;((res as unknown as Field[]) || []).forEach(ele => {
-        ele.checked = true
-      })
-      state.nodeList[0].currentDsFields = cloneDeep(res)
-      confirmEditUnion()
     })
+      .then(res => {
+        nodeField.value = res as unknown as Field[]
+        nodeField.value.forEach(ele => {
+          ele.checked = true
+        })
+        state.nodeList[0].currentDsFields = cloneDeep(res)
+      })
+      .finally(() => {
+        editUnion.value = true
+      })
     nextTick(() => {
       emits('addComplete')
     })
@@ -723,7 +966,7 @@ const defaultParam = {
 }
 const dfsNodeListRename = arr => {
   arr.some(ele => {
-    if (ele.id === renameParam.id) {
+    if (ele.id === renameParam.id && ele.tableName !== renameParam.name) {
       ele.tableName = renameParam.name
       return true
     }
@@ -762,21 +1005,27 @@ const notConfirm = () => {
   confirm()
 }
 
+const getNodeList = () => {
+  return cloneDeep(unref(state.nodeList))
+}
+
 defineExpose({
   nodeNameList,
-  nodeList: state.nodeList,
+  getNodeList,
   setStateBack,
   notConfirm,
   dfsNodeFieldBack,
-  initState
+  initState,
+  setChangeStatus,
+  crossDatasources
 })
 
 const handleActiveNode = ele => {
   activeNodeId.value = ele.id
-  handleCommand(ele, ele.type === 'sql' ? 'editerSql' : 'editerField')
+  handleCommand(ele, 'editerField')
 }
 
-const emits = defineEmits(['addComplete', 'joinEditor', 'updateAllfields'])
+const emits = defineEmits(['addComplete', 'joinEditor', 'updateAllfields', 'changeUpdate'])
 </script>
 
 <template>
@@ -785,7 +1034,7 @@ const emits = defineEmits(['addComplete', 'joinEditor', 'updateAllfields'])
     @dragenter="$event => dragenter_handler($event)"
     @dragover="$event => dragover_handler($event)"
     @dragleave="$event => dragleave_handler($event)"
-    class="drag-mask"
+    class="drag-mask_dataset"
     ref="dragMask"
     @click="handleClickOutside"
     :style="{ height: dragHeight + 'px' }"
@@ -803,7 +1052,7 @@ const emits = defineEmits(['addComplete', 'joinEditor', 'updateAllfields'])
         v-for="ele in flatPathList"
         :d="ele.d"
         :stroke-dasharray="ele.isShadow ? '4,4' : '0'"
-        :stroke="ele.isShadow ? '#3370ff' : '#BBBFC4'"
+        :stroke="ele.isShadow ? primaryColor : '#BBBFC4'"
         stroke-width="1"
         fill="none"
       />
@@ -848,7 +1097,12 @@ const emits = defineEmits(['addComplete', 'joinEditor', 'updateAllfields'])
         width="32"
         height="32"
       >
-        <div v-if="!ele.isShadow" @click="handlePathClick(ele)" class="path-union">
+        <div
+          v-if="!ele.isShadow"
+          @click="handlePathClick(ele)"
+          class="path-union"
+          :style="{ borderColor: ele.sqlChangeFlag ? '#F54A45' : '' }"
+        >
           <el-icon>
             <Icon :name="iconName[ele.to.unionType]"></Icon>
           </el-icon>
@@ -907,11 +1161,33 @@ const emits = defineEmits(['addComplete', 'joinEditor', 'updateAllfields'])
       </span>
     </template>
   </el-dialog>
-  <el-drawer v-model="editUnion" custom-class="union-item-drawer" size="600px" direction="rtl">
+  <el-drawer
+    :before-close="closeEditUnion"
+    v-model="editUnion"
+    custom-class="union-item-drawer"
+    size="600px"
+    direction="rtl"
+  >
     <template #header v-if="currentNode">
-      <div class="info">
-        <span class="name">{{ currentNode.tableName }}</span>
-        <span class="ds">{{ t('auth.datasource') }}:{{ getDsName(currentNode.datasourceId) }}</span>
+      <div class="info-content">
+        <div class="info">
+          <span class="label">表名</span>
+          <span :title="currentNode.tableName" class="name ellipsis">{{
+            currentNode.tableName
+          }}</span>
+        </div>
+        <div class="info">
+          <span class="label">表备注</span>
+          <span :title="currentNode.noteName" style="max-width: 240px" class="name ellipsis">{{
+            currentNode.noteName || '-'
+          }}</span>
+        </div>
+        <span
+          :title="getDsName(currentNode.datasourceId)"
+          style="max-width: 550px"
+          class="ds ellipsis"
+          >{{ t('auth.datasource') }}:{{ getDsName(currentNode.datasourceId) }}</span
+        >
       </div>
     </template>
     <union-field-list
@@ -952,23 +1228,35 @@ const emits = defineEmits(['addComplete', 'joinEditor', 'updateAllfields'])
 .union-item-drawer {
   .ed-drawer__header {
     height: 82px;
-    font-family: 'PingFang SC';
+    font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
 
     .ed-drawer__close-btn {
       top: 26px;
     }
 
+    .info-content {
+      display: flex;
+      flex-wrap: wrap;
+    }
+
     .info {
       display: flex;
       flex-direction: column;
-      .name {
+      width: 50%;
+      .label {
         font-weight: 500;
         font-size: 16px;
         color: #1f2329;
+        max-width: 500px;
+      }
+      .name {
+        font-weight: 400;
+        font-size: 14px;
       }
       .ds {
         font-weight: 400;
         font-size: 14px;
+        max-width: 500px;
         color: #646a73;
       }
     }
@@ -983,7 +1271,7 @@ const emits = defineEmits(['addComplete', 'joinEditor', 'updateAllfields'])
   width: 100%;
   border: 1px solid #dee0e3;
   border-radius: 4px;
-  font-family: PingFang SC;
+  font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
   font-size: 14px;
   font-weight: 400;
   color: #1f2329;
@@ -996,7 +1284,7 @@ const emits = defineEmits(['addComplete', 'joinEditor', 'updateAllfields'])
   padding-right: 12px;
 
   &:hover {
-    border-color: #3370ff;
+    border-color: var(--ed-color-primary);
   }
 
   .placeholder {
@@ -1021,7 +1309,7 @@ const emits = defineEmits(['addComplete', 'joinEditor', 'updateAllfields'])
     height: 32px;
     left: -1px;
     top: -1px;
-    background: #3370ff;
+    background: var(--ed-color-primary);
     border-radius: 4px 0px 0px 4px;
   }
 }
@@ -1036,15 +1324,16 @@ const emits = defineEmits(['addComplete', 'joinEditor', 'updateAllfields'])
   align-items: center;
   justify-content: center;
   background: #fff;
+  color: var(--ed-color-primary);
   cursor: pointer;
   &:hover {
-    border-color: #3370ff;
+    border-color: var(--ed-color-primary);
   }
 }
 
 .shadow-node {
   border: 1px dashed;
-  border-color: #3370ff;
+  border-color: var(--ed-color-primary);
   background-color: rgba(51, 112, 255, 0.08);
   .ed-icon,
   .tableName {
@@ -1057,14 +1346,15 @@ const emits = defineEmits(['addComplete', 'joinEditor', 'updateAllfields'])
 }
 
 .active-node {
-  border-color: #3370ff;
+  border-color: var(--ed-color-primary);
 }
 
-.drag-mask {
+.drag-mask_dataset {
   background: #f5f6f7;
   overflow: auto;
   position: relative;
   width: 100%;
+  border: none !important;
 }
 
 .mask-dataset {
@@ -1080,7 +1370,7 @@ const emits = defineEmits(['addComplete', 'joinEditor', 'updateAllfields'])
 .mask-dataset-none {
   background-color: #e5ebf8;
   border: 1px dashed;
-  border-color: #3370ff;
+  border-color: var(--ed-color-primary);
 }
 
 .zero {
@@ -1103,7 +1393,7 @@ const emits = defineEmits(['addComplete', 'joinEditor', 'updateAllfields'])
   }
 
   p {
-    font-family: 'PingFang SC';
+    font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
     font-style: normal;
     font-weight: 400;
     font-size: 14px;

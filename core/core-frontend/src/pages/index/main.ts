@@ -1,7 +1,8 @@
 import { createApp } from 'vue'
+import '../../assets/font/index.css'
 import '@/style/index.less'
-import '@/plugins/svg-icon'
 import 'normalize.css/normalize.css'
+import '@antv/s2/dist/style.min.css'
 import App from './App.vue'
 import { setupI18n } from '@/plugins/vue-i18n'
 import { setupStore } from '@/store'
@@ -12,6 +13,7 @@ import { setupCustomComponent } from '@/custom-component'
 import { installDirective } from '@/directive'
 import '@/utils/DateUtil'
 import '@/permission'
+import WebSocketPlugin from '../../websocket'
 const setupAll = async () => {
   const app = createApp(App)
   installDirective(app)
@@ -21,6 +23,7 @@ const setupAll = async () => {
   setupElementPlus(app)
   setupCustomComponent(app)
   setupElementPlusIcons(app)
+  app.use(WebSocketPlugin)
   app.mount('#app')
 }
 

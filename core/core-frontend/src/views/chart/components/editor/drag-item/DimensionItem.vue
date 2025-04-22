@@ -64,7 +64,7 @@ const showValueFormatter = computed<boolean>(() => {
 })
 
 watch(
-  [() => props.dimensionData, () => props.item],
+  [() => props.dimensionData, () => props.item, () => props.chart.type],
   () => {
     getItemTagType()
   },
@@ -110,6 +110,7 @@ const sort = param => {
     item.value.index = props.index
     item.value.sort = param.type
     item.value.customSort = []
+    delete item.value.axisType
     emit('onDimensionItemChange', item.value)
   }
 }
@@ -122,6 +123,7 @@ const beforeSort = type => {
 
 const dateStyle = param => {
   item.value.dateStyle = param.type
+  item.value.axisType = props.type
   emit('onDimensionItemChange', item.value)
 }
 
@@ -133,6 +135,7 @@ const beforeDateStyle = type => {
 
 const datePattern = param => {
   item.value.datePattern = param.type
+  item.value.axisType = props.type
   emit('onDimensionItemChange', item.value)
 }
 
@@ -164,7 +167,12 @@ const valueFormatter = () => {
   item.value.formatterType = props.type
   emit('valueFormatter', item.value)
 }
-
+const showCustomSort = item => {
+  if (props.chart.type === 'symbolic-map' || props.chart.type === 'flow-map') {
+    return false
+  }
+  return !item.chartId && (item.deType === 0 || item.deType === 5)
+}
 onMounted(() => {
   getItemTagType()
 })
@@ -223,9 +231,16 @@ onMounted(() => {
           class="drop-style"
           :class="themes === 'dark' ? 'dark-dimension-quota' : ''"
         >
-          <el-dropdown-item @click.prevent>
+          <el-dropdown-item
+            @click.prevent
+            v-if="
+              !chart.type.includes('chart-mix') ||
+              (chart.type.includes('chart-mix') && type === 'dimension')
+            "
+          >
             <el-dropdown
               :effect="themes"
+              popper-class="data-dropdown_popper_mr9"
               placement="right-start"
               style="width: 100%; height: 100%"
               @command="sort"
@@ -283,7 +298,7 @@ onMounted(() => {
                   </el-dropdown-item>
                   <el-dropdown-item
                     class="menu-item-padding"
-                    v-if="!item.chartId && (item.deType === 0 || item.deType === 5)"
+                    v-if="showCustomSort(item)"
                     :command="beforeSort('custom_sort')"
                   >
                     <span
@@ -301,10 +316,18 @@ onMounted(() => {
             </el-dropdown>
           </el-dropdown-item>
 
-          <el-dropdown-item @click.prevent v-if="item.deType === 1" divided>
+          <el-dropdown-item
+            @click.prevent
+            v-if="item.deType === 1"
+            :divided="
+              !chart.type.includes('chart-mix') ||
+              (chart.type.includes('chart-mix') && type === 'dimension')
+            "
+          >
             <el-dropdown
               :effect="themes"
               placement="right-start"
+              popper-class="data-dropdown_popper_mr9"
               style="width: 100%; height: 100%"
               @command="dateStyle"
             >
@@ -438,6 +461,7 @@ onMounted(() => {
             <el-dropdown
               :effect="themes"
               placement="right-start"
+              popper-class="data-dropdown_popper_mr9"
               style="width: 100%; height: 100%"
               @command="datePattern"
             >
@@ -489,7 +513,14 @@ onMounted(() => {
               </template>
             </el-dropdown>
           </el-dropdown-item>
-          <el-dropdown-item class="menu-item-padding" divided :command="beforeClickItem('rename')">
+          <el-dropdown-item
+            class="menu-item-padding"
+            :divided="
+              !chart.type.includes('chart-mix') ||
+              (chart.type.includes('chart-mix') && type === 'dimension')
+            "
+            :command="beforeClickItem('rename')"
+          >
             <el-icon>
               <icon name="icon_edit_outlined"></icon>
             </el-icon>
@@ -554,7 +585,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   background-color: #3370ff0a;
-  border: 1px solid #3370ff;
+  border: 1px solid var(--ed-color-primary);
 }
 
 .item-axis:hover {
@@ -592,7 +623,7 @@ span {
   width: 100%;
 
   &.content-active {
-    color: #3370ff;
+    color: var(--ed-color-primary);
   }
 
   .sub-menu-content--icon {
@@ -695,6 +726,9 @@ span {
 }
 </style>
 <style lang="less">
+.data-dropdown_popper_mr9 {
+  margin-left: -9px !important;
+}
 .menu-item-padding {
   span {
     font-size: 14px;
@@ -706,7 +740,7 @@ span {
   }
 
   .sub-menu-content--icon {
-    color: #3370ff;
+    color: var(--ed-color-primary);
     margin-right: -7px;
   }
   :nth-child(1).ed-icon {
@@ -727,7 +761,7 @@ span {
   }
 
   .sub-menu-content--icon {
-    color: #3370ff;
+    color: var(--ed-color-primary);
     margin-right: -7px !important;
   }
 }

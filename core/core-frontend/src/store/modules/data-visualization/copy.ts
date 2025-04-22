@@ -18,7 +18,8 @@ const {
   curMultiplexingComponents,
   dvInfo,
   pcMatrixCount,
-  canvasStyleData
+  canvasStyleData,
+  componentData
 } = storeToRefs(dvMainStore)
 const { menuTop, menuLeft } = storeToRefs(contextmenuStore)
 
@@ -41,6 +42,7 @@ export const copyStore = defineStore('copy', {
     ) {
       // eslint-disable-next-line @typescript-eslint/no-this-alias
       const _this = this
+      const { width, height, scale } = canvasStyleData.value
       Object.keys(outerMultiplexingComponents).forEach(function (componentId, index) {
         const newComponent = deepCopy(outerMultiplexingComponents[componentId])
         newComponent.canvasId = 'canvas-main'
@@ -51,14 +53,14 @@ export const copyStore = defineStore('copy', {
           const xPositionOffset = index % 2
           const yPositionOffset = index % 2
           newComponent.sizeX = pcMatrixCount.value.x / 2
-          newComponent.sizeY = 7
+          newComponent.sizeY = 14
           newComponent.x = newComponent.sizeX * xPositionOffset + 1
           newComponent.y = 200
           // dataV 数据大屏
-          newComponent.style.width = canvasStyleData.value.width / 3
-          newComponent.style.height = canvasStyleData.value.height / 3
-          newComponent.style.left = newComponent.style.width * xPositionOffset
-          newComponent.style.top = newComponent.style.height * yPositionOffset
+          newComponent.style.width = (width * scale) / 400
+          newComponent.style.height = (height * scale) / 400
+          newComponent.style.left = 0
+          newComponent.style.top = 0
         }
         _this.copyData = {
           data: [newComponent],
@@ -83,7 +85,6 @@ export const copyStore = defineStore('copy', {
         return
       }
       const dataArray = this.copyData.data
-
       let i = 0
       const copyDataTemp = this.copyData
       const moveTime = dataArray.length > 1 ? 300 : 10
@@ -107,26 +108,45 @@ export const copyStore = defineStore('copy', {
           // 旧-新ID映射关系
           const idMap = {}
           const newComponent = deepCopyHelper(data, idMap)
+          newComponent['category'] = 'base'
+          if (newComponent.canvasId.includes('Group')) {
+            newComponent.canvasId = 'canvas-main'
+          }
           dvMainStore.addCopyComponent(newComponent, idMap, copyDataTemp.copyCanvasViewInfo)
+          if (dvMainStore.multiplexingStyleAdapt && copyDataTemp.copyFrom === 'multiplexing') {
+            adaptCurThemeCommonStyle(newComponent)
+          }
           if (dvInfo.value.type === 'dashboard') {
-            if (dvMainStore.multiplexingStyleAdapt && copyDataTemp.copyFrom === 'multiplexing') {
-              adaptCurThemeCommonStyle(newComponent)
-            }
             eventBus.emit('addDashboardItem-' + newComponent.canvasId, newComponent)
+          }
+          if (i === dataArray.length - 1) {
+            dvMainStore.setCurComponent({
+              component: newComponent,
+              index: componentData.value.length - 1
+            })
           }
           i++
         }
       }, moveTime)
       snapshotStore.recordSnapshotCache()
     },
-    cut() {
+    cut(curComponentData = componentData.value) {
       if (curComponent.value) {
         this.copyDataInfo([curComponent.value])
-        dvMainStore.deleteComponentById(curComponent.value.id)
+        dvMainStore.deleteComponentById(curComponent.value.id, curComponentData)
       } else if (composeStore.areaData.components.length) {
         this.copyDataInfo(composeStore.areaData.components)
         composeStore.areaData.components.forEach(component => {
           dvMainStore.deleteComponentById(component.id)
+        })
+        composeStore.setAreaData({
+          style: {
+            left: 0,
+            top: 0,
+            width: 0,
+            height: 0
+          },
+          components: []
         })
       }
       snapshotStore.recordSnapshotCache()
@@ -164,6 +184,7 @@ function deepCopyHelper(data, idMap) {
   const newComponentId = generateID()
   idMap[data.id] = newComponentId
   result.id = newComponentId
+  result.inMobile = false
   if (result.component === 'Group') {
     result.propValue.forEach((component, i) => {
       result.propValue[i] = deepCopyHelper(component, idMap)

@@ -13,7 +13,7 @@ import {
   nextTick
 } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus-secondary'
-import { save } from '@/api/datasource'
+import { save, update } from '@/api/datasource'
 import type { Action } from 'element-plus-secondary'
 import { Base64 } from 'js-base64'
 import ExcelInfo from '../ExcelInfo.vue'
@@ -29,6 +29,8 @@ export interface Param {
   id?: string
   name?: string
   creator?: string
+  isPlugin?: boolean
+  staticMap?: any
 }
 
 export interface Field {
@@ -255,9 +257,12 @@ const saveExcelData = (sheetFileMd5, table, params, successCb, finallyCb) => {
     table.sheets[i].jsonArray = []
   }
   table.configuration = Base64.encode(JSON.stringify(table.sheets))
+  let method = save
   if (!table.id || table.id === '0') {
     delete table.id
     table.pid = params.pid
+  } else {
+    method = update
   }
   if (new Set(sheetFileMd5).size !== sheetFileMd5.length && !props.param.id) {
     ElMessageBox.confirm(t('dataset.merge_title'), {
@@ -272,7 +277,7 @@ const saveExcelData = (sheetFileMd5, table, params, successCb, finallyCb) => {
         loading.value = true
         table.mergeSheet = action === 'confirm'
         if (action === 'confirm') {
-          save(table)
+          method(table)
             .then(res => {
               emitter.emit('showFinishPage', res)
               successCb?.()
@@ -288,7 +293,7 @@ const saveExcelData = (sheetFileMd5, table, params, successCb, finallyCb) => {
         }
 
         if (action === 'cancel') {
-          save(table)
+          method(table)
             .then(res => {
               emitter.emit('showFinishPage', res)
               successCb?.()
@@ -307,7 +312,7 @@ const saveExcelData = (sheetFileMd5, table, params, successCb, finallyCb) => {
   } else {
     if (loading.value) return
     loading.value = true
-    save(table)
+    method(table)
       .then(res => {
         emitter.emit('showFinishPage', res)
         successCb?.()
@@ -351,11 +356,24 @@ const uploadExcel = () => {
   formData.append('type', '')
   formData.append('editType', param.value.editType)
   formData.append('id', param.value.id || 0)
-  return uploadFile(formData).then(res => {
-    upload.value?.clearFiles()
-    uploadAgain.value?.clearFiles()
-    uploadSuccess(res)
-  })
+  loading.value = true
+  return uploadFile(formData)
+    .then(res => {
+      upload.value?.clearFiles()
+      uploadAgain.value?.clearFiles()
+      uploadSuccess(res)
+      loading.value = false
+    })
+    .catch(error => {
+      if (error.code === 'ECONNABORTED') {
+        ElMessage({
+          type: 'error',
+          message: error.message,
+          showClose: true
+        })
+      }
+      loading.value = false
+    })
 }
 const excelForm = ref()
 const submitForm = () => {
@@ -391,6 +409,7 @@ defineExpose({
         require-asterisk-position="right"
         :model="param"
         label-position="top"
+        v-loading="loading"
       >
         <el-form-item
           v-if="sheetFile.name"
@@ -550,7 +569,7 @@ defineExpose({
 
     .upload-tip {
       color: #8f959e;
-      font-family: PingFang SC;
+      font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
       font-size: 14px;
       font-style: normal;
       font-weight: 400;

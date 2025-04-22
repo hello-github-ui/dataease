@@ -9,6 +9,8 @@ import { storeToRefs } from 'pinia'
 import { computed, toRefs } from 'vue'
 import { ElDivider } from 'element-plus-secondary'
 import eventBus from '@/utils/eventBus'
+import { getCurInfo } from '@/store/modules/data-visualization/common'
+import { useEmitt } from '@/hooks/web/useEmitt'
 const dvMainStore = dvMainStoreWithOut()
 const copyStore = copyStoreWithOut()
 const lockStore = lockStoreWithOut()
@@ -17,8 +19,9 @@ const layerStore = layerStoreWithOut()
 const composeStore = composeStoreWithOut()
 
 const { areaData } = storeToRefs(composeStore)
-const { curComponent } = storeToRefs(dvMainStore)
+const { curComponent, componentData } = storeToRefs(dvMainStore)
 const emit = defineEmits(['close', 'rename'])
+const { emitter } = useEmitt()
 const props = defineProps({
   activePosition: {
     type: String,
@@ -27,6 +30,10 @@ const props = defineProps({
 })
 
 const { activePosition } = toRefs(props)
+
+const popComponentDataLength = computed(
+  () => componentData.value.filter(ele => ele.category === 'hidden').length
+)
 
 const lock = () => {
   snapshotStore.recordSnapshotCache()
@@ -52,7 +59,12 @@ const menuOpt = optName => {
 }
 
 const cut = () => {
-  copyStore.cut()
+  if (curComponent.value) {
+    const curInfo = getCurInfo()
+    copyStore.cut(curInfo.componentData)
+  } else if (areaData.value.components.length) {
+    copyStore.cut()
+  }
   menuOpt('cut')
 }
 
@@ -72,7 +84,15 @@ const show = () => {
   layerStore.showComponent()
   menuOpt('show')
 }
-
+const categoryChange = type => {
+  if (curComponent.value) {
+    snapshotStore.recordSnapshotCache()
+    curComponent.value['category'] = type
+    if (type === 'hidden') {
+      dvMainStore.canvasStateChange({ key: 'curPointArea', value: 'hidden' })
+    }
+  }
+}
 const rename = () => {
   emit('rename')
   menuOpt('rename')
@@ -84,8 +104,9 @@ const paste = () => {
 }
 
 const deleteComponent = () => {
-  if (curComponent.value) {
-    dvMainStore.deleteComponentById(curComponent.value?.id)
+  if (curComponent.value && !isGroupArea.value) {
+    const curInfo = getCurInfo()
+    dvMainStore.deleteComponentById(curComponent.value?.id, curInfo.componentData)
   } else if (areaData.value.components.length) {
     areaData.value.components.forEach(component => {
       dvMainStore.deleteComponentById(component.id)
@@ -132,6 +153,11 @@ const decompose = () => {
   menuOpt('decompose')
 }
 
+const alignment = params => {
+  composeStore.alignment(params)
+  snapshotStore.recordSnapshotCache('decompose')
+}
+
 // 阻止事件向父级组件传播调用父级的handleMouseDown 导致areaData 被隐藏
 const handleComposeMouseDown = e => {
   e.preventDefault()
@@ -139,15 +165,55 @@ const handleComposeMouseDown = e => {
 }
 
 const composeDivider = computed(() => {
-  return !(!curComponent || curComponent['isLock'] || curComponent['component'] != 'Group')
+  return !(
+    !curComponent ||
+    curComponent['isLock'] ||
+    curComponent['component'] != 'Group' ||
+    curComponent.category === 'hidden'
+  )
 })
+
+const isGroupArea = computed(() => {
+  return curComponent.value?.component === 'GroupArea'
+})
+
+const editQueryCriteria = () => {
+  emitter.emit(`editQueryCriteria${curComponent.value.id}`)
+}
 </script>
 
 <template>
-  <div class="context-menu-details" @mousedown="handleComposeMouseDown">
+  <div class="context-menu-base context-menu-details" @mousedown="handleComposeMouseDown">
     <ul @mouseup="handleMouseUp">
       <template v-if="areaData.components.length">
         <li @mousedown="handleComposeMouseDown" @click="componentCompose">组合</li>
+        <el-dropdown
+          style="width: 100%"
+          trigger="hover"
+          effect="dark"
+          placement="right-start"
+          popper-class="context-menu-details"
+        >
+          <li>
+            <div>
+              <span>对齐</span><el-icon><ArrowRight /></el-icon>
+            </div>
+          </li>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item style="width: 118px" @click="alignment('left')"
+                >左对齐</el-dropdown-item
+              >
+              <el-dropdown-item style="width: 118px" @click="alignment('right')"
+                >右对齐</el-dropdown-item
+              >
+              <el-dropdown-item @click="alignment('top')">上对齐</el-dropdown-item>
+              <el-dropdown-item @click="alignment('bottom')">下对齐</el-dropdown-item>
+              <el-dropdown-item @click="alignment('transverse')">水平居中</el-dropdown-item>
+              <el-dropdown-item @click="alignment('direction')">垂直居中</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
         <el-divider class="custom-divider" />
         <li @click="copy">复制</li>
         <li @click="paste">粘贴</li>
@@ -163,11 +229,32 @@ const composeDivider = computed(() => {
       </li>
       <el-divider class="custom-divider" v-show="composeDivider" />
       <template v-if="curComponent">
-        <template v-if="!curComponent['isLock']">
+        <template v-if="!curComponent['isLock'] && curComponent.category === 'hidden'">
+          <li @click="categoryChange('base')">移动到大屏显示区</li>
+          <li @click="editQueryCriteria">编辑</li>
+          <li v-if="activePosition === 'aside'" @click="rename">重命名</li>
+          <li @click="copy">复制</li>
+          <li @click="paste">粘贴</li>
+          <el-divider class="custom-divider" />
+          <li @click="deleteComponent">删除</li>
+        </template>
+        <template v-if="!curComponent['isLock'] && curComponent.category !== 'hidden'">
+          <li v-if="curComponent.component === 'VQuery'" @click="editQueryCriteria">编辑</li>
+          <li @click="upComponent">上移一层</li>
           <li @click="upComponent">上移一层</li>
           <li @click="downComponent">下移一层</li>
           <li @click="topComponent">置于顶层</li>
           <li @click="bottomComponent">置于底层</li>
+          <li
+            @click="categoryChange('hidden')"
+            v-show="
+              curComponent['category'] === 'base' &&
+              curComponent.component === 'VQuery' &&
+              popComponentDataLength === 0
+            "
+          >
+            移动到大屏弹窗区
+          </li>
           <el-divider class="custom-divider" />
           <li @click="hide" v-show="curComponent['isShow']">隐藏</li>
           <li @click="show" v-show="!curComponent['isShow']">取消隐藏</li>
@@ -180,18 +267,20 @@ const composeDivider = computed(() => {
           <el-divider class="custom-divider" />
           <li @click="deleteComponent">删除</li>
         </template>
-        <li v-else @click="unlock">解锁</li>
+        <li v-if="curComponent['isLock']" @click="unlock">解锁</li>
       </template>
       <li v-else-if="!curComponent && !areaData.components.length" @click="paste">粘贴</li>
     </ul>
   </div>
 </template>
 
-<style lang="less" scoped>
+<style lang="less">
+.context-menu-base {
+  width: 220px;
+}
 .context-menu-details {
   z-index: 1000;
   border: #434343 1px solid;
-  width: 220px;
   ul {
     padding: 4px 0;
     background-color: #292929;
@@ -202,6 +291,7 @@ const composeDivider = computed(() => {
     }
 
     li {
+      width: 100%;
       font-size: 14px;
       padding: 0 12px;
       position: relative;
@@ -216,13 +306,13 @@ const composeDivider = computed(() => {
 
       i {
         position: absolute;
-        left: 30px;
+        right: 0px;
         top: 50%;
         transform: translate(-50%, -50%);
       }
 
       &:hover {
-        background-color: #333;
+        background-color: #333 !important;
       }
     }
   }
@@ -230,5 +320,6 @@ const composeDivider = computed(() => {
 
 .custom-divider {
   border-color: #434343 !important;
+  margin: 0 !important;
 }
 </style>

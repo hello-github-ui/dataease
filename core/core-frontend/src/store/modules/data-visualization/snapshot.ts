@@ -2,18 +2,23 @@ import { defineStore, storeToRefs } from 'pinia'
 import { store } from '../../index'
 import { dvMainStoreWithOut } from './dvMain'
 import { deepCopy } from '@/utils/utils'
-import { BASE_THEMES } from '@/views/chart/components/editor/util/dataVisualiztion'
+import { BASE_THEMES } from '@/views/chart/components/editor/util/dataVisualization'
 import eventBus from '@/utils/eventBus'
 import { useEmitt } from '@/hooks/web/useEmitt'
+import { useCache } from '@/hooks/web/useCache'
+const { wsCache } = useCache('localStorage')
 
 const dvMainStore = dvMainStoreWithOut()
 const {
+  dvInfo,
   curComponent,
   componentData,
   canvasStyleData,
   canvasViewInfo,
   curOriginThemes,
-  dataPrepareState
+  dataPrepareState,
+  nowPanelTrackInfo,
+  nowPanelJumpInfo
 } = storeToRefs(dvMainStore)
 
 let defaultCanvasInfo = {
@@ -34,8 +39,8 @@ export const snapshotStore = defineStore('snapshot', {
       cacheStyleChangeTimes: 0, // 仪表板未缓存的组件样式修改次数
       snapshotCacheTimes: 0, // 当前未计入镜像中的修改变动次数, 此为定时缓存，缓存间隔时间5秒一次 针对类型样式这种变动不大的修改
       cacheViewIdInfo: {
-        snapshotCacheViewCalc: [], // 当前未计入镜像需要视图计算的视图ID, all代表全部
-        snapshotCacheViewRender: [] // 当前未计入镜像需要视图渲染的视图ID,all代表全部
+        snapshotCacheViewCalc: [], // 当前未计入镜像需要图表计算的图表ID, all代表全部
+        snapshotCacheViewRender: [] // 当前未计入镜像需要图表渲染的图表ID,all代表全部
       },
       snapshotData: [], // 编辑器快照数据
       snapshotIndex: -1 // 快照索引
@@ -81,6 +86,9 @@ export const snapshotStore = defineStore('snapshot', {
       dvMainStore.setComponentData(snapshotInfo.componentData)
       dvMainStore.setCanvasStyle(snapshotInfo.canvasStyleData)
       dvMainStore.setCanvasViewInfo(snapshotInfo.canvasViewInfo)
+      dvMainStore.setNowPanelJumpInfoInner(snapshotInfo.nowPanelJumpInfo)
+      dvMainStore.setNowPanelTrackInfo(snapshotInfo.nowPanelTrackInfo)
+      dvMainStore.updateCurDvInfo(snapshotInfo.dvInfo)
       const curCacheViewIdInfo = deepCopy(this.cacheViewIdInfo)
       this.cacheViewIdInfo = snapshotInfo.cacheViewIdInfo
 
@@ -96,7 +104,10 @@ export const snapshotStore = defineStore('snapshot', {
             })
           }
         })
-        if (!curComponentMatch) {
+        if (
+          !curComponentMatch ||
+          (curComponent.value.innerType && curComponent.value.innerType === 'rich-text')
+        ) {
           dvMainStore.setCurComponent({
             component: null,
             index: null
@@ -127,16 +138,33 @@ export const snapshotStore = defineStore('snapshot', {
     resetStyleChangeTimes() {
       this.styleChangeTimes = 0
     },
+    resetSnapshot() {
+      this.styleChangeTimes = -1
+      this.cacheStyleChangeTimes = 0
+      this.snapshotCacheTimes = 0
+      this.cacheViewIdInfo = {
+        snapshotCacheViewCalc: [],
+        snapshotCacheViewRender: []
+      }
+      this.snapshotData = []
+      this.snapshotIndex = -1
+      this.recordSnapshot()
+    },
 
     recordSnapshot() {
       this.styleChangeTimes = ++this.styleChangeTimes
       if (dataPrepareState.value) {
+        const snapshotComponentData = deepCopy(componentData.value)
+        dvMainStore.removeGroupArea(snapshotComponentData)
         // 添加新的快照
         const newSnapshot = {
-          componentData: deepCopy(componentData.value),
+          componentData: snapshotComponentData,
           canvasStyleData: deepCopy(canvasStyleData.value),
           canvasViewInfo: deepCopy(canvasViewInfo.value),
-          cacheViewIdInfo: deepCopy(this.cacheViewIdInfo)
+          cacheViewIdInfo: deepCopy(this.cacheViewIdInfo),
+          nowPanelTrackInfo: deepCopy(nowPanelTrackInfo.value),
+          nowPanelJumpInfo: deepCopy(nowPanelJumpInfo.value),
+          dvInfo: deepCopy(dvInfo.value)
         }
         this.snapshotData[++this.snapshotIndex] = newSnapshot
         // 在 undo 过程中，添加新的快照时，要将它后面的快照清理掉
@@ -145,6 +173,9 @@ export const snapshotStore = defineStore('snapshot', {
         }
         // 清理缓存计数器
         this.snapshotCacheTimes = 0
+        if (this.snapshotData.length > 1) {
+          wsCache.set('DE-DV-CATCH-' + dvInfo.value.id, newSnapshot)
+        }
       }
     }
   }

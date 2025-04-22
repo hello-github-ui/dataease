@@ -1,13 +1,18 @@
 package io.dataease.api.ds;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import io.dataease.api.dataset.dto.DatasetTableDTO;
+import com.github.xiaoymin.knife4j.annotations.ApiSupport;
 import io.dataease.api.ds.vo.*;
 import io.dataease.auth.DeApiPath;
 import io.dataease.auth.DePermit;
 import io.dataease.exception.DEException;
+import io.dataease.extensions.datasource.dto.DatasetTableDTO;
+import io.dataease.extensions.datasource.dto.DatasourceDTO;
+import io.dataease.extensions.datasource.dto.TableField;
+import io.dataease.extensions.datasource.vo.DatasourceConfiguration;
 import io.dataease.model.BusiNodeRequest;
 import io.dataease.model.BusiNodeVO;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -16,7 +21,8 @@ import java.util.Map;
 
 import static io.dataease.constant.AuthResourceEnum.DATASOURCE;
 
-
+@Tag(name = "数据源管理:基础")
+@ApiSupport(order = 969)
 @DeApiPath(value = "/datasource", rt = DATASOURCE)
 public interface DatasourceApi {
     /**
@@ -31,6 +37,18 @@ public interface DatasourceApi {
     @PostMapping("/save")
     DatasourceDTO save(@RequestBody DatasourceDTO dataSourceDTO) throws DEException;
 
+    @PostMapping("/update")
+    DatasourceDTO update(@RequestBody DatasourceDTO dataSourceDTO) throws DEException;
+
+
+    @PostMapping("/move")
+    DatasourceDTO move(@RequestBody DatasourceDTO dataSourceDTO) throws DEException;
+
+    @PostMapping("/reName")
+    DatasourceDTO reName(@RequestBody DatasourceDTO dataSourceDTO) throws DEException;
+
+    @PostMapping("/createFolder")
+    DatasourceDTO createFolder(@RequestBody DatasourceDTO dataSourceDTO) throws DEException;
 
     @PostMapping("/checkRepeat")
     boolean checkRepeat(@RequestBody DatasourceDTO dataSourceDTO) throws DEException;
@@ -55,6 +73,11 @@ public interface DatasourceApi {
     @DePermit({"#p0+':read'"})
     @GetMapping("/get/{datasourceId}")
     DatasourceDTO get(@PathVariable("datasourceId") Long datasourceId) throws DEException;
+
+    @DePermit({"#p0+':read'"})
+    @GetMapping("/hidePw/{datasourceId}")
+    DatasourceDTO hidePw(@PathVariable("datasourceId") Long datasourceId) throws DEException;
+
 
     @PostMapping("/getTableField")
     List<TableField> getTableField(@RequestBody Map<String, String> req) throws DEException;

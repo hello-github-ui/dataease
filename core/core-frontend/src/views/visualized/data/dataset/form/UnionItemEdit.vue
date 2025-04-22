@@ -8,7 +8,8 @@ const { t } = useI18n()
 const iconName = {
   left: 'icon_left-association',
   right: 'icon_right-association',
-  inner: 'icon_intersect'
+  inner: 'icon_intersect',
+  full: 'icon_full-association'
 }
 const props = defineProps({
   tableName: {
@@ -32,7 +33,8 @@ const props = defineProps({
 const unionOptions = [
   { label: t('dataset.left_join'), value: 'left' },
   { label: t('dataset.right_join'), value: 'right' },
-  { label: t('dataset.inner_join'), value: 'inner' }
+  { label: t('dataset.inner_join'), value: 'inner' },
+  { label: t('dataset.full_join'), value: 'full' }
 ]
 
 const init = () => {
@@ -171,7 +173,7 @@ init()
 <style lang="less" scoped>
 .union-container {
   height: 275px;
-  font-family: PingFang SC;
+  font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
 }
 .union-header {
   display: flex;
@@ -217,7 +219,7 @@ init()
   display: flex;
   align-items: center;
   font-size: 14px;
-  font-family: 'PingFang SC';
+  font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
   font-style: normal;
   font-weight: 400;
   margin: 20px 0 8px 0;

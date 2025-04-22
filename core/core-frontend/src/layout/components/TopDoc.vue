@@ -1,14 +1,14 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { computed } from 'vue'
 import { Icon } from '@/components/icon-custom'
 import TopDocCard from '@/layout/components/TopDocCard.vue'
-const helpLink = ref('https://dataease.io/docs/')
-const openBlank = () => {
-  window.open(helpLink.value)
-}
+import { useAppearanceStoreWithOut } from '@/store/modules/appearance'
+const appearanceStore = useAppearanceStoreWithOut()
+const navigateBg = computed(() => appearanceStore.getNavigateBg)
+const help = computed(() => appearanceStore.getHelp)
 
 const cardInfoList = [
-  { name: '帮助文档', url: 'https://dataease.io/docs/index.html', icon: 'top-help-doc' },
+  { name: '帮助文档', url: help.value || 'https://dataease.io/docs/v2/', icon: 'top-help-doc' },
   { name: '产品论坛', url: 'https://bbs.fit2cloud.com/c/de/6', icon: 'top-product-bbs' },
   {
     name: '技术博客',
@@ -25,7 +25,7 @@ const cardInfoList = [
     popper-class="top-popover"
     placement="bottom-end"
     width="208"
-    trigger="click"
+    trigger="hover"
   >
     <el-row>
       <top-doc-card
@@ -36,7 +36,10 @@ const cardInfoList = [
       ></top-doc-card>
     </el-row>
     <template #reference>
-      <div class="sys-setting">
+      <div
+        class="sys-setting"
+        :class="{ 'is-light-setting': navigateBg && navigateBg === 'light' }"
+      >
         <el-icon>
           <Icon name="docs" />
         </el-icon>
@@ -56,6 +59,11 @@ const cardInfoList = [
   cursor: pointer;
   &:hover {
     background-color: #1e2738;
+  }
+}
+.is-light-setting {
+  &:hover {
+    background-color: #1f23291a !important;
   }
 }
 </style>

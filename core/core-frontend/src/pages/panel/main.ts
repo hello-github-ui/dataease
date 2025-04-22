@@ -12,7 +12,7 @@ const formatterUrl = <T extends Node>(node: T, prefix: string) => {
       url = node.src
     }
 
-    if (url.includes(suffix)) {
+    if (url.includes(suffix) || url.includes('dataease-private')) {
       const currentUrlprefix = new URL(url).origin
       const newUrl = url.replace(currentUrlprefix, prefix)
       if (node instanceof HTMLLinkElement) {
@@ -37,6 +37,10 @@ const getPrefix = (): string => {
       }
       if (url.includes(suffix)) {
         prefix = new URL(url).origin
+        const index = url.indexOf(`/js/div_import_${suffix}`)
+        if (index > 0) {
+          prefix = url.substring(0, index)
+        }
         return true
       }
     }
@@ -50,25 +54,56 @@ document.querySelector('head').appendChild = <T extends Node>(node: T) => {
   return newNode
 }
 import { App, createApp } from 'vue'
+import '../../assets/font/index.css'
 import '@/style/index.less'
-import '@/plugins/svg-icon'
 import 'normalize.css/normalize.css'
+import '@antv/s2/dist/style.min.css'
 import AppElement from './App.vue'
 import { setupI18n } from '@/plugins/vue-i18n'
 import { setupStore } from '@/store'
-import { useUserStoreWithOut } from '@/store/modules/user'
+import { useEmbedded } from '@/store/modules/embedded'
 import { setupElementPlus, setupElementPlusIcons } from '@/plugins/element-plus'
-import { setupRouter } from '@/router'
+import { setupRouter } from '@/router/embedded'
 
-const setupAll = async (dom: string, componentName: string): Promise<App<Element>> => {
-  const app = createApp(AppElement, { componentName })
+const setupAll = async (
+  dom: string,
+  type: string,
+  busiFlag: string,
+  outerParams: string,
+  token: string,
+  baseUrl: string,
+  dvId: string,
+  pid: string,
+  chartId: string,
+  resourceId: string
+): Promise<App<Element>> => {
+  const app = createApp(AppElement, { componentName: type })
   await setupI18n(app)
   setupStore(app)
   setupRouter(app)
   setupElementPlus(app)
   setupElementPlusIcons(app)
-  const userStore = useUserStoreWithOut()
-  await userStore.setUser()
+  const embeddedStore = useEmbedded()
+  embeddedStore.setType(type)
+  embeddedStore.setBusiFlag(busiFlag)
+  embeddedStore.setOuterParams(outerParams)
+  embeddedStore.setToken(token)
+  embeddedStore.setBaseUrl(baseUrl)
+  embeddedStore.setDvId(dvId)
+  embeddedStore.setPid(pid)
+  embeddedStore.setChartId(chartId)
+  embeddedStore.setResourceId(resourceId)
+  const directive = await import('@/directive')
+  directive.installDirective(app)
+  const res = await import('@/store/modules/user')
+  const userStore = res.userStore()
+  userStore.setUser()
+  const appRes = await import('@/store/modules/app')
+  const appStore = appRes.useAppStoreWithOut()
+  appStore.setIsDataEaseBi(true)
+  const appearanceRes = await import('@/store/modules/appearance')
+  const appearanceStore = appearanceRes.useAppearanceStoreWithOut()
+  appearanceStore.setAppearance(true)
   app.mount(dom)
   return app
 }
@@ -88,19 +123,27 @@ const defaultOptions = {
 class DataEaseBi {
   baseUrl: string
   token: string
-  type: 'DashboardEditor' | 'VisualizationEditor' | 'ViewWrapper' | 'Dashboard'
+  type:
+    | 'DashboardEditor'
+    | 'VisualizationEditor'
+    | 'ViewWrapper'
+    | 'Dashboard'
+    | 'ScreenPanel'
+    | 'DashboardPanel'
   dvId: string
   busiFlag: 'dashboard' | 'dataV'
+  outerParams: string
   resourceId: string
   pid: string
   chartId: string
   deOptions: Options
   vm: App<Element>
 
-  create(type, options) {
+  constructor(type, options) {
     this.type = type
     this.token = options.token
     this.busiFlag = options.busiFlag
+    this.outerParams = options.outerParams
     this.baseUrl = options.baseUrl
     this.dvId = options.dvId
     this.pid = options.pid
@@ -110,15 +153,47 @@ class DataEaseBi {
 
   async initialize(options: Options) {
     this.deOptions = { ...defaultOptions, ...options }
-    this.vm = await setupAll(this.deOptions.container, this.type)
+    this.vm = await setupAll(
+      this.deOptions.container,
+      this.type,
+      this.busiFlag,
+      this.outerParams,
+      this.token,
+      this.baseUrl,
+      this.dvId,
+      this.pid,
+      this.chartId,
+      this.resourceId
+    )
   }
 
   destroy() {
-    const userStore = useUserStoreWithOut()
-    userStore.clear()
+    import('@/store/modules/user').then(res => {
+      const userStore = res.userStore()
+      userStore.setUser()
+    })
+    const embeddedStore = useEmbedded()
+    embeddedStore.setType(null)
+    embeddedStore.setBusiFlag(null)
+    embeddedStore.setOuterParams(null)
+    embeddedStore.setToken(null)
+    embeddedStore.setBaseUrl(null)
+    embeddedStore.setDvId(null)
+    embeddedStore.setPid(null)
+    embeddedStore.setChartId(null)
+    embeddedStore.setResourceId(null)
     this.vm.unmount()
+    this.type = null
+    this.token = null
+    this.busiFlag = null
+    this.outerParams = null
+    this.baseUrl = null
+    this.dvId = null
+    this.pid = null
+    this.chartId = null
+    this.resourceId = null
     this.vm = null
   }
 }
 
-window.DataEaseBi = new DataEaseBi()
+window.DataEaseBi = DataEaseBi

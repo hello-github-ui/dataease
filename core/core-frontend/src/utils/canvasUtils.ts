@@ -1,28 +1,43 @@
-import { deepCopy } from '@/utils/utils'
+import { cloneDeep } from 'lodash-es'
 import componentList, {
+  ACTION_SELECTION,
+  BASE_EVENTS,
   COMMON_COMPONENT_BACKGROUND_DARK,
   COMMON_COMPONENT_BACKGROUND_LIGHT
 } from '@/custom-component/component-list'
 import eventBus from '@/utils/eventBus'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
-import { findById, saveCanvas, updateCanvas } from '@/api/visualization/dataVisualization'
+import {
+  appCanvasNameCheck,
+  decompression,
+  dvNameCheck,
+  findById,
+  findCopyResource,
+  saveCanvas,
+  updateCanvas
+} from '@/api/visualization/dataVisualization'
 import { storeToRefs } from 'pinia'
 import { getPanelAllLinkageInfo } from '@/api/visualization/linkage'
 import { queryVisualizationJumpInfo } from '@/api/visualization/linkJump'
-import { getViewConfig } from '@/views/chart/components/editor/util/chart'
+import {
+  getViewConfig,
+  SENIOR_STYLE_SETTING_LIGHT
+} from '@/views/chart/components/editor/util/chart'
 import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
+import { deepCopy } from '@/utils/utils'
+import { ElMessage } from 'element-plus-secondary'
 const dvMainStore = dvMainStoreWithOut()
-const { curBatchOptComponents, dvInfo, canvasStyleData, componentData, canvasViewInfo } =
+const { curBatchOptComponents, dvInfo, canvasStyleData, componentData, canvasViewInfo, appData } =
   storeToRefs(dvMainStore)
 const snapshotStore = snapshotStoreWithOut()
 
 export function chartTransStr2Object(targetIn, copy) {
-  const target = copy === 'Y' ? deepCopy(targetIn) : targetIn
+  const target = copy === 'Y' ? cloneDeep(targetIn) : targetIn
   return target
 }
 
 export function chartTransObject2Str(targetIn, copy) {
-  const target = copy === 'Y' ? deepCopy(targetIn) : targetIn
+  const target = copy === 'Y' ? cloneDeep(targetIn) : targetIn
   return target
 }
 
@@ -33,11 +48,11 @@ export function findDragComponent(componentInfo) {
   return findNewComponent(componentName, innerType)
 }
 
-export function findNewComponent(componentName, innerType) {
+export function findNewComponent(componentName, innerType, staticMap?) {
   let newComponent
   componentList.forEach(comp => {
-    if (comp.component === componentName) {
-      newComponent = deepCopy(comp)
+    if (comp.component === componentName || comp.component === innerType) {
+      newComponent = cloneDeep(comp)
       newComponent.innerType = innerType
       if (newComponent.innerType === 'richText') {
         newComponent.propValue = {
@@ -45,9 +60,9 @@ export function findNewComponent(componentName, innerType) {
         }
       }
       if (dvMainStore.curOriginThemes === 'light') {
-        newComponent['commonBackground'] = deepCopy(COMMON_COMPONENT_BACKGROUND_LIGHT)
+        newComponent['commonBackground'] = cloneDeep(COMMON_COMPONENT_BACKGROUND_LIGHT)
       } else {
-        newComponent['commonBackground'] = deepCopy(COMMON_COMPONENT_BACKGROUND_DARK)
+        newComponent['commonBackground'] = cloneDeep(COMMON_COMPONENT_BACKGROUND_DARK)
       }
     }
   })
@@ -56,6 +71,10 @@ export function findNewComponent(componentName, innerType) {
     newComponent.name = viewConfig?.title
     newComponent.label = viewConfig?.title
     newComponent.render = viewConfig?.render
+    newComponent.isPlugin = !!staticMap
+    if (newComponent.isPlugin) {
+      newComponent.staticMap = staticMap
+    }
   }
   return newComponent
 }
@@ -77,9 +96,121 @@ export function commonHandleDragEnd(e, dvModel) {
   }
 }
 
+function matrixAdaptor(componentItem) {
+  componentItem.x = 1 + (componentItem.x - 1) * 2
+  componentItem.y = 1 + (componentItem.y - 1) * 2
+  componentItem.sizeX = componentItem.sizeX * 2
+  componentItem.sizeY = componentItem.sizeY * 2
+  componentItem['mx'] = 1 + (componentItem.mx - 1) * 2
+  componentItem['my'] = 1 + (componentItem.my - 1) * 2
+  componentItem['mSizeX'] = componentItem.mSizeX * 2
+  componentItem['mSizeY'] = componentItem.mSizeY * 2
+  if (componentItem.component === 'Group') {
+    componentItem.propValue.forEach(groupItem => {
+      matrixAdaptor(groupItem)
+    })
+  } else if (componentItem.component === 'DeTabs') {
+    componentItem.propValue.forEach(tabItem => {
+      tabItem.componentData.forEach(tabComponent => {
+        matrixAdaptor(tabComponent)
+      })
+    })
+  }
+}
+
+export function historyAdaptor(
+  canvasStyleResult,
+  canvasDataResult,
+  canvasInfo,
+  attachInfo,
+  canvasVersion
+) {
+  //历史字段适配
+  canvasStyleResult.component['seniorStyleSetting'] =
+    canvasStyleResult.component['seniorStyleSetting'] || deepCopy(SENIOR_STYLE_SETTING_LIGHT)
+  canvasStyleResult['popupAvailable'] =
+    canvasStyleResult['popupAvailable'] === undefined ? true : canvasStyleResult['popupAvailable'] //兼容弹框区域开关
+  const reportFilterInfo = canvasInfo.reportFilterInfo
+  canvasDataResult.forEach(componentItem => {
+    componentItem['canvasActive'] = false
+    // 定时报告过滤组件适配 如果当前是定时报告默认切有设置对应的过滤组件默认值，则替换过滤组件
+    if (
+      componentItem.component === 'VQuery' &&
+      attachInfo.source === 'report' &&
+      !!reportFilterInfo
+    ) {
+      componentItem.propValue.forEach((filterItem, index) => {
+        if (reportFilterInfo[filterItem.id]) {
+          componentItem.propValue[index] = JSON.parse(reportFilterInfo[filterItem.id].filterInfo)
+        }
+      })
+    }
+    if (componentItem.component === 'Group') {
+      componentItem.expand = componentItem.expand || false
+    }
+
+    if (componentItem.component === 'Picture') {
+      componentItem.style['adaptation'] = componentItem.style['adaptation'] || 'adaptation'
+    }
+    componentItem['maintainRadio'] = componentItem['maintainRadio'] || false
+    componentItem['aspectRatio'] = componentItem['aspectRatio'] || 1
+    if (componentItem.component === 'UserView') {
+      componentItem.actionSelection = componentItem.actionSelection || deepCopy(ACTION_SELECTION)
+    }
+    // 2 为基础版本 此处需要增加仪表板矩阵密度
+    if ((!canvasVersion || canvasVersion === 2) && canvasInfo.type === 'dashboard') {
+      matrixAdaptor(componentItem)
+    }
+    // 组件事件适配
+    componentItem.events =
+      componentItem.events && componentItem.events.checked !== undefined
+        ? componentItem.events
+        : deepCopy(BASE_EVENTS)
+    componentItem['category'] = componentItem['category'] || 'base'
+  })
+}
+
+// 重置仪表板、大屏中的其他组件
+export function refreshOtherComponent(dvId, busiFlag) {
+  // 富文本 跑马灯组件进行刷新
+  const refreshComponentList = componentData.value.filter(
+    ele => ['ScrollText'].includes(ele.component) || ele.innerType === 'rich-text'
+  )
+  if (refreshComponentList && refreshComponentList.length > 0) {
+    const refreshIdList = refreshComponentList.map(ele => ele.id)
+    findById(dvId, busiFlag, {}).then(rsp => {
+      const canvasInfo = rsp.data
+      const canvasDataResult = JSON.parse(canvasInfo.componentData)
+      const canvasDataResultMap = canvasDataResult.reduce((acc, comp) => {
+        acc[comp.id] = comp
+        return acc
+      }, {})
+      // 遍历数组并替换
+      for (let i = 0; i < componentData.value.length; i++) {
+        const component = componentData.value[i]
+        if (refreshIdList.includes(component.id) && canvasDataResultMap[component.id]) {
+          componentData.value[i] = canvasDataResultMap[component.id]
+        }
+      }
+    })
+  }
+}
+
 export function initCanvasDataPrepare(dvId, busiFlag, callBack) {
-  findById(dvId, busiFlag).then(res => {
+  const copyFlag = busiFlag != null && busiFlag.includes('-copy')
+  const busiFlagCustom = copyFlag ? busiFlag.split('-')[0] : busiFlag
+  const method = copyFlag ? findCopyResource : findById
+  let attachInfo = { source: 'main' }
+  if (dvMainStore.canvasAttachInfo && !!dvMainStore.canvasAttachInfo.taskId) {
+    attachInfo = { source: 'report', taskId: dvMainStore.canvasAttachInfo.taskId }
+  }
+  method(dvId, busiFlagCustom, attachInfo).then(res => {
     const canvasInfo = res.data
+    const watermarkInfo = {
+      ...canvasInfo.watermarkInfo,
+      settingContent: JSON.parse(canvasInfo.watermarkInfo.settingContent)
+    }
+
     const dvInfo = {
       id: canvasInfo.id,
       name: canvasInfo.name,
@@ -90,11 +221,20 @@ export function initCanvasDataPrepare(dvId, busiFlag, callBack) {
       creatorName: canvasInfo.creatorName,
       updateName: canvasInfo.updateName,
       createTime: canvasInfo.createTime,
-      updateTime: canvasInfo.updateTime
+      updateTime: canvasInfo.updateTime,
+      watermarkInfo: watermarkInfo,
+      weight: canvasInfo.weight,
+      mobileLayout: canvasInfo.mobileLayout || false
     }
+    const canvasVersion = canvasInfo.version
+
     const canvasDataResult = JSON.parse(canvasInfo.componentData)
     const canvasStyleResult = JSON.parse(canvasInfo.canvasStyleData)
     const canvasViewInfoPreview = canvasInfo.canvasViewInfo
+    historyAdaptor(canvasStyleResult, canvasDataResult, canvasInfo, attachInfo, canvasVersion)
+    //历史字段适配
+    canvasStyleResult.component['seniorStyleSetting'] =
+      canvasStyleResult.component['seniorStyleSetting'] || deepCopy(SENIOR_STYLE_SETTING_LIGHT)
     const curPreviewGap =
       dvInfo.type === 'dashboard' && canvasStyleResult['dashboard'].gap === 'yes'
         ? canvasStyleResult['dashboard'].gapSize
@@ -103,7 +243,7 @@ export function initCanvasDataPrepare(dvId, busiFlag, callBack) {
   })
 }
 
-export function initCanvasData(dvId, busiFlag, callBack) {
+export async function initCanvasData(dvId, busiFlag, callBack) {
   initCanvasDataPrepare(
     dvId,
     busiFlag,
@@ -125,12 +265,100 @@ export function initCanvasData(dvId, busiFlag, callBack) {
   )
 }
 
+export async function backCanvasData(dvId, busiFlag, callBack) {
+  initCanvasDataPrepare(dvId, busiFlag, function ({ canvasDataResult, canvasStyleResult }) {
+    const componentDataCopy = canvasDataResult.filter(ele => !!ele.inMobile)
+    const componentDataId = componentDataCopy.map(ele => ele.id)
+    componentData.value.forEach(ele => {
+      ele.inMobile = componentDataId.includes(ele.id)
+      if (ele.inMobile) {
+        const { mx, my, mSizeX, mSizeY } = componentDataCopy.find(itx => itx.id === ele.id)
+        ele.mx = mx
+        ele.my = my
+        ele.mSizeX = mSizeX
+        ele.mSizeY = mSizeY
+        if (ele.component === 'DeTabs') {
+          ele.propValue.forEach(tabItem => {
+            tabItem.componentData.forEach(tabComponent => {
+              tabComponent.mx = tabComponent.mx
+              tabComponent.my = tabComponent.my
+              tabComponent.mSizeX = tabComponent.mSizeX
+              tabComponent.mSizeY = tabComponent.mSizeY
+            })
+          })
+        }
+      }
+    })
+    dvMainStore.setComponentData(componentData.value)
+    const canvasStyleDataCopy = cloneDeep(canvasStyleData.value)
+    if (!canvasStyleDataCopy.mobileSetting) {
+      canvasStyleDataCopy.mobileSetting = {
+        backgroundColorSelect: false,
+        background: '',
+        color: '#ffffff',
+        backgroundImageEnable: false,
+        customSetting: false
+      }
+    } else {
+      canvasStyleDataCopy.mobileSetting = canvasStyleResult.mobileSetting
+    }
+    dvMainStore.setCanvasStyle(canvasStyleDataCopy)
+    callBack()
+  })
+}
+
+export function initCanvasDataMobile(dvId, busiFlag, callBack) {
+  initCanvasDataPrepare(
+    dvId,
+    busiFlag,
+    function ({ canvasDataResult, canvasStyleResult, dvInfo, canvasViewInfoPreview }) {
+      const componentData = canvasDataResult.filter(ele => !!ele.inMobile)
+      canvasDataResult.forEach(ele => {
+        const { mx, my, mSizeX, mSizeY } = ele
+        ele.x = mx
+        ele.y = my
+        ele.sizeX = mSizeX
+        ele.sizeY = mSizeY
+        if (ele.component === 'DeTabs') {
+          ele.propValue.forEach(tabItem => {
+            tabItem.componentData.forEach(tabComponent => {
+              tabComponent.x = tabComponent.mx
+              tabComponent.y = tabComponent.my
+              tabComponent.sizeX = tabComponent.mSizeX
+              tabComponent.sizeY = tabComponent.mSizeY
+            })
+          })
+        }
+      })
+      dvMainStore.setComponentData(componentData)
+      dvMainStore.setCanvasStyle(canvasStyleResult)
+      dvMainStore.updateCurDvInfo(dvInfo)
+      dvMainStore.setCanvasViewInfo(canvasViewInfoPreview)
+      // 刷新联动信息
+      getPanelAllLinkageInfo(dvInfo.id).then(rsp => {
+        dvMainStore.setNowPanelTrackInfo(rsp.data)
+      })
+      // 刷新跳转信息
+      queryVisualizationJumpInfo(dvInfo.id).then(rsp => {
+        dvMainStore.setNowPanelJumpInfo(rsp.data)
+      })
+      callBack({
+        canvasDataResult: componentData,
+        canvasStyleResult,
+        dvInfo,
+        canvasViewInfoPreview
+      })
+    }
+  )
+}
+
 export function checkIsBatchOptView(viewId) {
   return curBatchOptComponents.value.includes(viewId)
 }
 
-export function canvasSave(callBack) {
-  const componentDataToSave = deepCopy(componentData.value)
+export async function canvasSave(callBack) {
+  dvMainStore.removeGroupArea()
+  const componentDataToSave = cloneDeep(componentData.value)
   componentDataToSave.forEach(item => {
     if (item.component === 'UserView') {
       item.linkageFilters = []
@@ -150,13 +378,37 @@ export function canvasSave(callBack) {
     canvasStyleData: JSON.stringify(canvasStyleData.value),
     componentData: JSON.stringify(componentDataToSave),
     canvasViewInfo: canvasViewInfo.value,
-    ...dvInfo.value
+    appData: appData.value,
+    ...dvInfo.value,
+    watermarkInfo: null
   }
-  const method = dvInfo.value.id ? updateCanvas : saveCanvas
+
+  let dsNameCheck = 'success'
+  if (appData.value) {
+    await appCanvasNameCheck({
+      datasetFolderPid: canvasInfo.datasetFolderPid,
+      datasetFolderName: canvasInfo.datasetFolderName
+    }).then(rsp => {
+      dsNameCheck = rsp.data
+    })
+  }
+  if (dsNameCheck === 'repeat') {
+    ElMessage.error('数据集名称已存在')
+    return
+  }
+
+  const method = dvInfo.value.id && dvInfo.value.optType !== 'copy' ? updateCanvas : saveCanvas
+  if (method === updateCanvas) {
+    await dvNameCheck({
+      opt: 'edit',
+      nodeType: 'leaf',
+      name: dvInfo.value.name,
+      type: dvInfo.value.type,
+      id: dvInfo.value.id
+    })
+  }
   method(canvasInfo).then(res => {
-    if (res && res.data) {
-      dvMainStore.updateDvInfoId(res.data)
-    }
+    dvMainStore.updateDvInfoId(res.data)
     snapshotStore.resetStyleChangeTimes()
     callBack(res)
   })
@@ -197,6 +449,10 @@ export function isMainCanvas(canvasId) {
 
 export function isSameCanvas(item, canvasId) {
   return item.canvasId === canvasId
+}
+
+export function isGroupCanvas(canvasId) {
+  return canvasId && canvasId.includes('Group')
 }
 
 export function findComponentIndexById(componentId, componentDataMatch = componentData.value) {
@@ -275,4 +531,110 @@ export function filterEmptyFolderTree(nodes) {
       return false // 不显示空文件夹
     }
   })
+}
+
+export function findParentIdByChildIdRecursive(tree, targetChildId) {
+  function findParentId(node, targetChildId) {
+    if (node.children) {
+      for (const childNode of node.children) {
+        if (childNode.id === targetChildId) {
+          return node.id // 找到匹配的子节点，返回其父节点的 ID
+        }
+        const parentId = findParentId(childNode, targetChildId)
+        if (parentId !== null) {
+          return parentId // 在子节点中找到匹配的父节点
+        }
+      }
+    }
+    return null // 没有找到匹配的子节点
+  }
+
+  for (const node of tree) {
+    const parentId = findParentId(node, targetChildId)
+    if (parentId !== null) {
+      return parentId // 在整个树中找到匹配的父节点
+    }
+  }
+
+  return null // 没有找到匹配的子节点
+}
+
+export async function decompressionPre(params, callBack) {
+  let deTemplateData
+  await decompression(params)
+    .then(response => {
+      const deTemplateDataTemp = response.data
+      const sourceComponentData = JSON.parse(deTemplateDataTemp['componentData'])
+      const appData = deTemplateDataTemp['appData']
+      sourceComponentData.forEach(componentItem => {
+        // 2 为基础版本 此处需要增加仪表板矩阵密度
+        if (
+          (!deTemplateDataTemp.version || deTemplateDataTemp.version === 2) &&
+          deTemplateDataTemp.type === 'dashboard'
+        ) {
+          matrixAdaptor(componentItem)
+        }
+      })
+      const sourceCanvasStyle = JSON.parse(deTemplateDataTemp['canvasStyleData'])
+      //历史字段适配
+      sourceCanvasStyle.component['seniorStyleSetting'] =
+        sourceCanvasStyle.component['seniorStyleSetting'] || deepCopy(SENIOR_STYLE_SETTING_LIGHT)
+      deTemplateData = {
+        canvasStyleData: sourceCanvasStyle,
+        componentData: sourceComponentData,
+        canvasViewInfo: deTemplateDataTemp['canvasViewInfo'],
+        appData: appData,
+        baseInfo: {
+          preName: deTemplateDataTemp.name
+        }
+      }
+    })
+    .catch(e => {
+      console.error(e)
+    })
+  callBack(deTemplateData)
+}
+
+export function isDashboard() {
+  return dvInfo.value.type === 'dashboard'
+}
+
+export function trackBarStyleCheck(element, trackbarStyle, _scale, trackMenuNumber) {
+  const { width, height } = element.style
+  const widthReal = width
+  const heightReal = height
+  // 浮窗高度
+  function calculateTrackHeight(trackMenuNumber) {
+    if (trackMenuNumber === 2) {
+      return 75
+    } else {
+      const increment = Math.floor(trackMenuNumber - 2) * 35
+      return 75 + increment
+    }
+  }
+  if (trackbarStyle.left < 0) {
+    trackbarStyle.left = 0
+  } else if (widthReal - trackbarStyle.left < 60) {
+    trackbarStyle.left = trackbarStyle.left - 60
+  }
+  const trackMenuHeight = calculateTrackHeight(trackMenuNumber)
+  if (trackbarStyle.top < 0) {
+    trackbarStyle.top = 0
+  } else if (trackbarStyle.top + trackMenuHeight + 60 > heightReal) {
+    trackbarStyle.top = trackbarStyle.top - trackMenuHeight
+  }
+}
+
+// 优化仪表板图层排序 根据所处的Y轴位置预先进行排序再渲染矩阵 防止出现串位
+export function componentPreSort(componentData) {
+  if (componentData && Array.isArray(componentData)) {
+    componentData.sort((c1, c2) => c1.y - c2.y)
+    componentData.forEach(componentItem => {
+      if (componentItem.component === 'DeTabs') {
+        componentItem.propValue.forEach(tabItem => {
+          componentPreSort(tabItem.componentData)
+        })
+      }
+    })
+  }
 }

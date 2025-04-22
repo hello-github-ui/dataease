@@ -1,5 +1,5 @@
 /**
- * 视图样式设置
+ * 图表样式设置
  */
 declare interface ChartStyle {
   /**
@@ -43,7 +43,7 @@ declare interface ChartTextStyle {
   /**
    * 字体大小
    */
-  fontSize: string
+  fontSize: number
   /**
    * 颜色
    */
@@ -125,7 +125,7 @@ declare interface ChartLegendStyle {
 }
 
 /**
- * 视图轴设置
+ * 图表轴设置
  */
 declare interface ChartAxisStyle {
   /**

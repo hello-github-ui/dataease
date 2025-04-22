@@ -1,6 +1,11 @@
 <template>
-  <div class="pic-main">
-    <img v-if="propValue['url']" :style="imageAdapter" :src="imgUrlTrans(propValue['url'])" />
+  <div class="pic-main" @click="onPictureClick">
+    <img
+      draggable="false"
+      v-if="propValue['url']"
+      :style="imageAdapter"
+      :src="imgUrlTrans(propValue['url'])"
+    />
     <div v-else class="pic-upload">
       <span
         ><el-button @click="uploadImg" text style="color: #646a73" icon="Plus"
@@ -15,6 +20,9 @@
 import { CSSProperties, computed, nextTick, toRefs } from 'vue'
 import { imgUrlTrans } from '@/utils/imgUtils'
 import eventBus from '@/utils/eventBus'
+import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
+const dvMainStore = dvMainStoreWithOut()
+
 const props = defineProps({
   propValue: {
     type: String,
@@ -31,7 +39,7 @@ const props = defineProps({
   }
 })
 
-const { propValue } = toRefs(props)
+const { propValue, element } = toRefs(props)
 
 const imageAdapter = computed(() => {
   const style = {
@@ -39,9 +47,24 @@ const imageAdapter = computed(() => {
     width: '100%',
     height: '100%'
   }
+  if (element.value.style.adaptation === 'original') {
+    style.width = 'auto'
+    style.height = 'auto'
+  } else if (element.value.style.adaptation === 'equiratio') {
+    style.height = 'auto'
+  }
   return style as CSSProperties
 })
-
+const onPictureClick = e => {
+  if (element.value.events && element.value.events.checked) {
+    if (element.value.events.type === 'displayChange') {
+      // 打开弹框区域
+      nextTick(() => {
+        dvMainStore.popAreaActiveSwitch()
+      })
+    }
+  }
+}
 const uploadImg = () => {
   nextTick(() => {
     eventBus.emit('uploadImg')
@@ -54,6 +77,7 @@ const uploadImg = () => {
   overflow: hidden;
   width: 100%;
   height: 100%;
+  cursor: pointer;
 }
 .pic-upload {
   display: flex;

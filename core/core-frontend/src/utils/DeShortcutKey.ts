@@ -11,7 +11,7 @@ const composeStore = composeStoreWithOut()
 const snapshotStore = snapshotStoreWithOut()
 const copyStore = copyStoreWithOut()
 const lockStore = lockStoreWithOut()
-const { curComponent, isInEditor } = storeToRefs(dvMainStore)
+const { curComponent, isInEditor, editMode } = storeToRefs(dvMainStore)
 const { areaData } = storeToRefs(composeStore)
 
 const ctrlKey = 17,
@@ -83,7 +83,7 @@ const checkDialog = () => {
       haveDialog = true
     }
   })
-  document.querySelectorAll('.ed-popover').forEach(element => {
+  document.querySelectorAll('.ed-popper').forEach(element => {
     if (window.getComputedStyle(element).getPropertyValue('display') != 'none') {
       haveDialog = true
     }
@@ -101,20 +101,20 @@ let isShiftDown = false
 // 全局监听按键操作并执行相应命令
 export function listenGlobalKeyDown() {
   window.onkeydown = e => {
-    console.log('e.keyCode-down=' + e.keyCode)
-    if (!isInEditor || checkDialog()) return
+    if (editMode.value === 'preview' || checkDialog()) return
     const { keyCode } = e
     if (positionMoveKey[keyCode] && curComponent.value) {
       positionMoveKey[keyCode](keyCode)
       e.preventDefault()
+      e.stopPropagation()
     } else if (keyCode === shiftKey) {
       isShiftDown = true
       composeStore.setIsShiftDownStatus(true)
-      releaseKeyCheck()
+      releaseKeyCheck('shift')
     } else if (keyCode === ctrlKey || keyCode === commandKey) {
       isCtrlOrCommandDown = true
       composeStore.setIsCtrlOrCmdDownStatus(true)
-      releaseKeyCheck()
+      releaseKeyCheck('ctrl')
     } else if ((keyCode == deleteKey || keyCode == macDeleteKey) && curComponent.value) {
       deleteComponent()
     } else if (isCtrlOrCommandDown) {
@@ -129,7 +129,6 @@ export function listenGlobalKeyDown() {
   }
 
   window.onkeyup = e => {
-    console.log('e.keyCode=' + e.keyCode)
     if (e.keyCode === ctrlKey || e.keyCode === commandKey) {
       isCtrlOrCommandDown = false
       composeStore.setIsCtrlOrCmdDownStatus(false)
@@ -144,12 +143,20 @@ export function listenGlobalKeyDown() {
   }
 }
 
+export function releaseAttachKey() {
+  isCtrlOrCommandDown = false
+  composeStore.setIsCtrlOrCmdDownStatus(false)
+  isShiftDown = false
+  composeStore.setIsShiftDownStatus(false)
+}
+
 //当前不支持同时ctrl + shift操作
-function releaseKeyCheck() {
-  if (isCtrlOrCommandDown && isShiftDown) {
+function releaseKeyCheck(keyType) {
+  if (keyType === 'shift' && isCtrlOrCommandDown) {
     isCtrlOrCommandDown = false
     composeStore.setIsCtrlOrCmdDownStatus(false)
-    isShiftDown = true
+  } else if (keyType === 'ctrl' && isShiftDown) {
+    isShiftDown = false
     composeStore.setIsShiftDownStatus(false)
   }
 }
@@ -167,13 +174,27 @@ function move(keyCode) {
   if (curComponent.value) {
     if (keyCode === leftKey) {
       curComponent.value.style.left = --curComponent.value.style.left
+      groupAreaAdaptor(-1, 0)
     } else if (keyCode === rightKey) {
       curComponent.value.style.left = ++curComponent.value.style.left
+      groupAreaAdaptor(1, 0)
     } else if (keyCode === upKey) {
       curComponent.value.style.top = --curComponent.value.style.top
+      groupAreaAdaptor(0, -1)
     } else if (keyCode === downKey) {
       curComponent.value.style.top = ++curComponent.value.style.top
+      groupAreaAdaptor(0, 1)
     }
+    snapshotStore.recordSnapshotCache('key-move')
+  }
+}
+
+function groupAreaAdaptor(leftOffset = 0, topOffset = 0) {
+  if (curComponent.value.component === 'GroupArea') {
+    composeStore.areaData.components.forEach(component => {
+      component.style.top = component.style.top + topOffset
+      component.style.left = component.style.left + leftOffset
+    })
   }
 }
 

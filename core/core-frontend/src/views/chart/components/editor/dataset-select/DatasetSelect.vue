@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { Tree } from '../../../../visualized/data/dataset/form/CreatDsGroup.vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { Plus, Search } from '@element-plus/icons-vue'
 import { useI18n } from '@/hooks/web/useI18n'
-import { Field, getFieldByDQ } from '@/api/chart'
+import { useAppStoreWithOut } from '@/store/modules/app'
 import _ from 'lodash'
-import { useRouter } from 'vue-router'
-import { getDatasetTree } from '@/api/dataset'
+import { getDatasetTree, getDatasourceList } from '@/api/dataset'
 import { ElFormItem, FormInstance } from 'element-plus-secondary'
+import { useEmitt } from '@/hooks/web/useEmitt'
+import { useCache } from '@/hooks/web/useCache'
+import { useUserStoreWithOut } from '@/store/modules/user'
 
-const { resolve } = useRouter()
+const { wsCache } = useCache('localStorage')
+const userStore = useUserStoreWithOut()
 
 const props = withDefaults(
   defineProps<{
@@ -17,10 +20,12 @@ const props = withDefaults(
     modelValue?: string | number
     stateObj: any
     viewId: string
+    sourceType: string
   }>(),
   {
     datasetTree: () => [],
-    themes: 'dark'
+    themes: 'dark',
+    sourceType: 'dataset'
   }
 )
 
@@ -28,13 +33,19 @@ const datasetSelector = ref(null)
 
 const loadingDatasetTree = ref(false)
 
+const orgCheck = ref(true)
+
 const datasetTree = ref<Tree[]>([])
 const toolTip = computed(() => {
   return props.themes === 'dark' ? 'ndark' : 'dark'
 })
+
+const sourceName = computed(() => (props.sourceType === 'datasource' ? '数据源' : '数据集'))
+
 const initDataset = () => {
   loadingDatasetTree.value = true
-  getDatasetTree({})
+  const method = props.sourceType === 'datasource' ? getDatasourceList : getDatasetTree
+  method({})
     .then(res => {
       datasetTree.value = (res as unknown as Tree[]) || []
     })
@@ -44,7 +55,12 @@ const initDataset = () => {
     })
 }
 
-const emits = defineEmits(['update:modelValue', 'update:stateObj', 'onDatasetChange'])
+const emits = defineEmits([
+  'update:modelValue',
+  'update:stateObj',
+  'onDatasetChange',
+  'addDsWindow'
+])
 
 const _modelValue = computed({
   get() {
@@ -52,15 +68,6 @@ const _modelValue = computed({
   },
   set(v) {
     emits('update:modelValue', v)
-  }
-})
-
-const state = computed({
-  get() {
-    return props.stateObj
-  },
-  set(v) {
-    emits('update:stateObj', v)
   }
 })
 
@@ -82,11 +89,17 @@ watch(searchStr, val => {
 })
 
 const showTree = computed(() => {
-  return datasetTree.value && datasetTree.value.length > 0 && !loadingDatasetTree.value
+  return (
+    datasetTree.value && datasetTree.value.length > 0 && !loadingDatasetTree.value && orgCheck.value
+  )
+})
+
+const emptyMsg = computed(() => {
+  return orgCheck.value ? '暂无' + sourceName.value : '已切换至新组织，无权访问其他组织的资源'
 })
 
 const showEmptyInfo = computed(() => {
-  return !showTree.value && !loadingDatasetTree.value
+  return !showTree.value && !loadingDatasetTree.value && !orgCheck.value
 })
 
 const computedTree = computed(() => {
@@ -117,7 +130,7 @@ const exist = computed(() => {
 
 const selectedNodeName = computed(() => {
   if (!exist.value) {
-    return '数据集不存在'
+    return sourceName.value + '不存在'
   }
   return selectedNode.value?.name
 })
@@ -160,8 +173,7 @@ const refresh = () => {
   initDataset()
 }
 const addDataset = () => {
-  const { href } = resolve('/dataset-form')
-  window.open(href, '_blank')
+  emits('addDsWindow')
 }
 
 const datasetSelectorPopover = ref()
@@ -188,12 +200,28 @@ function onPopoverHide() {
 function getNode(nodeId: number) {
   return datasetSelector?.value?.getNode(nodeId)
 }
+const handleFocus = () => {
+  if (
+    props.sourceType === 'dataset' &&
+    userStore.getOid &&
+    wsCache.get('user.oid') &&
+    userStore.getOid !== wsCache.get('user.oid')
+  ) {
+    orgCheck.value = false
+  } else {
+    orgCheck.value = true
+  }
+}
 
 defineExpose({ getNode })
-const isDataEaseBi = ref(false)
+const appStore = useAppStoreWithOut()
+const isDataEaseBi = computed(() => appStore.getIsDataEaseBi)
 onMounted(() => {
   initDataset()
-  isDataEaseBi.value = !!window.DataEaseBi
+  useEmitt({
+    name: 'refresh-dataset-selector',
+    callback: () => refresh()
+  })
 })
 </script>
 
@@ -220,7 +248,8 @@ onMounted(() => {
               v-model="selectedNodeName"
               readonly
               class="data-set-dark"
-              placeholder="请选择数据集"
+              @focus="handleFocus"
+              :placeholder="'请选择' + sourceName"
             >
               <template #suffix>
                 <el-icon class="input-arrow-icon" :class="{ reverse: _popoverShow }">
@@ -235,7 +264,7 @@ onMounted(() => {
         <el-container :class="themes">
           <el-header>
             <div class="m-title" :class="{ dark: themes === 'dark' }">
-              <div>{{ t('dataset.datalist') }}</div>
+              <div>{{ sourceName }}</div>
               <el-button type="primary" link class="refresh-btn" @click="refresh">
                 {{ t('commons.refresh') }}
               </el-button>
@@ -252,7 +281,7 @@ onMounted(() => {
           <el-main :class="{ dark: themes === 'dark' }">
             <el-scrollbar max-height="252px" always>
               <div class="m-loading" v-if="loadingDatasetTree" v-loading="loadingDatasetTree"></div>
-              <div class="empty-info" v-if="showEmptyInfo">暂无数据集</div>
+              <div class="empty-info" v-if="showEmptyInfo">{{ emptyMsg }}</div>
               <!--          <div class="empty-info" v-if="showEmptySearchInfo">暂无相关数据</div>-->
               <el-tree
                 :class="{ dark: themes === 'dark' }"
@@ -302,7 +331,7 @@ onMounted(() => {
           <el-footer v-if="!isDataEaseBi">
             <div class="footer-container">
               <el-button type="primary" :icon="Plus" link class="add-btn" @click="addDataset">
-                新建数据集
+                新建{{ sourceName }}
               </el-button>
             </div>
           </el-footer>
@@ -348,7 +377,7 @@ onMounted(() => {
   }
 }
 .customDatasetSelect {
-  --ed-popover-padding: 0;
+  --ed-popover-padding: 0 !important;
   max-height: 356px;
 
   .ed-container {
@@ -423,6 +452,7 @@ onMounted(() => {
         font-style: normal;
         font-weight: 400;
         line-height: 20px;
+        text-align: center;
       }
 
       .m-loading {
@@ -511,14 +541,14 @@ onMounted(() => {
         }
 
         &.active {
-          color: #3370ff;
+          color: var(--ed-color-primary);
           padding-right: 30px;
         }
         .checked-item {
           position: absolute;
           right: 10px;
           padding-top: 2px;
-          color: #3370ff;
+          color: var(--ed-color-primary);
           font-size: 16px;
         }
       }
@@ -532,14 +562,14 @@ onMounted(() => {
 
     &:not(.is-disabled):focus,
     &:not(.is-disabled):hover {
-      color: rgba(51, 112, 255, 1);
+      color: var(--ed-color-primary);
       border-color: transparent;
-      background-color: rgba(51, 112, 255, 0.1);
+      background-color: var(--ed-color-primary-1a, rgba(51, 112, 255, 0.1));
     }
     &:not(.is-disabled):active {
-      color: rgba(51, 112, 255, 1);
+      color: var(--ed-color-primary);
       border-color: transparent;
-      background-color: rgba(51, 112, 255, 0.2);
+      background-color: var(--ed-color-primary-33, rgba(51, 112, 255, 0.2));
     }
   }
 }

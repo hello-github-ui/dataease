@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { propTypes } from '@/utils/propTypes'
-import { ElTreeSelect, ElPopover, ElIcon } from 'element-plus-secondary'
-import { computed, reactive, ref, watch } from 'vue'
-import { Icon } from '@/components/icon-custom'
-
+import { ElTreeSelect } from 'element-plus-secondary'
+import { computed, reactive, ref, PropType, toRefs, watch } from 'vue'
+import { useI18n } from '@/hooks/web/useI18n'
+const { t } = useI18n()
+interface TreeConfig {
+  checkStrictly: boolean
+  showCheckbox: boolean
+  checkOnClickNode: boolean
+  placeholder: string
+}
 const props = defineProps({
   optionList: propTypes.arrayOf(
     propTypes.shape({
@@ -13,7 +19,22 @@ const props = defineProps({
       disabled: Boolean
     })
   ),
-  title: propTypes.string
+  title: propTypes.string,
+  property: Object as PropType<TreeConfig>
+})
+
+const { property } = toRefs(props)
+const treeConfig = computed(() => {
+  let obj = Object.assign(
+    {
+      checkStrictly: false,
+      showCheckbox: true,
+      checkOnClickNode: true,
+      placeholder: t('user.role')
+    },
+    property.value
+  )
+  return obj
 })
 
 const state = reactive({
@@ -21,18 +42,8 @@ const state = reactive({
   activeStatus: []
 })
 
-const elPopoverU = ref(null)
-const more = ref(null)
-const filterTree = ref(null)
-const statusChange = (value: string | number) => {
-  state.activeStatus = state.activeStatus.filter(ele => ele?.value !== value)
-  state.currentStatus = state.currentStatus.filter(val => val !== value)
-  emits(
-    'filter-change',
-    state.activeStatus.map(item => item.value)
-  )
-}
-
+const emits = defineEmits(['filter-change'])
+const filterTree = ref()
 const treeChange = () => {
   const nodes = state.currentStatus.map(id => {
     return filterTree.value?.getNode(id).data
@@ -43,23 +54,21 @@ const treeChange = () => {
     state.activeStatus.map(item => item.value)
   )
 }
-
+const optionListNotSelect = computed(() => {
+  return [...props.optionList]
+})
+const clear = () => {
+  state.currentStatus = []
+}
 watch(
   () => state.currentStatus,
   () => {
     treeChange()
   },
-  { deep: true, immediate: true }
+  {
+    immediate: true
+  }
 )
-
-const optionListNotSelect = computed(() => {
-  return [...props.optionList]
-})
-const clear = () => {
-  state.activeStatus = []
-  state.currentStatus = []
-}
-const emits = defineEmits(['filter-change'])
 defineExpose({
   clear
 })
@@ -69,57 +78,33 @@ defineExpose({
   <div class="filter">
     <span>{{ title }}</span>
     <div class="filter-item">
-      <span
-        v-for="ele in state.activeStatus"
-        :key="ele.value"
-        class="item active"
-        @click="statusChange(ele.value)"
-        >{{ $t(ele.label) }}</span
-      >
-      <slot v-if="!!optionListNotSelect.length">
-        <el-popover
-          :show-arrow="false"
-          ref="elPopoverU"
-          placement="bottom"
-          popper-class="filter-popper"
-          width="200"
-          trigger="click"
-        >
-          <el-tree-select
-            ref="filterTree"
-            node-key="value"
-            :teleported="false"
-            style="width: 100%"
-            v-model="state.currentStatus"
-            :data="optionListNotSelect"
-            :highlight-current="true"
-            multiple
-            :render-after-expand="false"
-            :placeholder="$t('common.please_select') + $t('user.role')"
-            show-checkbox
-            check-on-click-node
-          />
-          <template #reference>
-            <span ref="more" class="more">
-              <el-icon>
-                <Icon name="icon_add_outlined"> </Icon>
-              </el-icon>
-              更多
-            </span>
-          </template>
-        </el-popover>
-      </slot>
+      <el-tree-select
+        node-key="value"
+        ref="filterTree"
+        :teleported="false"
+        style="width: 100%"
+        v-model="state.currentStatus"
+        :data="optionListNotSelect"
+        :highlight-current="true"
+        multiple
+        :render-after-expand="false"
+        :placeholder="$t('common.please_select') + treeConfig.placeholder"
+        :show-checkbox="treeConfig.showCheckbox"
+        :check-strictly="treeConfig.checkStrictly"
+        :check-on-click-node="treeConfig.checkOnClickNode"
+      />
     </div>
   </div>
 </template>
 <style lang="less" scope>
 .filter {
   display: flex;
+  align-items: center;
   min-height: 46px;
 
   > :nth-child(1) {
     color: var(--deTextSecondary, #1f2329);
-    font-family: 'PingFang SC';
+    font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
     font-style: normal;
     font-weight: 400;
     font-size: 14px;
@@ -130,45 +115,6 @@ defineExpose({
 
   .filter-item {
     flex: 1;
-
-    .item,
-    .more {
-      font-family: PingFang SC;
-      white-space: nowrap;
-      font-size: 14px;
-      font-weight: 400;
-      line-height: 24px;
-      margin-right: 12px;
-      text-align: center;
-      padding: 1px 6px;
-      background: var(--deTextPrimary5, #f5f6f7);
-      color: var(--deTextPrimary, #1f2329);
-      border-radius: 2px;
-      cursor: pointer;
-      display: inline-block;
-      margin-bottom: 12px;
-    }
-
-    .active,
-    .more:hover {
-      background: var(--primary10, rgba(51, 112, 255, 0.1));
-      color: var(--primaryselect, #0c296e);
-    }
-
-    .more {
-      white-space: nowrap;
-      display: inline-flex;
-      align-items: center;
-      i {
-        margin-right: 5px;
-      }
-    }
   }
-}
-</style>
-<style lang="less">
-.filter-popper {
-  padding: 0 !important;
-  background: #fff !important;
 }
 </style>

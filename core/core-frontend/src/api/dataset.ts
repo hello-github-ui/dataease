@@ -11,6 +11,16 @@ export interface DatasetOrFolder {
   allFields?: Array<{}>
 }
 
+export interface EnumValue {
+  queryId: string
+  displayId?: string
+  sortId?: string
+  sort?: string
+  resultMode?: number
+  searchText: string
+  filter?: Array<{}>
+}
+
 interface Fields {
   fields: Array<{}>
   data: Array<{}>
@@ -28,7 +38,10 @@ export interface DatasetDetail {
   fields: {
     dimensionList: Array<Field>
     quotaList: Array<Field>
+    parameterList?: Array<Field>
   }
+  activelist?: string
+  hasParameter?: boolean
   checkList: string[]
   list: Array<Field>
 }
@@ -72,6 +85,12 @@ export const createDatasetTree = async (data: DatasetOrFolder): Promise<IRespons
 // rename
 export const renameDatasetTree = async (data: DatasetOrFolder): Promise<IResponse> => {
   return request.post({ url: '/datasetTree/rename', data }).then(res => {
+    return res?.data
+  })
+}
+
+export const enumValueObj = async (data: EnumValue): Promise<Record<string, string>[]> => {
+  return request.post({ url: '/datasetData/enumValueObj', data }).then(res => {
     return res?.data
   })
 }
@@ -154,6 +173,11 @@ export const getDsDetails = async (data): Promise<DatasetDetail[]> => {
     return res?.data
   })
 }
+export const getDsDetailsWithPerm = async (data): Promise<DatasetDetail[]> => {
+  return request.post({ url: '/datasetTree/detailWithPerm', data }).then(res => {
+    return res?.data
+  })
+}
 export const getSqlParams = async (data): Promise<ParamsDetail[]> => {
   return request.post({ url: '/datasetTree/getSqlParams', data }).then(res => {
     return res?.data
@@ -173,6 +197,14 @@ export const listFieldByDatasetGroup = (datasetId: number) =>
 
 export const multFieldValuesForPermissions = (data = {}) => {
   return request.post({ url: '/datasetField/multFieldValuesForPermissions', data })
+}
+
+export const listFieldsWithPermissions = (datasetId: number) => {
+  return request.get({ url: '/datasetField/listWithPermissions/' + datasetId })
+}
+
+export const copilotFields = (datasetId: number) => {
+  return request.post({ url: '/datasetField/copilotFields/' + datasetId })
 }
 
 export const saveRowPermission = (data = {}) => {
@@ -221,6 +253,72 @@ export const getEnumValue = async (data): Promise<DatasetDetail[]> => {
 
 export const getFunction = async (): Promise<DatasetDetail[]> => {
   return request.post({ url: '/datasetField/getFunction', data: {} }).then(res => {
+    return res?.data
+  })
+}
+
+export const exportTasks = async (type): Promise<IResponse> => {
+  return request.post({ url: '/exportCenter/exportTasks/' + type, data: {} }).then(res => {
+    return res
+  })
+}
+
+export const exportRetry = async (id): Promise<IResponse> => {
+  return request.post({ url: '/exportCenter/retry/' + id, data: {} }).then(res => {
+    return res?.data
+  })
+}
+
+export const downloadFile = async (id): Promise<Blob> => {
+  return request.get({ url: 'exportCenter/download/' + id, responseType: 'blob' }).then(res => {
+    return res?.data
+  })
+}
+
+export const exportDelete = async (id): Promise<IResponse> => {
+  return request.get({ url: '/exportCenter/delete/' + id }).then(res => {
+    return res?.data
+  })
+}
+
+export const exportDeleteAll = async (type, data): Promise<IResponse> => {
+  return request.post({ url: '/exportCenter/deleteAll/' + type, data }).then(res => {
+    return res?.data
+  })
+}
+
+export const exportDeletePost = async (data): Promise<IResponse> => {
+  return request.post({ url: '/exportCenter/delete', data }).then(res => {
+    return res?.data
+  })
+}
+
+export const listByDsIds = async (data): Promise<IResponse> => {
+  return request.post({ url: 'datasetField/listByDsIds', data }).then(res => {
+    return res?.data
+  })
+}
+
+export const getFieldTree = async (data): Promise<IResponse> => {
+  return request.post({ url: 'datasetData/getFieldTree', data }).then(res => {
+    return res?.data
+  })
+}
+
+export const copilotChat = async (data): Promise<IResponse> => {
+  return request.post({ url: '/copilot/chat', data }).then(res => {
+    return res?.data
+  })
+}
+
+export const getListCopilot = async (): Promise<IResponse> => {
+  return request.post({ url: '/copilot/getList' }).then(res => {
+    return res?.data
+  })
+}
+
+export const clearAllCopilot = async (): Promise<IResponse> => {
+  return request.post({ url: '/copilot/clearAll' }).then(res => {
     return res?.data
   })
 }

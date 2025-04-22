@@ -3,7 +3,7 @@
     <chart-style
       v-if="mixProperties && batchOptComponentInfo && batchOptComponentType === 'UserView'"
       class="chart-style-main"
-      themes="light"
+      :themes="themes"
       :param="param"
       :common-background-pop="batchOptComponentInfo.commonBackground"
       :view="batchOptComponentInfo"
@@ -25,13 +25,15 @@
       @onTableCellChange="onTableCellChange"
       @onTableTotalChange="onTableTotalChange"
       @onChangeMiscStyleForm="onChangeMiscStyleForm"
+      @onIndicatorChange="onIndicatorChange"
+      @onIndicatorNameChange="onIndicatorNameChange"
     />
     <common-attr
       v-else-if="mixProperties && batchOptComponentInfo && batchOptComponentType !== 'UserView'"
       :element="batchOptComponentInfo"
       :show-style="mixProperties.includes('common-style')"
       @onAttrChange="onStyleAttrChange"
-      themes="light"
+      :themes="themes"
     ></common-attr>
     <el-row v-else class="view-selected-message-class">
       <span class="select-view">请选择组件...</span>
@@ -58,12 +60,21 @@ const state = reactive({
   quotaData: []
 })
 
+const props = withDefaults(
+  defineProps<{
+    themes?: EditorTheme
+  }>(),
+  {
+    themes: 'light'
+  }
+)
+
 const onMiscChange = (val, prop) => {
   batchOptChange('customAttr', 'misc', val.data, prop)
 }
 
 const onLabelChange = (val, prop) => {
-  batchOptChange('customAttr', 'label', val, prop)
+  batchOptChange('customAttr', 'label', val.data, prop)
 }
 const onTooltipChange = (val, prop) => {
   batchOptChange('customAttr', 'tooltip', val.data, prop)
@@ -75,6 +86,14 @@ const onChangeXAxisForm = (val, prop) => {
 
 const onChangeYAxisForm = (val, prop) => {
   batchOptChange('customStyle', 'yAxis', val, prop)
+}
+
+const onIndicatorChange = (val, prop) => {
+  batchOptChange('customAttr', 'indicator', val.indicatorValue, prop)
+}
+
+const onIndicatorNameChange = (val, prop) => {
+  batchOptChange('customAttr', 'indicatorName', val.indicatorName, prop)
 }
 
 const onChangeMiscStyleForm = (val, prop) => {
@@ -111,6 +130,7 @@ const batchOptChange = (custom, property, value, subProp?) => {
     value: value,
     subProp: subProp
   })
+  snapshotStore.recordSnapshotCache('renderChart')
 }
 
 const onStyleAttrChange = params => {

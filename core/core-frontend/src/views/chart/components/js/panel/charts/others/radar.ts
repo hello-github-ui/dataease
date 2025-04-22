@@ -22,9 +22,9 @@ export class Radar extends G2PlotChartView<RadarOptions, G2Radar> {
     'linkage'
   ]
   propertyInner: EditorPropertyInner = {
-    'basic-style-selector': ['colors', 'alpha', 'radarShape'],
+    'basic-style-selector': ['colors', 'alpha', 'radarShape', 'seriesColor'],
     'label-selector': ['seriesLabelFormatter'],
-    'tooltip-selector': ['color', 'fontSize', 'backgroundColor', 'seriesTooltipFormatter'],
+    'tooltip-selector': ['color', 'fontSize', 'backgroundColor', 'seriesTooltipFormatter', 'show'],
     'misc-style-selector': ['showName', 'color', 'fontSize', 'axisColor'],
     'title-selector': [
       'show',
@@ -40,6 +40,12 @@ export class Radar extends G2PlotChartView<RadarOptions, G2Radar> {
       'fontShadow'
     ],
     'legend-selector': ['icon', 'orient', 'color', 'fontSize', 'hPosition', 'vPosition']
+  }
+  selectorSpec: EditorSelectorSpec = {
+    ...this['selectorSpec'],
+    'misc-style-selector': {
+      title: `${t('chart.tooltip_axis')}`
+    }
   }
   axis: AxisType[] = ['xAxis', 'yAxis', 'drill', 'filter', 'extLabel', 'extTooltip']
   axisConfig: AxisConfig = {
@@ -214,6 +220,7 @@ export class Radar extends G2PlotChartView<RadarOptions, G2Radar> {
   protected setupOptions(chart: Chart, options: RadarOptions): RadarOptions {
     return flow(
       this.configTheme,
+      this.configColor,
       this.configLabel,
       this.configLegend,
       this.configMultiSeriesTooltip,

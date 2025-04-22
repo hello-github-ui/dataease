@@ -3,10 +3,14 @@ package io.dataease.api.permissions.auth.api;
 
 import com.github.xiaoymin.knife4j.annotations.ApiOperationSupport;
 import com.github.xiaoymin.knife4j.annotations.ApiSupport;
-import io.dataease.api.permissions.auth.dto.*;
-import io.dataease.auth.vo.TokenVO;
+import io.dataease.api.permissions.auth.dto.BusiPerCheckDTO;
+import io.dataease.api.permissions.auth.dto.BusiResourceCreator;
+import io.dataease.api.permissions.auth.dto.BusiResourceEditor;
+import io.dataease.api.permissions.auth.dto.BusiResourceMover;
+import io.dataease.api.permissions.auth.vo.ResourceNodeVO;
 import io.dataease.model.BusiNodeRequest;
 import io.dataease.model.BusiNodeVO;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,7 +22,7 @@ import java.util.List;
 
 @Tag(name = "内部资源交互")
 @ApiSupport(order = 998)
-// @Hidden
+@Hidden
 public interface InteractiveAuthApi {
 
     @Operation(summary = "查询菜单ID")
@@ -58,9 +62,6 @@ public interface InteractiveAuthApi {
     @GetMapping("/resource/checkDel/{id}")
     boolean checkDel(@PathVariable("id") Long id);
 
-    @Operation(hidden = true)
-    TokenVO outAuthPlatformLogin(@RequestBody OutAuthPlatformLoginRequest request);
-
     @Operation(summary = "移动资源")
     @ApiOperationSupport(order = 7)
     @PostMapping("/moveResource")
@@ -71,4 +72,19 @@ public interface InteractiveAuthApi {
     @PostMapping("/checkAuth")
     void checkAuth(@RequestBody BusiPerCheckDTO checkDTO);
 
+    @Operation(summary = "权限查询")
+    @ApiOperationSupport(order = 9)
+    @PostMapping("/queryAuth")
+    Integer queryAuth(@RequestBody BusiPerCheckDTO checkDTO);
+
+    @GetMapping("/query2Root/{id}/{flag}")
+    List<ResourceNodeVO> query2Root(@PathVariable("id") Long id, @PathVariable("flag") Integer flag);
+
+    @GetMapping("/checkEmpty")
+    boolean checkEmpty();
+
+    @GetMapping("/OrgNameForResource")
+    String OrgNameForResource(Long id);
+
+    void editResourceExtraFlag(BusiResourceEditor editor);
 }

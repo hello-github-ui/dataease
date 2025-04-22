@@ -1,16 +1,17 @@
 <script lang="ts" setup>
-import { ref, reactive, computed, toRefs, nextTick, watch } from 'vue'
+import { ref, reactive, h, computed, toRefs, nextTick, watch } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
 import type { FormInstance, FormRules } from 'element-plus-secondary'
 import EmptyBackground from '@/components/empty-background/src/EmptyBackground.vue'
 import { cloneDeep } from 'lodash-es'
 import ApiHttpRequestDraw from './ApiHttpRequestDraw.vue'
-import { Configuration, ApiConfiguration, SyncSetting } from './index.vue'
+import type { Configuration, ApiConfiguration, SyncSetting } from './option'
+import { fieldType, fieldTypeText } from '@/utils/attr'
+import { Icon } from '@/components/icon-custom'
 import { getSchema } from '@/api/datasource'
-import { Calendar } from '@element-plus/icons-vue'
 import { Base64 } from 'js-base64'
 import { CustomPassword } from '@/components/custom-password'
-import { ElForm, ElMessage } from 'element-plus-secondary'
+import { ElForm, ElMessage, ElMessageBox } from 'element-plus-secondary'
 import Cron from '@/components/cron/src/Cron.vue'
 import { ComponentPublicInstance } from 'vue'
 const { t } = useI18n()
@@ -26,6 +27,7 @@ const prop = defineProps({
         syncSetting?: SyncSetting
         configuration?: Configuration
         apiConfiguration?: ApiConfiguration[]
+        paramsConfiguration?: ApiConfiguration[]
       }>({
         id: 0,
         name: '',
@@ -54,6 +56,7 @@ const schemas = ref([])
 const dsForm = ref<FormInstance>()
 
 const cronEdit = ref(true)
+const calendar = h(Icon, { name: 'icon_calendar_outlined' })
 
 const defaultRule = {
   name: [
@@ -64,8 +67,8 @@ const defaultRule = {
     },
     {
       min: 2,
-      max: 25,
-      message: t('datasource.input_limit_2_25', [2, 25]),
+      max: 64,
+      message: t('datasource.input_limit_2_25', [2, 64]),
       trigger: 'blur'
     }
   ]
@@ -78,6 +81,7 @@ const defaultApiItem = {
   name: '',
   deTableName: '',
   url: '',
+  type: '',
   serialNumber: 0,
   method: 'GET',
   request: {
@@ -101,6 +105,9 @@ const initForm = type => {
   if (type !== 'API') {
     form.value.configuration = {
       dataBase: '',
+      jdbcUrl: '',
+      urlType: 'hostName',
+      sshType: 'password',
       extraParams: '',
       username: '',
       password: '',
@@ -121,11 +128,11 @@ const initForm = type => {
       updateType: 'all_scope',
       syncRate: 'SIMPLE_CRON',
       simpleCronValue: '1',
-      simpleCronType: 'hour',
+      simpleCronType: 'minute',
       startTime: '',
       endTime: '',
       endLimit: '0',
-      cron: '0 0 0/1 *  * ? *'
+      cron: '0 0/1 * * * ? *'
     }
   }
   if (type === 'oracle') {
@@ -134,7 +141,7 @@ const initForm = type => {
 
   form.value.type = type
   setTimeout(() => {
-    dsForm.value.clearValidate()
+    dsForm?.value?.clearValidate()
   }, 0)
 }
 
@@ -150,8 +157,59 @@ const authMethodList = [
     label: 'Kerberos'
   }
 ]
+
+const validateSshHost = (_: any, value: any, callback: any) => {
+  if ((value === undefined || value === null || value === '') && form.value.configuration.useSSH) {
+    callback(new Error('SSH主机不能为空'))
+  }
+  return callback()
+}
+
+const validateSshPort = (_: any, value: any, callback: any) => {
+  if ((value === undefined || value === null || value === '') && form.value.configuration.useSSH) {
+    callback(new Error('SSH端口不能为空'))
+  }
+  return callback()
+}
+
+const validateSshUserName = (_: any, value: any, callback: any) => {
+  if ((value === undefined || value === null || value === '') && form.value.configuration.useSSH) {
+    callback(new Error('SSH用户名不能为空'))
+  }
+  return callback()
+}
+
+const validateSshPassword = (_: any, value: any, callback: any) => {
+  if (
+    (value === undefined || value === null || value === '') &&
+    form.value.configuration.useSSH &&
+    form.value.configuration.sshType === 'password'
+  ) {
+    callback(new Error('SSH密码不能为空'))
+  }
+  return callback()
+}
+
+const validateSshkey = (_: any, value: any, callback: any) => {
+  if (
+    (value === null || value === '' || value === undefined) &&
+    form.value.configuration.useSSH &&
+    form.value.configuration.sshType === 'sshkey'
+  ) {
+    callback(new Error('SSH key不能为空'))
+  }
+  return callback()
+}
+
 const setRules = () => {
   const configRules = {
+    'configuration.jdbcUrl': [
+      {
+        required: true,
+        message: t('datasource.please_input_jdbc_url'),
+        trigger: 'blur'
+      }
+    ],
     'configuration.dataBase': [
       {
         required: true,
@@ -228,7 +286,12 @@ const setRules = () => {
         message: t('common.inputText') + t('datasource.query_timeout'),
         trigger: 'blur'
       }
-    ]
+    ],
+    'configuration.sshHost': [{ validator: validateSshHost, trigger: 'blur' }],
+    'configuration.sshPort': [{ validator: validateSshPort, trigger: 'blur' }],
+    'configuration.sshUserName': [{ validator: validateSshUserName, trigger: 'blur' }],
+    'configuration.sshPassword': [{ validator: validateSshPassword, trigger: 'blur' }],
+    'configuration.sshKey': [{ validator: validateSshkey, trigger: 'blur' }]
   }
   if (['oracle', 'sqlServer', 'pg', 'redshift', 'db2'].includes(form.value.type)) {
     configRules['configuration.schema'] = [
@@ -308,16 +371,26 @@ const addApiItem = item => {
     apiItem = cloneDeep(item)
   } else {
     apiItem = cloneDeep(defaultApiItem)
-    apiItem.serialNumber =
+    apiItem.type = activeName.value
+    let serialNumber1 =
       form.value.apiConfiguration.length > 0
         ? form.value.apiConfiguration[form.value.apiConfiguration.length - 1].serialNumber + 1
         : 0
+    let serialNumber2 =
+      form.value.paramsConfiguration.length > 0
+        ? form.value.paramsConfiguration[form.value.paramsConfiguration.length - 1].serialNumber + 1
+        : 0
+
+    apiItem.serialNumber = serialNumber1 + serialNumber2
   }
   nextTick(() => {
-    editApiItem.value.initApiItem(apiItem, form.value.apiConfiguration)
+    editApiItem.value.initApiItem(apiItem, form.value, activeName.value)
   })
 }
+
+const activeName = ref('table')
 const showPriority = ref(false)
+const showSSH = ref(false)
 
 const deleteItem = (item, idx) => {
   form.value.apiConfiguration.splice(form.value.apiConfiguration.indexOf(item), 1)
@@ -341,15 +414,32 @@ const resetForm = () => {
 
 const returnItem = apiItem => {
   var find = false
-  for (let i = 0; i < form.value.apiConfiguration.length; i++) {
-    if (form.value.apiConfiguration[i].serialNumber === apiItem.serialNumber) {
-      find = true
-      form.value.apiConfiguration[i] = apiItem
+  if (apiItem.type !== 'params') {
+    apiItem.status = 'Success'
+    for (let i = 0; i < form.value.apiConfiguration.length; i++) {
+      if (form.value.apiConfiguration[i].serialNumber === apiItem.serialNumber) {
+        find = true
+        form.value.apiConfiguration[i] = apiItem
+      }
     }
-  }
-  if (!find) {
-    state.itemRef = []
-    form.value.apiConfiguration.push(apiItem)
+    if (!find) {
+      state.itemRef = []
+      form.value.apiConfiguration.push(apiItem)
+    }
+  } else {
+    for (let i = 0; i < form.value.paramsConfiguration.length; i++) {
+      if (form.value.paramsConfiguration[i].serialNumber === apiItem.serialNumber) {
+        find = true
+        form.value.paramsConfiguration[i] = apiItem
+        if (apiItem.serialNumber === activeParamsID.value) {
+          setActiveName(apiItem)
+        }
+      }
+    }
+    if (!find) {
+      state.itemRef = []
+      form.value.paramsConfiguration.push(apiItem)
+    }
   }
 }
 
@@ -362,7 +452,8 @@ const onRateChange = () => {
     form.value.syncSetting.cron = ''
   }
   if (form.value.syncSetting.syncRate === 'SIMPLE_CRON') {
-    form.value.syncSetting.cron = '0 0 0/1 *  * ? *'
+    form.value.syncSetting.cron = '0 0/1 * * * ? *'
+    form.value.syncSetting.simpleCronType = 'minute'
   }
   if (form.value.syncSetting.syncRate === 'CRON') {
     form.value.syncSetting.cron = '00 00 * ? * * *'
@@ -457,16 +548,152 @@ const apiRule = {
       message: t('datasource.start_time'),
       trigger: 'change'
     }
-  ],
-  'syncSetting.endLimit': [
+  ]
+}
+const dialogEditParams = ref(false)
+const dialogRenameApi = ref(false)
+const activeParamsName = ref('')
+const activeParamsID = ref(0)
+const paramsObj = ref({
+  name: '',
+  id: 1,
+  deType: 0
+})
+
+const apiObj = ref({
+  name: '',
+  serialNumber: 1
+})
+const paramsObjRules = {
+  name: [
     {
       required: true,
-      message: t('datasource.end_time'),
+      message: '请输入参数名称',
       trigger: 'change'
+    },
+    {
+      min: 2,
+      max: 64,
+      message: '参数名称限制2～64字符',
+      trigger: 'blur'
     }
   ]
 }
 
+const apiObjRules = {
+  name: [
+    {
+      required: true,
+      message: '请输入接口名称',
+      trigger: 'change'
+    },
+    {
+      min: 2,
+      max: 64,
+      message: '接口名称限制2～64字符',
+      trigger: 'blur'
+    }
+  ]
+}
+const setActiveName = val => {
+  gridData.value = val.fields
+  activeParamsName.value = val.name
+  activeParamsName.value = val.serialNumber
+}
+
+const paramsObjRef = ref()
+const apiObjRef = ref()
+
+const saveParamsObj = () => {
+  paramsObjRef.value.validate(result => {
+    if (result) {
+      gridData.value.forEach(ele => {
+        if (ele.id === paramsObj.value.id) {
+          ele.name = paramsObj.value.name
+        }
+      })
+    }
+  })
+}
+
+const saveApiObj = () => {
+  apiObjRef.value.validate(result => {
+    if (result) {
+      form.value.paramsConfiguration.forEach(ele => {
+        if (ele.serialNumber === apiObj.value.serialNumber) {
+          ele.name = apiObj.value.name
+        }
+      })
+    }
+    dialogRenameApi.value = false
+  })
+}
+
+const paramsResetForm = () => {
+  dialogEditParams.value = false
+}
+
+const apiResetForm = () => {
+  dialogRenameApi.value = false
+}
+
+const gridData = ref([])
+const handleApiParams = (cmd: string, data) => {
+  if (cmd === 'rename') {
+    dialogRenameApi.value = true
+    apiObj.value.name = data.name
+    apiObj.value.serialNumber = data.serialNumber
+  }
+  if (cmd === 'delete') {
+    ElMessageBox.confirm('确定删除吗?', {
+      confirmButtonType: 'danger',
+      type: 'warning',
+      autofocus: false,
+      showClose: false
+    }).then(() => {
+      let index = 0
+      for (let i = 0; i < form.value.paramsConfiguration.length; i++) {
+        if (form.value.paramsConfiguration[i].serialNumber === data.serialNumber) {
+          index = i
+        }
+      }
+      form.value.paramsConfiguration.splice(index, 1)
+      if (activeParamsName.value === data.name) {
+        gridData.value = []
+      }
+    })
+  }
+  if (cmd === 'edit') {
+    addApiItem(data)
+  }
+}
+
+const editParams = data => {
+  dialogEditParams.value = true
+}
+
+const delParams = data => {
+  ElMessageBox.confirm('确定删除吗?', {
+    confirmButtonType: 'danger',
+    type: 'warning',
+    autofocus: false,
+    showClose: false
+  }).then(() => {
+    gridData.value.splice(form.value.apiConfiguration.indexOf(data), 1)
+  })
+}
+const datasetTypeList = [
+  {
+    label: '重命名',
+    svgName: 'icon_rename_outlined',
+    command: 'rename'
+  },
+  {
+    label: '删除',
+    svgName: 'icon_delete-trash_outlined',
+    command: 'delete'
+  }
+]
 defineExpose({
   submitForm,
   resetForm,
@@ -518,7 +745,10 @@ defineExpose({
         </el-form-item>
         <template v-if="form.type === 'API'">
           <div class="title-form_primary flex-space table-info-mr" v-show="activeStep !== 2">
-            <span>{{ t('datasource.data_table') }}</span>
+            <el-tabs v-model="activeName" class="api-tabs">
+              <el-tab-pane :label="t('datasource.data_table')" name="table"></el-tab-pane>
+              <el-tab-pane label="接口参数" name="params"></el-tab-pane>
+            </el-tabs>
             <el-button type="primary" style="margin-left: auto" @click="() => addApiItem(null)">
               <template #icon>
                 <Icon name="icon_add_outlined"></Icon>
@@ -528,11 +758,11 @@ defineExpose({
           </div>
           <empty-background
             v-show="activeStep !== 2"
-            v-if="!form.apiConfiguration.length"
+            v-if="!form.apiConfiguration.length && activeName === 'table'"
             :description="t('datasource.no_data_table')"
             img-type="noneWhite"
           />
-          <template v-if="form.type === 'API' && activeStep === 1">
+          <template v-if="form.type === 'API' && activeStep === 1 && activeName === 'table'">
             <div class="api-card-content">
               <div
                 v-for="(api, idx) in form.apiConfiguration"
@@ -605,16 +835,108 @@ defineExpose({
               </div>
             </div>
           </template>
+          <div
+            style="display: flex"
+            v-if="form.type === 'API' && activeStep === 1 && activeName === 'params'"
+          >
+            <div class="left-api_params">
+              <div
+                v-for="ele in form.paramsConfiguration"
+                :class="[{ active: activeParamsName === ele.name }]"
+                class="list-item_primary"
+                :title="ele.name"
+                :key="ele.id"
+                @click="setActiveName(ele)"
+              >
+                <span class="label">{{ ele.name }}</span>
+                <span class="name-copy">
+                  <el-icon class="hover-icon" @click.stop="handleApiParams('edit', ele)">
+                    <icon name="icon_edit_outlined"></icon>
+                  </el-icon>
+                  <handle-more
+                    icon-size="24px"
+                    @handle-command="cmd => handleApiParams(cmd, ele)"
+                    :menu-list="datasetTypeList"
+                    placement="bottom-start"
+                  ></handle-more>
+                </span>
+              </div>
+            </div>
+            <div class="right-api_params">
+              <el-table
+                height="300"
+                style="width: 100%"
+                header-cell-class-name="header-cell"
+                :data="gridData"
+              >
+                <el-table-column :label="t('visualization.param_name')">
+                  <template #default="scope">
+                    {{ scope.row.name || '-' }}
+                  </template>
+                </el-table-column>
+                <el-table-column :label="t('deDataset.parameter_type')">
+                  <template #default="scope">
+                    <div class="flex-align-center icon">
+                      <el-icon>
+                        <Icon
+                          :className="`field-icon-${fieldType[scope.row.deType]}`"
+                          :name="`field_${fieldType[scope.row.deType]}`"
+                        ></Icon>
+                      </el-icon>
+                      {{ fieldTypeText[scope.row.deType] }}
+                    </div>
+                  </template>
+                </el-table-column>
+
+                <el-table-column :label="t('common.operate')">
+                  <template #default="scope">
+                    <el-button text @click.stop="delParams(scope.row)">
+                      <template #icon>
+                        <Icon name="icon_delete-trash_outlined"></Icon>
+                      </template>
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </div>
         </template>
         <template v-if="notapiexcelconfig">
-          <el-form-item :label="t('datasource.host')" prop="configuration.host">
+          <el-form-item label="连接方式" prop="type">
+            <el-radio-group v-model="form.configuration.urlType">
+              <el-radio label="hostName">主机名</el-radio>
+              <el-radio label="jdbcUrl">JDBC 连接</el-radio>
+            </el-radio-group>
+          </el-form-item>
+
+          <el-form-item
+            label=" JDBC 连接字符串"
+            prop="configuration.jdbcUrl"
+            v-if="form.configuration.urlType === 'jdbcUrl'"
+          >
+            <el-input
+              v-model="form.configuration.jdbcUrl"
+              placeholder=" JDBC 连接字符串"
+              autocomplete="off"
+            />
+          </el-form-item>
+
+          <el-form-item
+            :label="t('datasource.host')"
+            prop="configuration.host"
+            v-if="form.configuration.urlType !== 'jdbcUrl'"
+          >
             <el-input
               v-model="form.configuration.host"
               :placeholder="t('datasource._ip_address')"
               autocomplete="off"
             />
           </el-form-item>
-          <el-form-item :label="t('datasource.port')" prop="configuration.port">
+          <el-form-item
+            :label="t('datasource.port')"
+            prop="configuration.port"
+            v-if="form.configuration.urlType !== 'jdbcUrl'"
+          >
             <el-input-number
               v-model="form.configuration.port"
               autocomplete="off"
@@ -626,7 +948,11 @@ defineExpose({
               type="number"
             />
           </el-form-item>
-          <el-form-item :label="t('datasource.data_base')" prop="configuration.dataBase">
+          <el-form-item
+            :label="t('datasource.data_base')"
+            prop="configuration.dataBase"
+            v-if="form.configuration.urlType !== 'jdbcUrl'"
+          >
             <el-input
               v-model="form.configuration.dataBase"
               :placeholder="t('datasource.please_input_data_base')"
@@ -692,15 +1018,8 @@ defineExpose({
               v-model="form.configuration.password"
             />
           </el-form-item>
-          <el-form-item :label="t('datasource.extra_params')">
-            <el-input
-              :placeholder="t('common.inputText') + t('datasource.extra_params')"
-              v-model="form.configuration.extraParams"
-              autocomplete="off"
-            />
-          </el-form-item>
           <el-form-item
-            v-if="form.type == 'oracle'"
+            v-if="form.type == 'oracle' && form.configuration.urlType !== 'jdbcUrl'"
             :label="t('datasource.connection_mode')"
             prop="configuration.connectionType"
           >
@@ -736,17 +1055,114 @@ defineExpose({
               <el-option v-for="item in schemas" :key="item" :label="item" :value="item" />
             </el-select>
           </el-form-item>
-          <span
-            v-if="!['es', 'api'].includes(form.type)"
-            class="de-expand"
-            @click="showPriority = !showPriority"
-            >{{ t('datasource.priority') }}
-            <el-icon>
-              <Icon :name="showPriority ? 'icon_down_outlined' : 'icon_down_outlined-1'"></Icon>
-            </el-icon>
-          </span>
+          <el-form-item
+            :label="t('datasource.extra_params')"
+            v-if="form.configuration.urlType !== 'jdbcUrl'"
+          >
+            <el-input
+              :placeholder="t('common.inputText') + t('datasource.extra_params')"
+              v-model="form.configuration.extraParams"
+              autocomplete="off"
+            />
+          </el-form-item>
+          <el-form-item>
+            <span
+              v-if="!['es', 'api'].includes(form.type) && form.configuration.urlType !== 'jdbcUrl'"
+              class="de-expand"
+              @click="showSSH = !showSSH"
+              >SSH 设置
+              <el-icon>
+                <Icon :name="showSSH ? 'icon_down_outlined' : 'icon_down_outlined-1'"></Icon>
+              </el-icon>
+            </span>
+          </el-form-item>
+          <template v-if="showSSH">
+            <el-form-item>
+              <el-checkbox v-model="form.configuration.useSSH">启用SSH</el-checkbox>
+            </el-form-item>
+            <el-form-item label="主机" prop="configuration.sshHost">
+              <el-input
+                v-model="form.configuration.sshHost"
+                placeholder="请输入主机名"
+                autocomplete="off"
+              />
+            </el-form-item>
+            <el-form-item label="端口" prop="configuration.sshPort">
+              <el-input-number
+                v-model="form.configuration.sshPort"
+                autocomplete="off"
+                step-strictly
+                class="text-left"
+                :min="0"
+                :max="65535"
+                :placeholder="t('common.inputText') + t('datasource.port')"
+                controls-position="right"
+              />
+            </el-form-item>
+            <el-form-item :label="t('datasource.user_name')" prop="configuration.sshUserName">
+              <el-input
+                :placeholder="t('common.inputText') + t('datasource.user_name')"
+                v-model="form.configuration.sshUserName"
+                autocomplete="off"
+                :maxlength="255"
+              />
+            </el-form-item>
+            <el-form-item label="连接方式">
+              <el-radio-group v-model="form.configuration.sshType">
+                <el-radio label="password">密码</el-radio>
+                <el-radio label="sshkey">ssh key</el-radio>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item
+              :label="t('datasource.password')"
+              v-if="form.configuration.sshType === 'password'"
+              prop="configuration.sshPassword"
+            >
+              <CustomPassword
+                :placeholder="t('common.inputText') + t('datasource.password')"
+                show-password
+                type="password"
+                v-model="form.configuration.sshPassword"
+              />
+            </el-form-item>
+
+            <el-form-item
+              label="ssh key"
+              prop="configuration.sshKey"
+              v-if="form.configuration.sshType === 'sshkey'"
+            >
+              <el-input
+                type="textarea"
+                :rows="6"
+                v-model="form.configuration.sshKey"
+                placeholder="请输入ssh key"
+                autocomplete="off"
+              />
+            </el-form-item>
+
+            <el-form-item label="ssh key 密码" v-if="form.configuration.sshType === 'sshkey'">
+              <CustomPassword
+                :placeholder="t('common.inputText') + t('datasource.password')"
+                show-password
+                type="password"
+                v-model="form.configuration.sshKeyPassword"
+              />
+            </el-form-item>
+          </template>
+          <el-form-item>
+            <span
+              v-if="!['es', 'api'].includes(form.type)"
+              class="de-expand"
+              @click="showPriority = !showPriority"
+              >{{ t('datasource.priority') }}
+              <el-icon>
+                <Icon :name="showPriority ? 'icon_down_outlined' : 'icon_down_outlined-1'"></Icon>
+              </el-icon>
+            </span>
+          </el-form-item>
+
           <template v-if="showPriority">
-            <el-row :gutter="24">
+            <el-row :gutter="24" class="mb16">
               <el-col :span="12">
                 <el-form-item
                   :label="t('datasource.initial_pool_size')"
@@ -796,19 +1212,17 @@ defineExpose({
               </el-col>
               <el-col :span="12">
                 <el-form-item
-                  :label="t('datasource.query_timeout')"
+                  :label="`${t('datasource.query_timeout')}(${t('common.second')})`"
                   prop="configuration.queryTimeout"
                 >
-                  <el-input
+                  <el-input-number
                     v-model="form.configuration.queryTimeout"
+                    controls-position="right"
                     autocomplete="off"
                     :placeholder="t('common.inputText') + t('datasource.query_timeout')"
-                    class="input-with-append"
                     type="number"
                     :min="0"
-                  >
-                    <template v-slot:append>{{ t('cron.second') }}</template>
-                  </el-input>
+                  />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -874,11 +1288,7 @@ defineExpose({
               更新一次
             </div>
           </el-form-item>
-          <el-form-item
-            v-if="form.syncSetting.syncRate === 'CRON'"
-            prop="syncSetting.cron"
-            :label="t('common.cron_exp')"
-          >
+          <el-form-item v-if="form.syncSetting.syncRate === 'CRON'" prop="syncSetting.cron">
             <el-popover :width="834" v-model="cronEdit" trigger="click">
               <template #default>
                 <div style="width: 814px; height: 400px; overflow-y: auto">
@@ -891,11 +1301,7 @@ defineExpose({
                 </div>
               </template>
               <template #reference>
-                <el-input
-                  v-model="form.syncSetting.cron"
-                  style="width: 50%"
-                  @click="cronEdit = true"
-                />
+                <el-input v-model="form.syncSetting.cron" @click="cronEdit = true" />
               </template>
             </el-popover>
           </el-form-item>
@@ -907,7 +1313,7 @@ defineExpose({
             <el-date-picker
               v-model="form.syncSetting.startTime"
               class="de-date-picker"
-              :prefix-icon="Calendar"
+              :prefix-icon="calendar"
               type="datetime"
               :placeholder="t('datasource.start_time')"
             />
@@ -917,16 +1323,11 @@ defineExpose({
             :label="t('datasource.end_time')"
             prop="syncSetting.endLimit"
           >
-            <el-radio-group v-model="form.syncSetting.endLimit">
-              <el-radio label="0">{{ t('datasource.no_limit') }}</el-radio>
-              <el-radio label="1"> {{ t('datasource.set_end_time') }}</el-radio>
-            </el-radio-group>
             <div style="width: 100%">
               <el-date-picker
-                v-if="form.syncSetting.endLimit === '1'"
                 v-model="form.syncSetting.endTime"
                 class="de-date-picker"
-                :prefix-icon="Calendar"
+                :prefix-icon="calendar"
                 type="datetime"
                 :placeholder="t('datasource.end_time')"
               />
@@ -934,6 +1335,61 @@ defineExpose({
           </el-form-item>
         </div>
       </el-form>
+      <el-dialog
+        title="编辑参数"
+        v-model="dialogEditParams"
+        width="420px"
+        class="create-dialog"
+        :before-close="paramsResetForm"
+      >
+        <el-form
+          label-position="top"
+          require-asterisk-position="right"
+          ref="paramsObjRef"
+          @keydown.stop.prevent.enter
+          :model="paramsObj"
+          :rules="paramsObjRules"
+        >
+          <el-form-item :label="t('visualization.param_name')" prop="name">
+            <el-input placeholder="请输入参数名称" v-model="paramsObj.name" />
+          </el-form-item>
+          <el-form-item :label="t('deDataset.parameter_type')" prop="deType">
+            <el-radio-group v-model="paramsObj.deType">
+              <el-radio :value="0" label="文本"></el-radio>
+              <el-radio :value="2" label="数值"></el-radio>
+              <el-radio :value="3" label="数值(小数)"></el-radio>
+            </el-radio-group>
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button secondary @click="paramsResetForm">{{ t('dataset.cancel') }} </el-button>
+          <el-button type="primary" @click="saveParamsObj">{{ t('dataset.confirm') }} </el-button>
+        </template>
+      </el-dialog>
+      <el-dialog
+        title="重命名"
+        v-model="dialogRenameApi"
+        width="420px"
+        class="create-dialog"
+        :before-close="apiResetForm"
+      >
+        <el-form
+          label-position="top"
+          require-asterisk-position="right"
+          ref="apiObjRef"
+          @keydown.stop.prevent.enter
+          :model="apiObj"
+          :rules="apiObjRules"
+        >
+          <el-form-item label="接口名称" prop="name">
+            <el-input placeholder="请输入接口名称" v-model="apiObj.name" />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button secondary @click="apiResetForm">{{ t('dataset.cancel') }} </el-button>
+          <el-button type="primary" @click="saveApiObj">{{ t('dataset.confirm') }} </el-button>
+        </template>
+      </el-dialog>
 
       <api-http-request-draw @return-item="returnItem" ref="editApiItem"></api-http-request-draw>
     </div>
@@ -949,10 +1405,14 @@ defineExpose({
     height: 22px;
   }
 
+  .mb16 {
+    :deep(.ed-form-item) {
+      margin-bottom: 16px;
+    }
+  }
+
   .execute-rate-cont {
-    background: #f5f6f7;
     border-radius: 4px;
-    padding: 16px;
     margin-top: -8px;
   }
 
@@ -963,24 +1423,16 @@ defineExpose({
     width: 100%;
   }
 
-  .input-with-append {
-    :deep(.ed-input-group__append) {
-      width: 55px;
-      background: #eff0f1;
-      color: #1f2329;
-    }
-  }
-
   :deep(.is-controls-right > span) {
     background: #fff;
   }
 
   .de-expand {
-    font-family: PingFang SC;
+    font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
     font-size: 14px;
     font-weight: 400;
     line-height: 22px;
-    color: #3370ff;
+    color: var(--ed-color-primary);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -1018,8 +1470,44 @@ defineExpose({
       margin: 24px 0 16px 0;
     }
 
+    .left-api_params {
+      border-top-left-radius: 4px;
+      border-bottom-left-radius: 4px;
+      border: 1px solid #bbbfc4;
+      width: 300px;
+      padding: 16px;
+      .name-copy {
+        display: none;
+        line-height: 24px;
+        margin-left: 4px;
+      }
+
+      .list-item_primary:hover {
+        .name-copy {
+          display: inline;
+        }
+
+        .label {
+          width: 74% !important;
+        }
+      }
+    }
+
+    .right-api_params {
+      border-top-right-radius: 4px;
+      border-bottom-right-radius: 4px;
+      border: 1px solid #bbbfc4;
+      border-left: none;
+      width: calc(100% - 200px);
+    }
+
     .table-info-mr {
       margin: 28px 0 12px 0;
+      .api-tabs {
+        :deep(.ed-tabs__nav-wrap::after) {
+          display: none;
+        }
+      }
     }
 
     .info-update {
@@ -1027,7 +1515,7 @@ defineExpose({
       width: 100%;
       display: flex;
       align-items: center;
-      font-family: PingFang SC;
+      font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
       font-size: 14px;
       font-style: normal;
       font-weight: 400;
@@ -1047,7 +1535,7 @@ defineExpose({
         position: relative;
         color: #1f2329;
         font-weight: 400;
-        font-family: PingFang SC;
+        font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
         font-size: 14px;
         font-style: normal;
         line-height: 22px;
@@ -1059,7 +1547,7 @@ defineExpose({
           left: 0;
           top: 50%;
           transform: translateY(-50%);
-          border: 1px solid #3370ff;
+          border: 1px solid var(--ed-color-primary);
           border-radius: 50%;
         }
 
@@ -1069,7 +1557,7 @@ defineExpose({
 
         &.active::before {
           border: none;
-          background: #3370ff;
+          background: var(--ed-color-primary);
         }
       }
     }
@@ -1099,11 +1587,11 @@ defineExpose({
   border-radius: 4px;
   margin: 0 0 16px 16px;
   padding: 16px;
-  font-family: PingFang SC;
+  font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
   cursor: pointer;
 
   &:hover {
-    border-color: #3370ff;
+    border-color: var(--ed-color-primary);
   }
   .name {
     font-size: 16px;
@@ -1148,6 +1636,8 @@ defineExpose({
     border-radius: 2px;
     padding: 1px 6px;
     height: 24px;
+    font-size: 14px;
+
     &.invalid {
       color: #646a73;
       background: rgba(31, 35, 41, 0.1);
@@ -1176,7 +1666,7 @@ defineExpose({
   }
 
   .tips {
-    font-family: PingFang SC;
+    font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
     font-size: 14px;
     font-weight: 500;
     line-height: 22px;

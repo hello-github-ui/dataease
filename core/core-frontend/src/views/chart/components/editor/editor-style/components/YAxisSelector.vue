@@ -52,6 +52,12 @@ const fontSizeList = computed(() => {
   return arr
 })
 
+const splitLineStyle = [
+  { label: t('chart.line_type_solid'), value: 'solid' },
+  { label: t('chart.line_type_dashed'), value: 'dashed' },
+  { label: t('chart.line_type_dotted'), value: 'dotted' }
+]
+
 const changeAxisStyle = prop => {
   if (
     state.axisForm.axisValue.splitCount &&
@@ -123,15 +129,13 @@ onMounted(() => {
       />
     </el-form-item>
 
-    <label class="custom-form-item-label" :class="'custom-form-item-label--' + themes"
-      >{{ t('chart.name') }}{{ t('chart.text') }}</label
-    >
     <div style="display: flex">
       <el-form-item
         class="form-item"
         :class="'form-item-' + themes"
         v-if="showProperty('color')"
         style="padding-right: 4px"
+        :label="t('chart.chart_style')"
       >
         <el-color-picker
           v-model="state.axisForm.color"
@@ -148,6 +152,7 @@ onMounted(() => {
         v-if="showProperty('fontSize')"
         style="padding-left: 4px"
       >
+        <template #label>&nbsp;</template>
         <el-tooltip content="字号" :effect="toolTip" placement="top">
           <el-select
             style="width: 108px"
@@ -250,7 +255,11 @@ onMounted(() => {
         </el-form-item>
       </template>
     </template>
-    <el-divider class="m-divider" :class="'m-divider--' + themes" />
+    <el-divider
+      v-if="showProperty('splitLine') || showProperty('axisLine')"
+      class="m-divider"
+      :class="'m-divider--' + themes"
+    />
     <el-form-item class="form-item" :class="'form-item-' + themes" v-if="showProperty('axisLine')">
       <el-checkbox
         size="small"
@@ -289,10 +298,26 @@ onMounted(() => {
             is-custom
           />
         </el-form-item>
+        <el-form-item class="form-item" :class="'form-item-' + themes" style="padding: 0 4px">
+          <el-select
+            :disabled="!state.axisForm.splitLine.show"
+            style="width: 62px"
+            :effect="props.themes"
+            v-model="state.axisForm.splitLine.lineStyle.style"
+            @change="changeAxisStyle('splitLine.lineStyle.style')"
+          >
+            <el-option
+              v-for="option in splitLineStyle"
+              :key="option.value"
+              :value="option.value"
+              :label="option.label"
+            ></el-option>
+          </el-select>
+        </el-form-item>
         <el-form-item class="form-item" :class="'form-item-' + themes" style="padding-left: 4px">
           <el-input-number
             :disabled="!state.axisForm.splitLine.show"
-            style="width: 108px"
+            style="width: 70px"
             :effect="props.themes"
             v-model="state.axisForm.splitLine.lineStyle.width"
             :min="1"
@@ -304,7 +329,11 @@ onMounted(() => {
         </el-form-item>
       </div>
     </div>
-    <el-divider class="m-divider" :class="'m-divider--' + themes" />
+    <el-divider
+      v-if="showProperty('axisLabel')"
+      class="m-divider"
+      :class="'m-divider--' + themes"
+    />
     <el-form-item
       class="form-item form-item-checkbox"
       :class="{

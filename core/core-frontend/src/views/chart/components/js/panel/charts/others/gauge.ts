@@ -13,6 +13,7 @@ import {
 import { valueFormatter } from '@/views/chart/components/js/formatter'
 import { getPadding, setGradientColor } from '@/views/chart/components/js/panel/common/common_antv'
 import { useI18n } from '@/hooks/web/useI18n'
+import { merge } from 'lodash-es'
 
 const { t } = useI18n()
 
@@ -28,7 +29,7 @@ export class Gauge extends G2PlotChartView<GaugeOptions, G2Gauge> {
   ]
   propertyInner: EditorPropertyInner = {
     'background-overall-component': ['all'],
-    'basic-style-selector': ['colors', 'alpha', 'gaugeStyle', 'gradient'],
+    'basic-style-selector': ['colors', 'alpha', 'gradient', 'gaugeAxisLine', 'gaugePercentLabel'],
     'label-selector': ['fontSize', 'color', 'labelFormatter'],
     'title-selector': [
       'title',
@@ -65,43 +66,44 @@ export class Gauge extends G2PlotChartView<GaugeOptions, G2Gauge> {
 
   drawChart(drawOptions: G2PlotDrawOptions<G2Gauge>): G2Gauge {
     const { chart, container, scale } = drawOptions
-    if (chart?.data) {
-      // options
-      const initOptions: GaugeOptions = {
-        percent: 0,
-        appendPadding: getPadding(chart),
-        axis: {
-          tickInterval: 0.2,
-          label: {
-            style: {
-              fontSize: getScaleValue(12, scale) // 刻度值字体大小
-            },
-            formatter: function (v) {
-              const r = parseFloat(v)
-              return v === '0' || !r ? v : r * 100 + '%'
-            }
-          },
-          tickLine: {
-            length: getScaleValue(12, scale) * -1, // 刻度线长度
-            style: {
-              lineWidth: getScaleValue(1, scale) // 刻度线宽度
-            }
-          },
-          subTickLine: {
-            count: 4, // 子刻度数
-            length: getScaleValue(6, scale) * -1, // 子刻度线长度
-            style: {
-              lineWidth: getScaleValue(1, scale) // 子刻度线宽度
-            }
+    if (!chart.data?.series) {
+      return
+    }
+    // options
+    const initOptions: GaugeOptions = {
+      percent: 0,
+      appendPadding: getPadding(chart),
+      axis: {
+        tickInterval: 0.2,
+        label: {
+          style: {
+            fontSize: getScaleValue(12, scale) // 刻度值字体大小
+          }
+        },
+        tickLine: {
+          length: getScaleValue(12, scale) * -1, // 刻度线长度
+          style: {
+            lineWidth: getScaleValue(1, scale) // 刻度线宽度
+          }
+        },
+        subTickLine: {
+          count: 4, // 子刻度数
+          length: getScaleValue(6, scale) * -1, // 子刻度线长度
+          style: {
+            lineWidth: getScaleValue(1, scale) // 子刻度线宽度
           }
         }
       }
-      const options = this.setupOptions(chart, initOptions, scale)
-      return new G2Gauge(container, options)
     }
+    const options = this.setupOptions(chart, initOptions, { scale })
+    return new G2Gauge(container, options)
   }
 
-  protected configMisc(chart: Chart, options: GaugeOptions): GaugeOptions {
+  protected configMisc(
+    chart: Chart,
+    options: GaugeOptions,
+    context: Record<string, any>
+  ): GaugeOptions {
     const customAttr = parseJson(chart.customAttr)
     const data = chart.data.series[0].data[0]
     let min, max, startAngle, endAngle
@@ -122,6 +124,8 @@ export class Gauge extends G2PlotChartView<GaugeOptions, G2Gauge> {
       }
       startAngle = (misc.gaugeStartAngle * Math.PI) / 180
       endAngle = (misc.gaugeEndAngle * Math.PI) / 180
+      context.min = min
+      context.max = max
     }
     const percent = (parseFloat(data) - parseFloat(min)) / (parseFloat(max) - parseFloat(min))
     const tmp = {
@@ -132,8 +136,12 @@ export class Gauge extends G2PlotChartView<GaugeOptions, G2Gauge> {
     return { ...options, ...tmp }
   }
 
-  private configRange(chart: Chart, options: GaugeOptions, extra: any[]): GaugeOptions {
-    const [scale] = extra
+  private configRange(
+    chart: Chart,
+    options: GaugeOptions,
+    context: Record<string, any>
+  ): GaugeOptions {
+    const { scale } = context
     const range = [0]
     let index = 0
     let flag = false
@@ -215,46 +223,83 @@ export class Gauge extends G2PlotChartView<GaugeOptions, G2Gauge> {
     return { ...options, ...rangOptions }
   }
 
-  protected configLabel(chart: Chart, options: GaugeOptions): GaugeOptions {
+  protected configLabel(
+    chart: Chart,
+    options: GaugeOptions,
+    context?: Record<string, any>
+  ): GaugeOptions {
     const customAttr = parseJson(chart.customAttr)
     const data = chart.data.series[0].data[0]
-    let labelContent
-    if (customAttr.label) {
-      const label = customAttr.label
-      const labelFormatter = label.labelFormatter ?? DEFAULT_LABEL.labelFormatter
-      if (label.show) {
-        labelContent = {
-          style: () => ({
-            fontSize: label.fontSize,
-            color: label.color
-          }),
-          formatter: function () {
-            let value
-            if (labelFormatter.type === 'percent') {
-              value = options.percent
-            } else {
-              value = data
-            }
-            return valueFormatter(value, labelFormatter)
+    let labelContent: GaugeOptions['statistic']['content'] = false
+    const label = customAttr.label
+    const labelFormatter = label.labelFormatter ?? DEFAULT_LABEL.labelFormatter
+    if (label.show) {
+      labelContent = {
+        style: {
+          fontSize: `${label.fontSize}px`,
+          color: label.color
+        },
+        formatter: function () {
+          let value
+          if (labelFormatter.type === 'percent') {
+            value = options.percent
+          } else {
+            value = data
           }
+          return valueFormatter(value, labelFormatter)
         }
-      } else {
-        labelContent = false
-      }
+      } as GaugeOptions['statistic']['content']
     }
     const statistic = {
       content: labelContent
     }
+    const { gaugeAxisLine, gaugePercentLabel } = customAttr.basicStyle
+    const { min, max } = context
+    const tmp = {
+      axis: {
+        label: {
+          formatter: v => {
+            if (gaugeAxisLine === false) {
+              return ''
+            }
+            if (gaugePercentLabel === false) {
+              const val = v === '0' ? min : v === '1' ? max : min + (max - min) * v
+              return valueFormatter(val, labelFormatter)
+            }
+            return v === '0' ? v : v * 100 + '%'
+          }
+        }
+      }
+    }
+    options = merge(options, tmp)
     return { ...options, statistic }
   }
 
-  protected setupOptions(chart: Chart, options: GaugeOptions, ...extra: any[]): GaugeOptions {
+  setupDefaultOptions(chart: ChartObj): ChartObj {
+    chart.customAttr.label = {
+      ...chart.customAttr.label,
+      show: true,
+      labelFormatter: {
+        type: 'value',
+        thousandSeparator: true,
+        decimalCount: 0,
+        unit: 1
+      }
+    }
+    return chart
+  }
+
+  protected setupOptions(
+    chart: Chart,
+    options: GaugeOptions,
+    context: Record<string, any>
+  ): GaugeOptions {
     return flow(
       this.configTheme,
       this.configMisc,
       this.configLabel,
       this.configRange
-    )(chart, options, extra)
+    )(chart, options, context)
   }
   constructor() {
     super('gauge', DEFAULT_DATA)

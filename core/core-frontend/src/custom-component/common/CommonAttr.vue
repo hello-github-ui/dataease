@@ -8,6 +8,8 @@ import BackgroundOverallCommon from '@/components/visualization/component-backgr
 import { useI18n } from '@/hooks/web/useI18n'
 import elementResizeDetectorMaker from 'element-resize-detector'
 import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
+import CommonStyleSet from '@/custom-component/common/CommonStyleSet.vue'
+import CommonEvent from '@/custom-component/common/CommonEvent.vue'
 const snapshotStore = snapshotStoreWithOut()
 
 const { t } = useI18n()
@@ -32,7 +34,7 @@ const props = withDefaults(
 
 const { themes, element, showStyle } = toRefs(props)
 const dvMainStore = dvMainStoreWithOut()
-const { dvInfo } = storeToRefs(dvMainStore)
+const { dvInfo, batchOptStatus } = storeToRefs(dvMainStore)
 const activeName = ref(element.value.collapseName)
 
 const styleKeys = computed(() => {
@@ -51,6 +53,11 @@ const onChange = () => {
 const isIncludesColor = str => {
   return str.toLowerCase().includes('color')
 }
+
+const positionComponentShow = computed(() => {
+  return !batchOptStatus.value && !dashboardActive.value
+})
+
 const dashboardActive = computed(() => {
   return dvInfo.value.type === 'dashboard'
 })
@@ -60,7 +67,7 @@ const onBackgroundChange = val => {
   emits('onAttrChange', { custom: 'commonBackground' })
 }
 
-const onStyleAttrChange = (value, key) => {
+const onStyleAttrChange = ({ key, value }) => {
   snapshotStore.recordSnapshotCache()
   emits('onAttrChange', { custom: 'style', property: key, value: value })
 }
@@ -86,11 +93,19 @@ const colorPickerWidth = computed(() => {
   }
 })
 
+// 暂时关闭
+const eventsShow = computed(() => {
+  return false
+  // return !dashboardActive.value && ['Picture'].includes(element.value.component)
+})
+
 const backgroundCustomShow = computed(() => {
   return (
     dashboardActive.value ||
     (!dashboardActive.value &&
-      !['CanvasBoard', 'CanvasIcon', 'Picture'].includes(element.value.component))
+      !['CanvasBoard', 'CanvasIcon', 'Picture', 'CircleShape', 'RectShape'].includes(
+        element.value.component
+      ))
   )
 })
 onMounted(() => {
@@ -102,12 +117,18 @@ onMounted(() => {
     })
   })
 })
+const stopEvent = e => {
+  if (e && e.code === 'Enter') {
+    e.stopPropagation()
+    e.preventDefault()
+  }
+}
 </script>
 
 <template>
   <div class="v-common-attr" ref="containerRef">
     <el-collapse v-model="activeName" @change="onChange()">
-      <el-collapse-item :effect="themes" title="位置" name="position" v-if="!dashboardActive">
+      <el-collapse-item :effect="themes" title="位置" name="position" v-if="positionComponentShow">
         <component-position :themes="themes" />
       </el-collapse-item>
 
@@ -126,128 +147,29 @@ onMounted(() => {
           :background-border-select-width="backgroundBorderSelectWidth"
         />
       </el-collapse-item>
-
+      <slot></slot>
       <el-collapse-item
-        v-if="showStyle"
+        v-if="element && element.style"
         :effect="themes"
         title="样式"
         name="style"
         class="common-style-area"
       >
-        <el-form label-position="top">
-          <el-row :gutter="8">
-            <el-col
-              :span="colSpan"
-              v-for="({ key, label, min, max, step }, index) in styleKeys"
-              :key="index"
-            >
-              <el-form-item class="form-item" :class="'form-item-' + themes" :label="label">
-                <el-color-picker
-                  v-if="isIncludesColor(key)"
-                  v-model="element.style[key]"
-                  :trigger-width="colorPickerWidth"
-                  :themes="themes"
-                  size="small"
-                  show-alpha
-                  is-custom
-                  @change="onStyleAttrChange($event, key)"
-                />
-                <el-radio-group
-                  :effect="themes"
-                  style="width: 100%"
-                  class="icon-radio-group"
-                  v-else-if="horizontalPosition.includes(key)"
-                  v-model="element.style[key]"
-                  @change="onStyleAttrChange($event, key)"
-                >
-                  <el-radio :effect="themes" label="left">
-                    <el-tooltip effect="dark" placement="top">
-                      <template #content>
-                        {{ t('chart.text_pos_left') }}
-                      </template>
-                      <div
-                        class="icon-btn"
-                        :class="{
-                          dark: themes === 'dark',
-                          active: element.style[key] === 'left'
-                        }"
-                      >
-                        <el-icon>
-                          <Icon name="filter-h-left" />
-                        </el-icon>
-                      </div>
-                    </el-tooltip>
-                  </el-radio>
-                  <el-radio :effect="themes" label="center">
-                    <el-tooltip effect="dark" placement="top">
-                      <template #content>
-                        {{ t('chart.text_pos_center') }}
-                      </template>
-                      <div
-                        class="icon-btn"
-                        :class="{
-                          dark: themes === 'dark',
-                          active: element.style[key] === 'center'
-                        }"
-                      >
-                        <el-icon>
-                          <Icon name="filter-h-center" />
-                        </el-icon>
-                      </div>
-                    </el-tooltip>
-                  </el-radio>
-                  <el-radio :effect="themes" label="right">
-                    <el-tooltip effect="dark" placement="top">
-                      <template #content>
-                        {{ t('chart.text_pos_right') }}
-                      </template>
-                      <div
-                        class="icon-btn"
-                        :class="{
-                          dark: themes === 'dark',
-                          active: element.style[key] === 'right'
-                        }"
-                      >
-                        <el-icon>
-                          <Icon name="filter-h-right" />
-                        </el-icon>
-                      </div>
-                    </el-tooltip>
-                  </el-radio>
-                </el-radio-group>
-                <el-select
-                  v-else-if="selectKey.includes(key)"
-                  style="width: 100%"
-                  size="small"
-                  :effect="themes"
-                  v-model="element.style[key]"
-                  @change="onStyleAttrChange($event, key)"
-                >
-                  <el-option
-                    v-for="item in optionMap[key]"
-                    :key="item.value"
-                    :label="item.label"
-                    :value="item.value"
-                  ></el-option>
-                </el-select>
-                <el-input-number
-                  v-else
-                  size="middle"
-                  style="width: 100%"
-                  controls-position="right"
-                  :min="min"
-                  :max="max"
-                  :step="step"
-                  :effect="themes"
-                  v-model="element.style[key]"
-                  @change="onStyleAttrChange($event, key)"
-                />
-              </el-form-item>
-            </el-col>
-          </el-row>
-        </el-form>
+        <common-style-set
+          @onStyleAttrChange="onStyleAttrChange"
+          :themes="themes"
+          :element="element"
+        ></common-style-set>
       </el-collapse-item>
-      <slot></slot>
+      <el-collapse-item
+        v-if="element && element.events && eventsShow"
+        :effect="themes"
+        title="事件"
+        name="style"
+        class="common-style-area"
+      >
+        <common-event :themes="themes" :element="element"></common-event>
+      </el-collapse-item>
     </el-collapse>
   </div>
 </template>
@@ -444,8 +366,8 @@ onMounted(() => {
   &.dark {
     color: #a6a6a6;
     &.active {
-      color: #3370ff;
-      background-color: rgba(51, 112, 255, 0.1);
+      color: var(--ed-color-primary);
+      background-color: var(--ed-color-primary-1a, rgba(51, 112, 255, 0.1));
     }
     &:hover {
       background-color: rgba(255, 255, 255, 0.1);
@@ -453,8 +375,8 @@ onMounted(() => {
   }
 
   &.active {
-    color: #3370ff;
-    background-color: rgba(51, 112, 255, 0.1);
+    color: var(--ed-color-primary);
+    background-color: var(--ed-color-primary-1a, rgba(51, 112, 255, 0.1));
   }
 
   &:hover {

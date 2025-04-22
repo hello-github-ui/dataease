@@ -1,5 +1,16 @@
 <template>
-  <div class="shape" ref="shapeInnerRef" :id="domId">
+  <div
+    class="shape"
+    :class="{ 'shape-group-area': isGroupArea }"
+    ref="shapeInnerRef"
+    :id="domId"
+    @dblclick="handleDbClick"
+  >
+    <div v-if="showCheck" class="del-from-mobile" @click="delFromMobile">
+      <el-icon>
+        <Icon name="mobile-checkbox"></Icon>
+      </el-icon>
+    </div>
     <div
       class="shape-outer"
       v-show="contentDisplay"
@@ -32,12 +43,11 @@
       >
         <Icon v-show="shapeLock" class="iconfont icon-suo" name="dv-lock"></Icon>
         <!--边框背景-->
-        <Icon
+        <Board
           v-if="svgInnerEnable"
           :style="{ color: element.commonBackground.innerImageColor }"
-          class-name="svg-background"
           :name="commonBackgroundSvgInner"
-        ></Icon>
+        ></Board>
         <div class="component-slot">
           <slot></slot>
         </div>
@@ -49,6 +59,7 @@
         :style="getPointStyle(item)"
         @mousedown="handleMouseDownOnPoint(item, $event)"
       ></div>
+      <div class="shape-shadow" v-show="batchOptFlag" @mousedown="batchSelected"></div>
       <template v-if="boardMoveActive">
         <div
           v-show="!element.editing"
@@ -78,7 +89,9 @@
 
 <script setup lang="ts">
 import eventBus from '@/utils/eventBus'
-import calculateComponentPositionAndSize from '@/utils/calculateComponentPositionAndSize'
+import calculateComponentPositionAndSize, {
+  calculateRadioComponentPositionAndSize
+} from '@/utils/calculateComponentPositionAndSize'
 import { mod360 } from '@/utils/translate'
 import { deepCopy } from '@/utils/utils'
 import { computed, nextTick, onMounted, ref, toRefs, reactive } from 'vue'
@@ -92,6 +105,9 @@ import Icon from '@/components/icon-custom/src/Icon.vue'
 import ComponentEditBar from '@/components/visualization/ComponentEditBar.vue'
 import { useEmitt } from '@/hooks/web/useEmitt'
 import ComposeShow from '@/components/data-visualization/canvas/ComposeShow.vue'
+import { groupSizeStyleAdaptor, groupStyleRevert } from '@/utils/style'
+import { isGroupCanvas, isMainCanvas } from '@/utils/canvasUtils'
+import Board from '@/components/de-board/Board.vue'
 const dvMainStore = dvMainStoreWithOut()
 const snapshotStore = snapshotStoreWithOut()
 const contextmenuStore = contextmenuStoreWithOut()
@@ -110,7 +126,8 @@ const {
   curLinkageView,
   tabCollisionActiveId,
   tabMoveInActiveId,
-  tabMoveOutComponentId
+  tabMoveOutComponentId,
+  mobileInPc
 } = storeToRefs(dvMainStore)
 const { editorMap, areaData, isCtrlOrCmdDown } = storeToRefs(composeStore)
 const emit = defineEmits([
@@ -123,6 +140,7 @@ const emit = defineEmits([
   'linkJumpSetOpen',
   'linkageSetOpen'
 ])
+
 const isEditMode = computed(() => editMode.value === 'edit')
 const state = reactive({
   seriesIdMap: {
@@ -146,7 +164,8 @@ const shapeLock = computed(() => {
 
 const showPosition = computed(() => {
   let position
-  if (batchOptStatus.value) {
+  // 数据大屏批量操作合并为分组
+  if (batchOptFlag.value) {
     position = 'batchOpt'
   } else if (isEditMode.value) {
     position = dvInfo.value.type === 'dashboard' ? 'canvas' : 'canvasDataV'
@@ -204,12 +223,32 @@ const props = defineProps({
   canvasId: {
     type: String,
     default: 'canvas-main'
+  },
+  scale: {
+    type: Number,
+    required: false,
+    default: 1
+  },
+  canvasActive: {
+    type: Boolean,
+    required: false,
+    default: true
   }
 })
 
-const { element, defaultStyle, baseCellInfo, index, isTabMoveCheck, canvasId } = toRefs(props)
+const {
+  element,
+  defaultStyle,
+  baseCellInfo,
+  index,
+  isTabMoveCheck,
+  canvasId,
+  scale,
+  canvasActive
+} = toRefs(props)
 const domId = ref('shape-id-' + element.value.id)
 const pointList = ['lt', 't', 'rt', 'r', 'rb', 'b', 'lb', 'l']
+const pointCorner = ['lt', 'rt', 'rb', 'lb']
 const pointList2 = ['r', 'l']
 const initialAngle = {
   // 每个点对应的初始角度
@@ -224,6 +263,17 @@ const initialAngle = {
 }
 const cursors = ref({})
 
+const showCheck = computed(() => {
+  return mobileInPc.value && element.value.canvasId === 'canvas-main'
+})
+
+const delFromMobile = () => {
+  useEmitt().emitter.emit('onMobileStatusChange', {
+    type: 'delFromMobile',
+    value: element.value.id
+  })
+}
+
 const angleToCursor = [
   // 每个范围的角度对应的光标
   { start: 338, end: 23, cursor: 'nw' },
@@ -236,12 +286,26 @@ const angleToCursor = [
   { start: 293, end: 338, cursor: 'w' }
 ]
 
+const isGroupArea = computed(() => {
+  return curComponent.value?.component === 'GroupArea'
+})
+
 const active = computed(() => {
   return curComponent.value?.id === element.value.id
 })
 
 const boardMoveActive = computed(() => {
-  return ['map', 'table-info', 'table-normal'].includes(element.value.innerType)
+  const CHARTS = [
+    'flow-map',
+    'map',
+    'bubble-map',
+    'table-info',
+    'table-normal',
+    'table-pivot',
+    'symbolic-map',
+    'heat-map'
+  ]
+  return element.value.isPlugin || CHARTS.includes(element.value.innerType)
 })
 
 const dashboardActive = computed(() => {
@@ -336,18 +400,35 @@ const getCursor = () => {
 }
 
 const handleBoardMouseDownOnShape = e => {
+  if (!canvasActive.value) {
+    return
+  }
   dvMainStore.setCurComponent({ component: element.value, index: index.value })
   handleMouseDownOnShape(e)
 }
 
 const areaDataPush = component => {
-  if (component && !component.isLock && component.isShow) {
+  if (
+    component &&
+    !component.isLock &&
+    component.isShow &&
+    component.canvasId === 'canvas-main' &&
+    !['Group', 'GroupArea'].includes(component.component)
+  ) {
     areaData.value.components.push(component)
+  }
+}
+const handleDbClick = () => {
+  if (element.value.canvasId !== 'canvas-main') {
+    dvMainStore.setCurComponent({ component: element.value, index: index.value })
   }
 }
 
 const handleInnerMouseDownOnShape = e => {
-  if (dvMainStore.batchOptStatus) {
+  if (!canvasActive.value) {
+    return
+  }
+  if (batchOptFlag.value) {
     componentEditBarRef.value.batchOptCheckOut()
     e.stopPropagation()
     e.preventDefault()
@@ -359,7 +440,6 @@ const handleInnerMouseDownOnShape = e => {
     if (curComponent.value && curComponent.value.id !== element.value.id) {
       areaDataPush(curComponent.value)
     }
-    dvMainStore.setCurComponent({ component: null, index: null })
     e.stopPropagation()
     return
   }
@@ -418,9 +498,10 @@ const handleMouseDownOnShape = e => {
     const left = curX - startX + startLeft
     pos['top'] = top
     pos['left'] = left
-    // 非主画布的情况 需要检测是否从Tab中移除组件(向左移除30px 或者向右移除30px)
+    // 非主画布非分组画布的情况 需要检测是否从Tab中移除组件(向左移除30px 或者向右移除30px)
     if (
-      canvasId.value !== 'canvas-main' &&
+      !isMainCanvas(canvasId.value) &&
+      !isGroupCanvas(canvasId.value) &&
       (left < -30 || left + componentWidth - canvasWidth > 30)
     ) {
       contentDisplay.value = false
@@ -436,33 +517,50 @@ const handleMouseDownOnShape = e => {
       dvMainStore.setTabMoveOutComponentId(null)
       contentDisplay.value = true
     }
-    tabMoveInCheck()
+    // 仪表板进行Tab碰撞检查
+    dashboardActive.value && tabMoveInCheck()
     // 仪表板模式 会造成移动现象 当检测组件正在碰撞有效区内或者移入有效区内 则周边组件不进行移动
     if (
       dashboardActive.value &&
       (isFirst || (!tabMoveInActiveId.value && !tabCollisionActiveId.value))
     ) {
+      element.value['dragging'] = true
       emit('onDragging', e)
     }
+
+    //如果当前组件是Group分组 则要进行内部组件深度计算
+    element.value.component === 'Group' && groupSizeStyleAdaptor(element.value)
+    //如果当前画布是Group内部画布 则对应组件定位在resize时要还原到groupStyle中
+    if (isGroupCanvas(canvasId.value)) {
+      groupStyleRevert(element.value, {
+        width: parentNode.value.offsetWidth,
+        height: parentNode.value.offsetHeight
+      })
+    }
+
     // 防止首次组件在tab旁边无法触发矩阵移动
     if (isFirst) {
       isFirst = false
     }
     // 修改当前组件样式
-    dvMainStore.setShapeStyle(pos)
+    dvMainStore.setShapeStyle(pos, areaData.value.components, 'move')
     // 等更新完当前组件的样式并绘制到屏幕后再判断是否需要吸附
-    // 如果不使用 $nextTick，吸附后将无法移动
-    nextTick(() => {
-      // 触发元素移动事件，用于显示标线、吸附功能
-      // 后面两个参数代表鼠标移动方向
-      // curY - startY > 0 true 表示向下移动 false 表示向上移动
-      // curX - startX > 0 true 表示向右移动 false 表示向左移动
-      eventBus.emit('move', { isDownward: curY - startY > 0, isRightward: curX - startX > 0 })
-    })
+    // GroupArea是分组视括组件 不需要进行吸附
+    // 如果不使用 nextTick，吸附后将无法移动
+    if (!isGroupArea.value) {
+      nextTick(() => {
+        // 触发元素移动事件，用于显示标线、吸附功能
+        // 后面两个参数代表鼠标移动方向
+        // curY - startY > 0 true 表示向下移动 false 表示向上移动
+        // curX - startX > 0 true 表示向右移动 false 表示向左移动
+        eventBus.emit('move', { isDownward: curY - startY > 0, isRightward: curX - startX > 0 })
+      })
+    }
   }
 
   const up = () => {
     dashboardActive.value && emit('onMouseUp')
+    element.value['dragging'] = false
     hasMove && snapshotStore.recordSnapshotCache('shape-handleMouseDownOnShape-up')
     // 触发元素停止移动事件，用于隐藏标线
     eventBus.emit('unMove')
@@ -481,6 +579,7 @@ const handleMouseDownOnShape = e => {
       eventBus.emit('onTabMoveOut-' + tabMoveOutComponentId.value, deepCopy(element.value))
       dvMainStore.setTabMoveOutComponentId(null)
     }
+    handleGroupComponent()
   }
 
   document.addEventListener('mousemove', move)
@@ -488,6 +587,9 @@ const handleMouseDownOnShape = e => {
 }
 
 const selectCurComponent = e => {
+  if (!canvasActive.value) {
+    return
+  }
   // 阻止向父组件冒泡
   if (dvInfo.value.type === 'dataV') {
     e.stopPropagation()
@@ -496,7 +598,19 @@ const selectCurComponent = e => {
   }
 }
 
+const batchSelected = e => {
+  if (batchOptFlag.value) {
+    componentEditBarRef.value.batchOptCheckOut()
+    e.stopPropagation()
+    e.preventDefault()
+    return
+  }
+}
+
 const handleMouseDownOnPoint = (point, e) => {
+  if (!canvasActive.value) {
+    return
+  }
   dashboardActive.value && emit('onStartResize', e)
   dvMainStore.setInEditorStatus(true)
   dvMainStore.setClickComponentStatus(true)
@@ -546,6 +660,20 @@ const handleMouseDownOnPoint = (point, e) => {
   let isFirst = true
 
   const needLockProportion = isNeedLockProportion()
+  const originRadio = curComponent.value.aspectRatio
+  const baseGroupComponentsRadio = {}
+  // 计算初始状态 分组内组件宽高占比
+  if (areaData.value.components.length > 0) {
+    areaData.value.components.forEach(groupComponent => {
+      baseGroupComponentsRadio[groupComponent.id] = {
+        topRadio: (groupComponent.style.top - style.top) / style.height,
+        leftRadio: (groupComponent.style.left - style.left) / style.width,
+        widthRadio: groupComponent.style.width / style.width,
+        heightRadio: groupComponent.style.height / style.height
+      }
+    })
+  }
+
   const move = moveEvent => {
     // 第一次点击时也会触发 move，所以会有“刚点击组件但未移动，组件的大小却改变了”的情况发生
     // 因此第一次点击时不触发 move 事件
@@ -566,15 +694,48 @@ const handleMouseDownOnPoint = (point, e) => {
     })
     //Temp dataV坐标偏移
     offsetDataVAdaptor(style, point)
-    dvMainStore.setShapeStyle(style)
+    // 保持宽搞比例调整
+    if (curComponent.value.maintainRadio) {
+      // 高度偏移量
+      const heightOffset = style.height - defaultStyle.value.height
+      // 宽度偏移量
+      const widthOffset = style.width - defaultStyle.value.width
+      // 保持宽高比例是相对宽度偏移量
+      const adaptorWidthOffset = heightOffset * originRadio
+      if (pointCorner.includes(point)) {
+        style.height = defaultStyle.value.width / originRadio
+      } else if (Math.abs(widthOffset) > Math.abs(adaptorWidthOffset)) {
+        // 调整高度
+        style.height = defaultStyle.value.width / originRadio
+      } else {
+        // 调整宽度
+        style.width = defaultStyle.value.height * originRadio
+      }
+    }
+    calculateRadioComponentPositionAndSize(point, style, symmetricPoint)
+
+    dvMainStore.setShapeStyle(style, areaData.value.components, 'resize', baseGroupComponentsRadio)
+    // 矩阵逻辑 如果当前是仪表板（矩阵模式）则要进行矩阵重排
     dashboardActive.value && emit('onResizing', moveEvent)
+    element.value['resizing'] = true
+    //如果当前组件是Group分组 则要进行内部组件深度计算
+    element.value.component === 'Group' && groupSizeStyleAdaptor(element.value)
+    //如果当前画布是Group内部画布 则对应组件定位在resize时要还原到groupStyle中
+    if (isGroupCanvas(canvasId.value)) {
+      groupStyleRevert(element.value, {
+        width: parentNode.value.offsetWidth,
+        height: parentNode.value.offsetHeight
+      })
+    }
   }
 
   const up = () => {
     dashboardActive.value && emit('onMouseUp')
+    element.value['resizing'] = false
     document.removeEventListener('mousemove', move)
     document.removeEventListener('mouseup', up)
     needSave && snapshotStore.recordSnapshotCache('shape-handleMouseDownOnPoint-up')
+    handleGroupComponent()
   }
 
   document.addEventListener('mousemove', move)
@@ -635,7 +796,7 @@ const commonBackgroundSvgInner = computed(() => {
 })
 
 const componentBackgroundStyle = computed(() => {
-  if (element.value.commonBackground) {
+  if (element.value.commonBackground && element.value.component !== 'GroupArea') {
     const {
       backgroundColorSelect,
       backgroundColor,
@@ -645,7 +806,7 @@ const componentBackgroundStyle = computed(() => {
       innerPadding,
       borderRadius
     } = element.value.commonBackground
-    const style = { padding: innerPadding + 'px', borderRadius: borderRadius + 'px' }
+    const style = { padding: innerPadding * scale.value + 'px', borderRadius: borderRadius + 'px' }
     let colorRGBA = ''
     if (backgroundColorSelect && backgroundColor) {
       colorRGBA = backgroundColor
@@ -659,6 +820,9 @@ const componentBackgroundStyle = computed(() => {
     } else {
       style['background-color'] = colorRGBA
     }
+    if (element.value.component !== 'UserView') {
+      style['overflow'] = 'hidden'
+    }
     return style
   }
   return {}
@@ -666,7 +830,7 @@ const componentBackgroundStyle = computed(() => {
 
 const editBarShowFlag = computed(() => {
   return (
-    ((active.value || batchOptStatus.value) &&
+    ((active.value || batchOptFlag.value) &&
       ['canvas', 'canvasDataV', 'batchOpt'].includes(showPosition.value)) ||
     linkageSettingStatus.value
   )
@@ -764,6 +928,10 @@ const tabMoveInCheck = async () => {
   }
 }
 
+const batchOptFlag = computed(() => {
+  return batchOptStatus.value && dashboardActive.value
+})
+
 const dragCollision = computed(() => {
   return active.value && Boolean(tabCollisionActiveId.value)
 })
@@ -772,6 +940,12 @@ const htmlToImage = () => {
   setTimeout(() => {
     downloadCanvas('img', componentInnerRef.value, '图表')
   }, 200)
+}
+
+const handleGroupComponent = () => {
+  if (element.value.canvasId.includes('Group')) {
+    composeStore.updateGroupBorder(element.value.canvasId)
+  }
 }
 
 onMounted(() => {
@@ -800,6 +974,29 @@ onMounted(() => {
 <style lang="less" scoped>
 .shape {
   position: absolute;
+
+  .del-from-mobile {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    z-index: 2;
+    font-size: 16px;
+    cursor: pointer;
+    color: var(--ed-color-primary);
+  }
+}
+
+.shape-group-area {
+  z-index: 15;
+}
+
+.shape-shadow {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  background-size: 100% 100% !important;
 }
 
 .shape-inner {
@@ -812,7 +1009,7 @@ onMounted(() => {
 .shape-edit {
   &:hover {
     cursor: move;
-    outline: 1px solid rgba(51, 112, 255, 0.6);
+    outline: 1px solid var(--ed-color-primary-99, rgba(51, 112, 255, 0.6));
   }
 }
 
@@ -823,7 +1020,7 @@ onMounted(() => {
 }
 
 .active {
-  outline: 1px solid rgba(51, 112, 255, 1) !important;
+  outline: 1px solid var(--ed-color-primary) !important;
   user-select: none;
 }
 
@@ -907,9 +1104,9 @@ onMounted(() => {
 
 .de-drag-right {
   right: 1px;
-  top: 1px;
-  width: 16px;
-  height: calc(100% - 50px);
+  top: 70px;
+  width: 12px;
+  height: calc(100% - 110px);
 }
 
 .de-drag-bottom {

@@ -3,7 +3,8 @@ import { cloneDeep } from 'lodash'
 import { XpackComponent } from '@/components/plugin'
 const modules = import.meta.glob('../views/**/*.vue')
 export const Layout = () => import('@/layout/index.vue')
-const pluginComponent = 'components/plugin'
+const xpackComName = 'components/plugin'
+export const LayoutTransition = () => import('@/layout/components/LayoutTransition.vue')
 // 后端控制路由生成
 export const generateRoutesFn2 = (routes: AppCustomRouteRecordRaw[]): AppRouteRecordRaw[] => {
   const res: AppRouteRecordRaw[] = []
@@ -17,7 +18,7 @@ export const generateRoutesFn2 = (routes: AppCustomRouteRecordRaw[]): AppRouteRe
 
     if (route.plugin) {
       const jsName = route.component
-      route.component = pluginComponent
+      route.component = xpackComName
       route.props = {
         jsname: jsName,
         inLayout: route.inLayout
@@ -35,14 +36,16 @@ export const generateRoutesFn2 = (routes: AppCustomRouteRecordRaw[]): AppRouteRe
 
     if (route.component) {
       let comModule = null
-      if (route.component === pluginComponent) {
+      if (route.component === xpackComName) {
         comModule = XpackComponent
-      } else {
+      } else if (!route.component.startsWith('Layout')) {
         comModule = modules[`../views/${route.component}/index.vue`]
       }
 
       if (route.component === 'Layout') {
         data.component = Layout
+      } else if (route.component === 'LayoutTransition') {
+        data.component = LayoutTransition
       } else if (!comModule) {
       } else {
         data.component = comModule

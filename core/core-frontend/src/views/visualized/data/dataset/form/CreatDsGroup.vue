@@ -2,6 +2,7 @@
 import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus-secondary'
 import { useI18n } from '@/hooks/web/useI18n'
+import { useEmitt } from '@/hooks/web/useEmitt'
 import {
   getDatasetTree,
   moveDatasetTree,
@@ -270,6 +271,7 @@ const saveDataset = () => {
               ElMessage.success('重命名成功')
               break
             default:
+              useEmitt().emitter.emit('onDatasetSave')
               ElMessage.success(t('common.save_success'))
               break
           }
@@ -407,7 +409,7 @@ const emits = defineEmits(['finish'])
       margin-bottom: 8px;
     }
     span {
-      font-family: PingFang SC;
+      font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
       font-size: 14px;
       font-weight: 400;
       line-height: 22px;

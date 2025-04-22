@@ -86,7 +86,7 @@ const del = (index, child) => {
           {{ logic === 'or' ? 'OR' : 'AND' }}
         </span>
         <el-dropdown @command="handleCommand" trigger="click" v-else>
-          <span style="color: rgba(0 0 0 / 65%)" class="mrg-title">
+          <span style="color: rgba(0 0 0 / 65%)" class="mrg-title fir">
             {{ logic === 'or' ? 'OR' : 'AND' }}
             <el-icon>
               <Icon name="icon_down_outlined"></Icon>
@@ -149,7 +149,7 @@ const del = (index, child) => {
     z-index: 10;
 
     .operate-title {
-      font-family: PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif;
+      font-family: '阿里巴巴普惠体 3.0 55 Regular L3', Hiragino Sans GB, Microsoft YaHei, sans-serif;
       word-wrap: break-word;
       box-sizing: border-box;
       color: rgba(0, 0, 0, 0.65);
@@ -183,7 +183,7 @@ const del = (index, child) => {
       }
 
       .operate-title {
-        .mrg-title {
+        .mrg-title:not(.fir) {
           margin: 0 5px;
         }
       }

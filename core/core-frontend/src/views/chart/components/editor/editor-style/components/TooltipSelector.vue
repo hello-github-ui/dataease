@@ -2,16 +2,17 @@
 import { PropType, computed, onMounted, reactive, watch, ref, inject } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
 import { COLOR_PANEL, DEFAULT_TOOLTIP } from '@/views/chart/components/editor/util/chart'
-import { ElSpace } from 'element-plus-secondary'
+import { ElIcon, ElSpace } from 'element-plus-secondary'
 import cloneDeep from 'lodash-es/cloneDeep'
 import defaultsDeep from 'lodash-es/defaultsDeep'
 import { formatterType, unitType } from '../../../js/formatter'
 import { fieldType } from '@/utils/attr'
-import { partition } from 'lodash-es'
+import { defaultTo, partition, map, includes } from 'lodash-es'
 import chartViewManager from '../../../js/panel'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { storeToRefs } from 'pinia'
 import { useEmitt } from '@/hooks/web/useEmitt'
+import Icon from '../../../../../../components/icon-custom/src/Icon.vue'
 
 const { t } = useI18n()
 
@@ -23,6 +24,10 @@ const props = defineProps({
   themes: {
     type: String as PropType<EditorTheme>,
     default: 'dark'
+  },
+  allFields: {
+    type: Array<any>,
+    required: false
   },
   propertyInner: {
     type: Array<string>
@@ -40,56 +45,61 @@ const quotaData = ref<Axis[]>(inject('quotaData'))
 const showSeriesTooltipFormatter = computed(() => {
   return showProperty('seriesTooltipFormatter') && !batchOptStatus.value && props.chart.id
 })
-// 初始化系列提示
-const initSeriesTooltip = () => {
+
+// 切换图表类型直接重置为默认
+const changeChartType = () => {
   if (!showSeriesTooltipFormatter.value) {
     return
   }
+  curSeriesFormatter.value = {}
   const formatter = state.tooltipForm.seriesTooltipFormatter
-  const seriesAxisMap = formatter.reduce((pre, next) => {
-    next.seriesId = next.seriesId ?? next.id
-    pre[next.seriesId] = next
-    return pre
-  }, {})
-  // 新增视图
-  if (!quotaAxis.value?.length) {
-    if (!formatter.length) {
-      quotaData.value?.forEach(i => formatter.push({ ...i, seriesId: i.id, show: false }))
-    }
-    curSeriesFormatter.value = {}
-    return
-  }
   formatter.splice(0, formatter.length)
-  const axisIds = quotaAxis.value?.map(i => i.id)
-  const allQuotaAxis = quotaAxis.value?.concat(
-    quotaData.value?.filter(ele => !axisIds.includes(ele.id))
-  )
-  const axisMap = allQuotaAxis.reduce((pre, next, index) => {
-    let tmp = {
-      ...next,
-      seriesId: next.seriesId ?? next.id,
-      show: index <= quotaAxis.value.length - 1,
-      summary: COUNT_DE_TYPE.includes(next.deType) ? 'count' : 'sum'
-    } as SeriesFormatter
-    if (seriesAxisMap[tmp.seriesId]) {
-      tmp = {
-        ...tmp,
-        formatterCfg: seriesAxisMap[tmp.seriesId].formatterCfg,
-        show: seriesAxisMap[tmp.seriesId].show,
-        summary: seriesAxisMap[tmp.seriesId].summary,
-        chartShowName: seriesAxisMap[tmp.seriesId].chartShowName
-      }
+  const axisIds = []
+  quotaAxis.value.forEach(axis => {
+    formatter.push({
+      ...axis,
+      show: true
+    })
+    axisIds.push(axis.id)
+  })
+  quotaData.value.forEach(quotaAxis => {
+    if (!axisIds.includes(quotaAxis.id)) {
+      formatter.push({
+        ...quotaAxis,
+        seriesId: quotaAxis.id,
+        show: false
+      })
     }
-    formatter.push(tmp)
-    pre[tmp.seriesId] = tmp
-    return pre
-  }, {})
-  if (!curSeriesFormatter.value || !axisMap[curSeriesFormatter.value.seriesId]) {
-    curSeriesFormatter.value = axisMap[formatter[0].seriesId]
-    return
-  }
-  curSeriesFormatter.value = axisMap[curSeriesFormatter.value.seriesId]
+  })
+  emit('onTooltipChange', { data: state.tooltipForm, render: false }, 'seriesTooltipFormatter')
+  emit('onExtTooltipChange', extTooltip.value)
 }
+// 切换数据集
+const changeDataset = () => {
+  curSeriesFormatter.value = {}
+  const formatter = state.tooltipForm.seriesTooltipFormatter
+  const quotaIds = quotaData.value.map(i => i.id)
+  for (let i = formatter.length - 1; i >= 0; i--) {
+    if (!quotaIds.includes(formatter[i].id)) {
+      formatter.splice(i, 1)
+    }
+  }
+  const formatterIds = formatter.map(i => i.id)
+  quotaData.value.forEach(axis => {
+    if (!formatterIds.includes(axis.id)) {
+      formatter.push({
+        ...axis,
+        seriesId: axis.id,
+        show: false
+      })
+    }
+  })
+  if (showProperty('showFields')) {
+    state.tooltipForm.showFields = []
+    emit('onTooltipChange', { data: state.tooltipForm }, 'showFields')
+  }
+}
+
 const AXIS_PROP: AxisType[] = ['yAxis', 'yAxisExt', 'extBubble']
 const quotaAxis = computed(() => {
   let result = []
@@ -98,10 +108,24 @@ const quotaAxis = computed(() => {
       return
     }
     const axis = props.chart[prop]
-    axis?.forEach(item => result.push(item))
+    axis?.forEach(item => {
+      result.push({ ...item, seriesId: `${item.id}-${prop}` })
+    })
   })
   return result
 })
+
+const quotaAxisIds = computed(() => {
+  return map(quotaAxis.value, a => a.id)
+})
+
+function showOption(item) {
+  if (props.chart.type.includes('chart-mix')) {
+    return includes(quotaAxisIds.value, item.id)
+  }
+  return true
+}
+
 const extTooltip = computed(() => {
   const quotaIds = quotaAxis.value?.map(i => i.id)
   return state.tooltipForm.seriesTooltipFormatter.filter(
@@ -148,20 +172,25 @@ const aggregationList = computed(() => {
   }
   return AGGREGATION_TYPE
 })
+
+const isBarRangeTime = computed<boolean>(() => {
+  if (props.chart.type === 'bar-range') {
+    const tempYAxis = props.chart.yAxis[0]
+    const tempYAxisExt = props.chart.yAxisExt[0]
+    if (
+      (tempYAxis && tempYAxis.groupType === 'd') ||
+      (tempYAxisExt && tempYAxisExt.groupType === 'd')
+    ) {
+      return true
+    }
+  }
+  return false
+})
+
 watch(
   [() => props.chart.customAttr.tooltip, () => props.chart.customAttr.tooltip.show],
   () => {
     init()
-  },
-  { deep: false }
-)
-watch(
-  [quotaData, () => props.chart.type],
-  newVal => {
-    if (!newVal?.[0]?.length) {
-      return
-    }
-    initSeriesTooltip()
   },
   { deep: false }
 )
@@ -198,7 +227,7 @@ const init = () => {
     if (customAttr.tooltip) {
       state.tooltipForm = defaultsDeep(customAttr.tooltip, cloneDeep(DEFAULT_TOOLTIP))
       formatterSelector.value?.blur()
-      // 新增视图
+      // 新增图表
       const formatter = state.tooltipForm.seriesTooltipFormatter
       if (!formatter.length) {
         quotaData.value?.forEach(i => formatter.push({ ...i, seriesId: i.id, show: false }))
@@ -255,6 +284,9 @@ const updateSeriesTooltipFormatter = (form: AxisEditForm) => {
 const addAxis = (form: AxisEditForm) => {
   const { axis, axisType } = form
   const axisMap = axis.reduce((pre, next) => {
+    if (!next) {
+      return pre
+    }
     next.axisType = axisType
     next.seriesId = `${next.id}-${axisType}`
     pre[next.id] = next
@@ -272,16 +304,17 @@ const addAxis = (form: AxisEditForm) => {
         ele.chartShowName = axisMap[ele.id].chartShowName
       } else {
         // 其他轴已有的字段
+        if (dupAxis.findIndex(i => i.id === ele.id) !== -1) {
+          return
+        }
         const tmp = cloneDeep(axisMap[ele.id])
         tmp.show = true
         dupAxis.push(tmp)
       }
     }
   })
-  state.tooltipForm.seriesTooltipFormatter =
-    state.tooltipForm.seriesTooltipFormatter.concat(dupAxis)
   state.tooltipForm.seriesTooltipFormatter = partition(
-    state.tooltipForm.seriesTooltipFormatter,
+    state.tooltipForm.seriesTooltipFormatter.concat(dupAxis),
     ele => quotaAxis.value.findIndex(item => item.id === ele.id) !== -1
   ).flat()
 }
@@ -312,8 +345,8 @@ const removeAxis = (form: AxisEditForm) => {
     if (axisMap[ele.seriesId]) {
       // 数据集中的字段
       ele.show = false
+      ele.summary = axisMap[ele.seriesId].summary
       ele.seriesId = ele.id
-      ele.summary = 'sum'
     }
   })
   state.tooltipForm.seriesTooltipFormatter = partition(
@@ -346,11 +379,27 @@ const updateAxis = (form: AxisEditForm) => {
     }
   })
 }
+const allFields = computed(() => {
+  return defaultTo(props.allFields, [])
+})
+const defaultPlaceholder = computed(() => {
+  if (state.tooltipForm.showFields && state.tooltipForm.showFields.length > 0) {
+    return state.tooltipForm.showFields
+      .map(field => {
+        const v = field.split('@')
+        return v[1] + ': ${' + field.split('@')[1] + '}'
+      })
+      .join('\n')
+  }
+  return ''
+})
 onMounted(() => {
   init()
   useEmitt({ name: 'addAxis', callback: updateSeriesTooltipFormatter })
   useEmitt({ name: 'removeAxis', callback: updateSeriesTooltipFormatter })
   useEmitt({ name: 'updateAxis', callback: updateSeriesTooltipFormatter })
+  useEmitt({ name: 'chart-type-change', callback: changeChartType })
+  useEmitt({ name: 'dataset-change', callback: changeDataset })
 })
 </script>
 
@@ -418,7 +467,56 @@ onMounted(() => {
         </el-tooltip>
       </el-form-item>
     </el-space>
-    <template v-if="showProperty('tooltipFormatter')">
+
+    <div v-if="showProperty('showFields') && !batchOptStatus">
+      <el-form-item :label="t('chart.tooltip')" class="form-item" :class="'form-item-' + themes">
+        <el-select
+          size="small"
+          :effect="themes"
+          filterable
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          v-model="state.tooltipForm.showFields"
+          @change="changeTooltipAttr('showFields')"
+        >
+          <el-option
+            v-for="option in allFields"
+            :key="option.dataeaseName"
+            :label="option.name"
+            :value="option.dataeaseName + '@' + option.name"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item v-if="showProperty('customContent')" :class="'form-item-' + themes">
+        <template #label>
+          <span class="data-area-label">
+            <span style="margin-right: 4px">
+              {{ t('chart.content_formatter') }}
+            </span>
+            <el-tooltip class="item" :effect="toolTip" placement="bottom">
+              <template #content>
+                <div>可以${fieldName}的形式读取字段值（支持HTML）</div>
+              </template>
+              <el-icon class="hint-icon" :class="{ 'hint-icon--dark': themes === 'dark' }">
+                <Icon name="icon_info_outlined" />
+              </el-icon>
+            </el-tooltip>
+          </span>
+        </template>
+        <el-input
+          style="font-size: smaller; font-weight: normal"
+          :effect="themes"
+          v-model="state.tooltipForm.customContent"
+          type="textarea"
+          :autosize="{ minRows: 4, maxRows: 4 }"
+          :placeholder="defaultPlaceholder"
+          @blur="changeTooltipAttr('customContent')"
+        />
+      </el-form-item>
+    </div>
+
+    <template v-if="showProperty('tooltipFormatter') && !isBarRangeTime">
       <el-form-item
         :label="t('chart.value_formatter_type')"
         class="form-item"
@@ -529,24 +627,25 @@ onMounted(() => {
               />
             </el-icon>
           </template>
-          <el-option
-            class="series-select-option"
-            :key="item.id"
-            :value="item"
-            :label="`${item.name}${
-              item.summary !== '' ? '(' + t('chart.' + item.summary) + ')' : ''
-            }`"
-            v-for="item in state.tooltipForm.seriesTooltipFormatter"
-          >
-            <el-icon style="margin-right: 8px">
-              <Icon
-                :className="`field-icon-${fieldType[item.deType]}`"
-                :name="`field_${fieldType[item.deType]}`"
-              />
-            </el-icon>
-            {{ item.name }}
-            {{ item.summary !== '' ? '(' + t('chart.' + item.summary) + ')' : '' }}
-          </el-option>
+          <template v-for="item in state.tooltipForm.seriesTooltipFormatter" :key="item.seriesId">
+            <el-option
+              class="series-select-option"
+              :value="item"
+              :label="`${item.name}${
+                item.summary !== '' ? '(' + t('chart.' + item.summary) + ')' : ''
+              }`"
+              v-if="showOption(item)"
+            >
+              <el-icon style="margin-right: 8px">
+                <Icon
+                  :className="`field-icon-${fieldType[item.deType]}`"
+                  :name="`field_${fieldType[item.deType]}`"
+                />
+              </el-icon>
+              {{ item.name }}
+              {{ item.summary !== '' ? '(' + t('chart.' + item.summary) + ')' : '' }}
+            </el-option>
+          </template>
         </el-select>
       </el-form-item>
       <template v-if="curSeriesFormatter?.seriesId">
@@ -554,6 +653,7 @@ onMounted(() => {
           <el-checkbox
             :disabled="!formatterEditable"
             v-model="curSeriesFormatter.show"
+            :effect="themes"
             size="small"
             label="quota"
             @change="changeTooltipAttr('seriesTooltipFormatter', true)"
@@ -699,6 +799,15 @@ onMounted(() => {
         </div>
       </template>
     </div>
+    <el-form-item class="form-item" :class="'form-item-' + themes" v-show="showProperty('showGap')">
+      <el-checkbox
+        :effect="themes"
+        @change="changeTooltipAttr('showGap')"
+        v-model="state.tooltipForm.showGap"
+      >
+        {{ t('chart.show_gap') }}
+      </el-checkbox>
+    </el-form-item>
   </el-form>
 </template>
 
@@ -713,6 +822,7 @@ onMounted(() => {
     border-right: unset;
   }
 }
+
 .series-select-option {
   display: flex;
   align-items: center;
@@ -721,5 +831,13 @@ onMounted(() => {
 }
 .form-item-checkbox {
   margin-bottom: 8px !important;
+}
+.data-area-label {
+  text-align: left;
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
 }
 </style>

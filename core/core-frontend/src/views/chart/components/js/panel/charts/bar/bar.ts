@@ -4,7 +4,13 @@ import {
   G2PlotChartView,
   G2PlotDrawOptions
 } from '@/views/chart/components/js/panel/types/impl/g2plot'
-import { flow, hexColorToRGBA, parseJson } from '@/views/chart/components/js/util'
+import {
+  flow,
+  hexColorToRGBA,
+  parseJson,
+  setUpGroupSeriesColor,
+  setUpStackSeriesColor
+} from '@/views/chart/components/js/util'
 import { Datum } from '@antv/g2plot'
 import { valueFormatter } from '@/views/chart/components/js/formatter'
 import {
@@ -15,6 +21,7 @@ import {
 import { getPadding, setGradientColor } from '@/views/chart/components/js/panel/common/common_antv'
 import { useI18n } from '@/hooks/web/useI18n'
 import { DEFAULT_LABEL } from '@/views/chart/components/editor/util/chart'
+import { clearExtremum, extremumEvt } from '@/views/chart/components/js/extremumUitl'
 
 const { t } = useI18n()
 const DEFAULT_DATA: any[] = []
@@ -25,8 +32,10 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
   properties = BAR_EDITOR_PROPERTY
   propertyInner = {
     ...BAR_EDITOR_PROPERTY_INNER,
-    'label-selector': ['vPosition', 'seriesLabelFormatter'],
-    'tooltip-selector': ['fontSize', 'color', 'backgroundColor', 'seriesTooltipFormatter']
+    'basic-style-selector': [...BAR_EDITOR_PROPERTY_INNER['basic-style-selector'], 'seriesColor'],
+    'label-selector': ['vPosition', 'seriesLabelFormatter', 'showExtremum'],
+    'tooltip-selector': ['fontSize', 'color', 'backgroundColor', 'seriesTooltipFormatter', 'show'],
+    'y-axis-selector': [...BAR_EDITOR_PROPERTY_INNER['y-axis-selector'], 'axisLabelFormatter']
   }
   protected baseOptions: ColumnOptions = {
     xField: 'field',
@@ -87,6 +96,7 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
   drawChart(drawOptions: G2PlotDrawOptions<Column>): Column {
     const { chart, container, action } = drawOptions
     if (!chart?.data?.data?.length) {
+      clearExtremum(chart)
       return
     }
     const data = cloneDeep(drawOptions.chart.data?.data)
@@ -99,7 +109,7 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
 
     const newChart = new Column(container, options)
     newChart.on('interval:click', action)
-
+    extremumEvt(newChart, chart, options, container)
     return newChart
   }
 
@@ -111,7 +121,7 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
         label: false
       }
     }
-    const labelAttr = parseJson(chart.customAttr).label
+    const { label: labelAttr } = parseJson(chart.customAttr)
     const formatterMap = labelAttr.seriesLabelFormatter?.reduce((pre, next) => {
       pre[next.id] = next
       return pre
@@ -121,7 +131,10 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
     const label = {
       fields: [],
       ...tmpOptions.label,
-      formatter: (data: Datum) => {
+      formatter: (data: Datum, _point) => {
+        if (data.EXTREME) {
+          return ''
+        }
         if (!labelAttr.seriesLabelFormatter?.length) {
           return data.value
         }
@@ -172,6 +185,20 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
         color
       }
     }
+    if (basicStyle.radiusColumnBar === 'roundAngle') {
+      const columnStyle = {
+        radius: [
+          basicStyle.columnBarRightAngleRadius,
+          basicStyle.columnBarRightAngleRadius,
+          basicStyle.columnBarRightAngleRadius,
+          basicStyle.columnBarRightAngleRadius
+        ]
+      }
+      options = {
+        ...options,
+        columnStyle
+      }
+    }
     return options
   }
 
@@ -206,6 +233,8 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
   protected setupOptions(chart: Chart, options: ColumnOptions): ColumnOptions {
     return flow(
       this.configTheme,
+      this.configEmptyDataStrategy,
+      this.configColor,
       this.configBasicStyle,
       this.configLabel,
       this.configTooltip,
@@ -213,9 +242,8 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
       this.configXAxis,
       this.configYAxis,
       this.configSlider,
-      this.configAnalyse,
-      this.configEmptyDataStrategy
-    )(chart, options)
+      this.configAnalyse
+    )(chart, options, {}, this)
   }
 
   setupDefaultOptions(chart: ChartObj): ChartObj {
@@ -235,7 +263,7 @@ export class StackBar extends Bar {
   propertyInner = {
     ...this['propertyInner'],
     'label-selector': [...BAR_EDITOR_PROPERTY_INNER['label-selector'], 'vPosition'],
-    'tooltip-selector': ['fontSize', 'color', 'backgroundColor', 'tooltipFormatter']
+    'tooltip-selector': ['fontSize', 'color', 'backgroundColor', 'tooltipFormatter', 'show']
   }
   protected configLabel(chart: Chart, options: ColumnOptions): ColumnOptions {
     const baseOptions = super.configLabel(chart, options)
@@ -278,6 +306,15 @@ export class StackBar extends Bar {
       tooltip
     }
   }
+
+  protected configColor(chart: Chart, options: ColumnOptions): ColumnOptions {
+    return this.configStackColor(chart, options)
+  }
+
+  public setupSeriesColor(chart: ChartObj, data?: any[]): ChartBasicStyle['seriesColor'] {
+    return setUpStackSeriesColor(chart, data)
+  }
+
   constructor(name = 'bar-stack') {
     super(name)
     this.baseOptions = {
@@ -293,6 +330,10 @@ export class StackBar extends Bar {
  * 分组柱状图
  */
 export class GroupBar extends StackBar {
+  propertyInner = {
+    ...this['propertyInner'],
+    'label-selector': [...BAR_EDITOR_PROPERTY_INNER['label-selector'], 'vPosition', 'showExtremum']
+  }
   axisConfig = {
     ...this['axisConfig'],
     yAxis: {
@@ -300,6 +341,37 @@ export class GroupBar extends StackBar {
       type: 'q',
       limit: 1
     }
+  }
+
+  protected configLabel(chart: Chart, options: ColumnOptions): ColumnOptions {
+    const baseOptions = super.configLabel(chart, options)
+    if (!baseOptions.label) {
+      return baseOptions
+    }
+    const { label: labelAttr } = parseJson(chart.customAttr)
+    baseOptions.label.style.fill = labelAttr.color
+    const label = {
+      ...baseOptions.label,
+      formatter: function (param: Datum, _point) {
+        if (param.EXTREME) {
+          return ''
+        }
+        const value = valueFormatter(param.value, labelAttr.labelFormatter)
+        return labelAttr.childrenShow ? value : null
+      }
+    }
+    return {
+      ...baseOptions,
+      label
+    }
+  }
+
+  protected configColor(chart: Chart, options: ColumnOptions): ColumnOptions {
+    return this.configGroupColor(chart, options)
+  }
+
+  public setupSeriesColor(chart: ChartObj, data?: any[]): ChartBasicStyle['seriesColor'] {
+    return setUpGroupSeriesColor(chart, data)
   }
 
   constructor(name = 'bar-group') {
@@ -371,7 +443,7 @@ export class PercentageStackBar extends GroupStackBar {
   propertyInner = {
     ...this['propertyInner'],
     'label-selector': ['color', 'fontSize', 'vPosition', 'reserveDecimalCount'],
-    'tooltip-selector': ['color', 'fontSize']
+    'tooltip-selector': ['color', 'fontSize', 'backgroundColor', 'show']
   }
   protected configLabel(chart: Chart, options: ColumnOptions): ColumnOptions {
     const baseOptions = super.configLabel(chart, options)
@@ -422,15 +494,16 @@ export class PercentageStackBar extends GroupStackBar {
   protected setupOptions(chart: Chart, options: ColumnOptions): ColumnOptions {
     return flow(
       this.configTheme,
+      this.configEmptyDataStrategy,
+      this.configColor,
       this.configBasicStyle,
       this.configLabel,
       this.configTooltip,
       this.configLegend,
       this.configXAxis,
       this.configYAxis,
-      this.configSlider,
-      this.configEmptyDataStrategy
-    )(chart, options)
+      this.configSlider
+    )(chart, options, {}, this)
   }
   constructor() {
     super('percentage-bar-stack')

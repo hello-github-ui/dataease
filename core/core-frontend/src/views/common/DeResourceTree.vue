@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, toRefs, watch, nextTick, computed } from 'vue'
-import { deleteLogic } from '@/api/visualization/dataVisualization'
+import { copyResource, deleteLogic, ResourceOrFolder } from '@/api/visualization/dataVisualization'
 import { ElIcon, ElMessage, ElMessageBox, ElScrollbar } from 'element-plus-secondary'
 import { Icon } from '@/components/icon-custom'
+import { useEmitt } from '@/hooks/web/useEmitt'
 import { HandleMore } from '@/components/handle-more'
 import DeResourceGroupOpt from '@/views/common/DeResourceGroupOpt.vue'
+import { useEmbedded } from '@/store/modules/embedded'
 import { BusiTreeNode, BusiTreeRequest } from '@/models/tree/TreeNode'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
+import { useAppStoreWithOut } from '@/store/modules/app'
 import { storeToRefs } from 'pinia'
 import DvHandleMore from '@/components/handle-more/src/DvHandleMore.vue'
 import { interactiveStoreWithOut } from '@/store/modules/interactive'
@@ -14,8 +17,16 @@ const interactiveStore = interactiveStoreWithOut()
 import router from '@/router'
 import { useI18n } from '@/hooks/web/useI18n'
 import _ from 'lodash'
+import DeResourceCreateOptV2 from '@/views/common/DeResourceCreateOptV2.vue'
+import { useCache } from '@/hooks/web/useCache'
+import { findParentIdByChildIdRecursive } from '@/utils/canvasUtils'
+import { XpackComponent } from '@/components/plugin'
+import treeSort from '@/utils/treeSortUtils'
+const { wsCache } = useCache()
 
 const dvMainStore = dvMainStoreWithOut()
+const appStore = useAppStoreWithOut()
+const embeddedStore = useEmbedded()
 const { dvInfo } = storeToRefs(dvMainStore)
 const { t } = useI18n()
 
@@ -34,6 +45,7 @@ const defaultProps = {
   children: 'children',
   label: 'name'
 }
+const mounted = ref(false)
 const rootManage = ref(false)
 const anyManage = ref(false)
 const { curCanvasType, showPosition } = toRefs(props)
@@ -44,15 +56,81 @@ const filterText = ref(null)
 const expandedArray = ref([])
 const resourceListTree = ref()
 const resourceGroupOpt = ref()
+const resourceCreateOpt = ref()
 const returnMounted = ref(false)
 const state = reactive({
+  curSortType: 'time_desc',
   resourceTree: [] as BusiTreeNode[],
-  menuList: [
+  originResourceTree: [] as BusiTreeNode[],
+  folderMenuList: [
     {
-      label: '编辑',
-      command: 'edit',
-      svgName: 'dv-edit'
+      label: '移动到',
+      command: 'move',
+      svgName: 'dv-move'
     },
+    {
+      label: '重命名',
+      command: 'rename',
+      svgName: 'dv-rename'
+    },
+    {
+      label: '删除',
+      command: 'delete',
+      svgName: 'dv-delete',
+      divided: true
+    }
+  ],
+  sortType: [
+    {
+      label: '按时间升序',
+      value: 'time_asc'
+    },
+    {
+      label: '按时间降序',
+      value: 'time_desc'
+    },
+    {
+      label: '按名称升序',
+      value: 'name_asc'
+    },
+    {
+      label: '按名称降序',
+      value: 'time_asc'
+    }
+  ],
+  templateCreatePid: 0
+})
+
+const dvSvgType = computed(() =>
+  curCanvasType.value === 'dashboard' ? 'dv-dashboard-spine' : 'dv-screen-spine'
+)
+
+const isEmbedded = computed(() => appStore.getIsDataEaseBi || appStore.getIsIframe)
+
+const resourceTypeList = computed(() => {
+  const list = [
+    {
+      label: '空白新建',
+      svgName: dvSvgType.value,
+      command: 'newLeaf'
+    },
+    {
+      label: '使用模板新建',
+      svgName: 'dv-use-template',
+      command: 'newFromTemplate'
+    },
+    {
+      label: '新建文件夹',
+      divided: true,
+      svgName: 'dv-folder',
+      command: 'newFolder'
+    }
+  ]
+  return list
+})
+
+const menuList = computed(() => {
+  const list = [
     {
       label: '复制',
       command: 'copy',
@@ -74,44 +152,12 @@ const state = reactive({
       svgName: 'dv-delete',
       divided: true
     }
-  ],
-  folderMenuList: [
-    {
-      label: '移动到',
-      command: 'move',
-      svgName: 'dv-move'
-    },
-    {
-      label: '重命名',
-      command: 'rename',
-      svgName: 'dv-rename'
-    },
-    {
-      label: '删除',
-      command: 'delete',
-      svgName: 'dv-delete',
-      divided: true
-    }
-  ],
-  resourceTypeList: []
+  ]
+  return list
 })
 
-state.resourceTypeList = [
-  {
-    label: newResourceLabel,
-    svgName: curCanvasType.value === 'dashboard' ? 'dv-dashboard-spine' : 'dv-screen-spine',
-    command: 'newLeaf'
-  },
-  {
-    label: '新建文件夹',
-    divided: true,
-    svgName: 'dv-folder',
-    command: 'newFolder'
-  }
-]
-
-const { dvId } = window.DataEaseBi || router.currentRoute.value.query
-if (dvId) {
+const dvId = embeddedStore.dvId || router.currentRoute.value.query.dvId
+if (dvId && showPosition.value === 'preview') {
   selectedNodeKey.value = dvId
   returnMounted.value = true
 }
@@ -153,11 +199,13 @@ const getTree = async () => {
     dvMainStore.resetDvInfo()
   }
   if (nodeData.length && nodeData[0]['id'] === '0' && nodeData[0]['name'] === 'root') {
-    state.resourceTree = nodeData[0]['children'] || []
+    state.originResourceTree = nodeData[0]['children'] || []
+    sortTypeChange(state.curSortType)
     afterTreeInit()
     return
   }
-  state.resourceTree = nodeData
+  state.originResourceTree = nodeData
+  sortTypeChange(state.curSortType)
   afterTreeInit()
 }
 
@@ -178,6 +226,7 @@ function flatTree(tree: BusiTreeNode[]) {
 }
 
 const afterTreeInit = () => {
+  mounted.value = true
   if (selectedNodeKey.value && returnMounted.value) {
     expandedArray.value = getDefaultExpandedKeys()
     returnMounted.value = false
@@ -216,6 +265,38 @@ const operation = (cmd: string, data: BusiTreeNode, nodeType: string) => {
     })
   } else if (cmd === 'edit') {
     resourceEdit(data.id)
+  } else if (cmd === 'copy') {
+    const targetPid = findParentIdByChildIdRecursive(state.resourceTree, data.id)
+    const params: ResourceOrFolder = {
+      nodeType: nodeType as 'folder' | 'leaf',
+      name: data.name + '-copy',
+      type: curCanvasType.value,
+      id: data.id,
+      pid: targetPid || '0'
+    }
+    copyResource(params).then(data => {
+      const baseUrl =
+        curCanvasType.value === 'dataV'
+          ? `#/dvCanvas?opt=copy&pid=${params.pid}&dvId=${data.data}`
+          : `#/dashboard?opt=copy&pid=${params.pid}&resourceId=${data.data}`
+      if (isEmbedded.value) {
+        embeddedStore.clearState()
+        embeddedStore.setPid(params.pid as string)
+        embeddedStore.setOpt('copy')
+        if (curCanvasType.value === 'dataV') {
+          embeddedStore.setDvId(data.data)
+        } else {
+          embeddedStore.setResourceId(data.data)
+        }
+        useEmitt().emitter.emit(
+          'changeCurrentComponent',
+          curCanvasType.value === 'dataV' ? 'VisualizationEditor' : 'DashboardEditor'
+        )
+        return
+      }
+      const newWindow = window.open(baseUrl, '_blank')
+      initOpenHandler(newWindow)
+    })
   } else {
     resourceGroupOpt.value.optInit(nodeType, data, cmd, ['copy'].includes(cmd))
   }
@@ -231,11 +312,32 @@ const addOperation = (
   if (cmd === 'newLeaf') {
     const baseUrl =
       curCanvasType.value === 'dataV' ? '#/dvCanvas?opt=create' : '#/dashboard?opt=create'
-    if (data?.id) {
-      window.open(baseUrl + `&pid=${data.id}`, '_blank')
-    } else {
-      window.open(baseUrl, '_blank')
+    let newWindow = null
+    if (isEmbedded.value) {
+      embeddedStore.clearState()
+      embeddedStore.setOpt('create')
+      if (data?.id) {
+        embeddedStore.setPid(data?.id as string)
+      }
+      useEmitt().emitter.emit(
+        'changeCurrentComponent',
+        curCanvasType.value === 'dataV' ? 'VisualizationEditor' : 'DashboardEditor'
+      )
+      return
     }
+    if (data?.id) {
+      newWindow = window.open(baseUrl + `&pid=${data.id}`, '_blank')
+    } else {
+      newWindow = window.open(baseUrl, '_blank')
+    }
+    initOpenHandler(newWindow)
+  } else if (cmd === 'newFromTemplate') {
+    const params = {
+      curPosition: 'create',
+      pid: data?.id,
+      templateType: curCanvasType.value === 'dataV' ? 'SCREEN' : 'PANEL'
+    }
+    resourceCreateOpt.value.optInit(params)
   } else {
     resourceGroupOpt.value.optInit(nodeType, data || {}, cmd, parentSelect)
   }
@@ -247,11 +349,56 @@ function createNewObject() {
 
 const resourceEdit = resourceId => {
   const baseUrl = curCanvasType.value === 'dataV' ? '#/dvCanvas?dvId=' : '#/dashboard?resourceId='
-  window.open(baseUrl + resourceId, '_blank')
+  if (isEmbedded.value) {
+    embeddedStore.clearState()
+    if (curCanvasType.value === 'dataV') {
+      embeddedStore.setDvId(resourceId)
+    } else {
+      embeddedStore.setResourceId(resourceId)
+    }
+    useEmitt().emitter.emit(
+      'changeCurrentComponent',
+      curCanvasType.value === 'dataV' ? 'VisualizationEditor' : 'DashboardEditor'
+    )
+    return
+  }
+
+  const newWindow = window.open(baseUrl + resourceId, '_blank')
+  initOpenHandler(newWindow)
 }
 
 const resourceOptFinish = () => {
   getTree()
+}
+
+const resourceCreateFinish = templateData => {
+  // do create
+  wsCache.set(`de-template-data`, JSON.stringify(templateData))
+  const baseUrl =
+    curCanvasType.value === 'dataV'
+      ? '#/dvCanvas?opt=create&createType=template'
+      : '#/dashboard?opt=create&createType=template'
+  let newWindow = null
+  if (isEmbedded.value) {
+    embeddedStore.clearState()
+    embeddedStore.setOpt('create')
+    embeddedStore.setCreateType('template')
+    if (state.templateCreatePid) {
+      embeddedStore.setPid(state.templateCreatePid as unknown as string)
+    }
+    useEmitt().emitter.emit(
+      'changeCurrentComponent',
+      curCanvasType.value === 'dataV' ? 'VisualizationEditor' : 'DashboardEditor'
+    )
+    return
+  }
+
+  if (state.templateCreatePid) {
+    newWindow = window.open(baseUrl + `&pid=${state.templateCreatePid}`, '_blank')
+  } else {
+    newWindow = window.open(baseUrl, '_blank')
+  }
+  initOpenHandler(newWindow)
 }
 
 const getParentKeys = (tree, targetKey, parentKeys = []) => {
@@ -279,18 +426,67 @@ const getDefaultExpandedKeys = () => {
   }
 }
 
+const sortList = [
+  {
+    name: '按创建时间升序',
+    value: 'time_asc'
+  },
+  {
+    name: '按创建时间降序',
+    value: 'time_desc',
+    divided: true
+  },
+  {
+    name: '按照名称升序',
+    value: 'name_asc'
+  },
+  {
+    name: '按照名称降序',
+    value: 'name_desc'
+  }
+]
+
+const sortTypeTip = computed(() => {
+  return sortList.find(ele => ele.value === state.curSortType).name
+})
+
+const sortTypeChange = sortType => {
+  state.resourceTree = treeSort(state.originResourceTree, sortType)
+  state.curSortType = sortType
+  wsCache.set('TreeSort-' + curCanvasType.value, state.curSortType)
+}
+
 watch(filterText, val => {
   resourceListTree.value.filter(val)
 })
 
+const openHandler = ref(null)
+const initOpenHandler = newWindow => {
+  if (openHandler?.value) {
+    const pm = {
+      methodName: 'initOpenHandler',
+      args: newWindow
+    }
+    openHandler.value.invokeMethod(pm)
+  }
+}
+
+const loadInit = () => {
+  const historyTreeSort = wsCache.get('TreeSort-' + curCanvasType.value)
+  if (historyTreeSort) {
+    state.curSortType = historyTreeSort
+  }
+}
 onMounted(() => {
+  loadInit()
   getTree()
 })
 
 defineExpose({
   rootManage,
   hasData,
-  createNewObject
+  createNewObject,
+  mounted
 })
 </script>
 
@@ -309,10 +505,29 @@ defineExpose({
               <Icon name="dv-new-folder" />
             </el-icon>
           </el-tooltip>
+
           <el-tooltip :content="newResourceLabel" placement="top" effect="dark">
-            <el-icon class="custom-icon btn" @click="addOperation('newLeaf', null, 'leaf', true)">
-              <Icon name="icon_file-add_outlined" />
-            </el-icon>
+            <el-dropdown popper-class="menu-outer-dv_popper" trigger="hover">
+              <el-icon class="custom-icon btn" @click="addOperation('newLeaf', null, 'leaf', true)">
+                <Icon name="icon_file-add_outlined" />
+              </el-icon>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="addOperation('newLeaf', null, 'leaf', true)">
+                    <el-icon :class="`handle-icon color-${curCanvasType}`">
+                      <Icon :name="dvSvgType"></Icon>
+                    </el-icon>
+                    空白新建
+                  </el-dropdown-item>
+                  <el-dropdown-item @click="addOperation('newFromTemplate', null, 'leaf', true)">
+                    <el-icon class="handle-icon">
+                      <Icon name="dv-use-template"></Icon>
+                    </el-icon>
+                    使用模板新建
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </el-tooltip>
         </div>
       </div>
@@ -328,6 +543,38 @@ defineExpose({
           </el-icon>
         </template>
       </el-input>
+      <el-dropdown @command="sortTypeChange" trigger="click">
+        <el-icon class="filter-icon-span">
+          <el-tooltip :offset="16" effect="dark" :content="sortTypeTip" placement="top">
+            <Icon
+              v-if="state.curSortType.includes('asc')"
+              name="dv-sort-asc"
+              class="opt-icon"
+            ></Icon>
+          </el-tooltip>
+          <el-tooltip :offset="16" effect="dark" :content="sortTypeTip" placement="top">
+            <Icon
+              v-show="state.curSortType.includes('desc')"
+              name="dv-sort-desc"
+              class="opt-icon"
+            ></Icon>
+          </el-tooltip>
+        </el-icon>
+        <template #dropdown>
+          <el-dropdown-menu style="width: 246px">
+            <template :key="ele.value" v-for="ele in sortList">
+              <el-dropdown-item
+                class="ed-select-dropdown__item"
+                :class="ele.value === state.curSortType && 'selected'"
+                :command="ele.value"
+              >
+                {{ ele.name }}
+              </el-dropdown-item>
+              <li v-if="ele.divided" class="ed-dropdown-menu__item--divided"></li>
+            </template>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
     </div>
     <el-scrollbar class="custom-tree">
       <el-tree
@@ -350,9 +597,11 @@ defineExpose({
               <Icon name="dv-folder"></Icon>
             </el-icon>
             <el-icon style="font-size: 18px" v-else-if="curCanvasType === 'dashboard'">
-              <Icon name="dv-dashboard-spine"></Icon>
+              <Icon
+                :name="data.extraFlag ? 'dv-dashboard-spine-mobile' : 'dv-dashboard-spine'"
+              ></Icon>
             </el-icon>
-            <el-icon class="icon-screen-new" style="font-size: 18px" v-else>
+            <el-icon class="icon-screen-new color-dataV" style="font-size: 18px" v-else>
               <Icon name="icon_operation-analysis_outlined"></Icon>
             </el-icon>
             <span :title="node.label" class="label-tooltip">{{ node.label }}</span>
@@ -373,7 +622,7 @@ defineExpose({
                 @handle-command="
                   cmd => addOperation(cmd, data, cmd === 'newFolder' ? 'folder' : 'leaf')
                 "
-                :menu-list="state.resourceTypeList"
+                :menu-list="resourceTypeList"
                 icon-name="icon_add_outlined"
                 placement="bottom-start"
                 v-if="!data.leaf"
@@ -383,7 +632,7 @@ defineExpose({
                 :node="data"
                 :any-manage="anyManage"
                 :resource-type="curCanvasType"
-                :menu-list="data.leaf ? state.menuList : state.folderMenuList"
+                :menu-list="data.leaf ? menuList : state.folderMenuList"
               ></dv-handle-more>
             </div>
           </span>
@@ -394,10 +643,38 @@ defineExpose({
         @finish="resourceOptFinish"
         ref="resourceGroupOpt"
       />
+      <de-resource-create-opt-v2
+        :cur-canvas-type="curCanvasType"
+        ref="resourceCreateOpt"
+        @finish="resourceCreateFinish"
+      ></de-resource-create-opt-v2>
     </el-scrollbar>
   </div>
+  <XpackComponent ref="openHandler" jsname="L2NvbXBvbmVudC9lbWJlZGRlZC1pZnJhbWUvT3BlbkhhbmRsZXI=" />
 </template>
 <style lang="less" scoped>
+.filter-icon-span {
+  border: 1px solid #bbbfc4;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  color: #1f2329;
+  padding: 8px;
+  margin-left: 8px;
+  font-size: 16px;
+  cursor: pointer;
+
+  .opt-icon:focus {
+    outline: none !important;
+  }
+  &:hover {
+    background: #f5f6f7;
+  }
+
+  &:active {
+    background: #eff0f1;
+  }
+}
 .resource-tree {
   padding: 16px 0 0;
   width: 100%;
@@ -416,7 +693,7 @@ defineExpose({
     font-size: 20px;
     font-weight: 500;
     color: var(--TextPrimary, #1f2329);
-    padding-bottom: 10px;
+    padding-bottom: 16px;
     .title {
       margin-right: auto;
       font-size: 16px;
@@ -425,8 +702,9 @@ defineExpose({
       line-height: 24px;
     }
     .custom-icon {
+      font-size: 20px;
       &.btn {
-        color: #3370ff;
+        color: var(--ed-color-primary);
       }
       &:hover {
         cursor: pointer;
@@ -435,6 +713,7 @@ defineExpose({
   }
   .search-bar {
     padding-bottom: 10px;
+    width: calc(100% - 40px);
   }
 }
 .title-area {
@@ -498,10 +777,33 @@ defineExpose({
   }
 
   .icon-screen-new {
-    background: #3370ff;
     border-radius: 4px;
     color: #fff;
     padding: 3px;
+  }
+}
+</style>
+
+<style lang="less">
+.menu-outer-dv_popper {
+  width: 140px;
+  margin-top: -2px !important;
+
+  .ed-icon {
+    border-radius: 4px;
+  }
+}
+
+.sort-type-normal {
+  i {
+    display: none;
+  }
+}
+
+.sort-type-checked {
+  color: var(--ed-color-primary);
+  i {
+    display: block;
   }
 }
 </style>

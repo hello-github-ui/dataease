@@ -1,10 +1,13 @@
 import { useCache } from '@/hooks/web/useCache'
 import { refreshApi } from '@/api/login'
 import { useUserStoreWithOut } from '@/store/modules/user'
+import { useRequestStoreWithOut } from '@/store/modules/request'
+
+import { isLink } from '@/utils/utils'
 const { wsCache } = useCache()
 const userStore = useUserStoreWithOut()
+const requestStore = useRequestStoreWithOut()
 const refreshUrl = '/login/refresh'
-let cachedRequestList = []
 
 const expConstants = 10000
 
@@ -17,10 +20,15 @@ const isExpired = () => {
 }
 
 const delayExecute = (token: string) => {
+  const cachedRequestList = requestStore.getRequestList
   cachedRequestList.forEach(cb => {
     cb(token)
   })
-  cachedRequestList = []
+  requestStore.cleanCacheRequest()
+  /* cachedRequestList.forEach(cb => {
+    cb(token)
+  })
+  cachedRequestList = [] */
 }
 
 const getRefreshStatus = () => {
@@ -31,10 +39,18 @@ const setRefreshStatus = (status: boolean) => {
 }
 
 const cacheRequest = cb => {
-  cachedRequestList.push(cb)
+  requestStore.addCacheRequest(cb)
+  // cachedRequestList.push(cb)
 }
 
 export const configHandler = config => {
+  const desktop = wsCache.get('app.desktop')
+  if (desktop) {
+    return config
+  }
+  if (isLink()) {
+    return config
+  }
   if (wsCache.get('user.token')) {
     config.headers['X-DE-TOKEN'] = wsCache.get('user.token')
     const expired = isExpired()

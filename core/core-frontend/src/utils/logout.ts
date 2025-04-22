@@ -21,14 +21,25 @@ export const logoutHandler = (justClean?: boolean) => {
   if (router.currentRoute.value.fullPath) {
     queryRedirectPath = router.currentRoute.value.fullPath as string
   }
+  let pathname = window.location.pathname
+  if (pathname) {
+    if (pathname.includes('oidcbi/') || pathname.includes('casbi/')) {
+      pathname = pathname.replace('oidcbi/', '')
+      pathname = pathname.replace('casbi/', '')
+    }
+    pathname = pathname.substring(0, pathname.length - 1)
+  }
   if (wsCache.get('out_auth_platform') === 'cas') {
     const uri = window.location.href
-    window.location.href = '/casbi/cas/logout?service=' + uri
+    window.location.href = pathname + '/casbi/cas/logout?service=' + uri
     return
   }
   if (wsCache.get('out_auth_platform') === 'oidc') {
-    window.location.href = '/oidcbi/oidc/logout'
+    window.location.href = pathname + '/oidcbi/oidc/logout'
     return
+  }
+  if (wsCache.get('custom_auth_logout_url')) {
+    window.location.href = wsCache.get('custom_auth_logout_url')
   }
   router.push(justClean ? queryRedirectPath : `/login?redirect=${queryRedirectPath}`)
 }
@@ -36,7 +47,11 @@ export const logoutHandler = (justClean?: boolean) => {
 const removeCache = () => {
   const keys = Object.keys(wsCache['storage'])
   keys.forEach(key => {
-    if (key.startsWith('de-plugin-')) {
+    if (
+      key.startsWith('de-plugin-') ||
+      key === 'de-platform-client' ||
+      key === 'pwd-validity-period'
+    ) {
       wsCache.delete(key)
     }
   })

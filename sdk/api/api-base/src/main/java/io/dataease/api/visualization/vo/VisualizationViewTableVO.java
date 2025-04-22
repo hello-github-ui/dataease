@@ -2,7 +2,7 @@ package io.dataease.api.visualization.vo;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
-import io.dataease.dto.dataset.DatasetTableFieldDTO;
+import io.dataease.extensions.datasource.dto.DatasetTableFieldDTO;
 import lombok.Data;
 
 import java.util.List;
@@ -38,7 +38,7 @@ public class VisualizationViewTableVO {
     private String type;
 
     /**
-     * 视图渲染方式
+     * 图表渲染方式
      */
     private String render;
 

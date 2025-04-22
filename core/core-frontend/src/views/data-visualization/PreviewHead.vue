@@ -2,20 +2,32 @@
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { storeToRefs } from 'pinia'
 import { useI18n } from '@/hooks/web/useI18n'
+import { useAppStoreWithOut } from '@/store/modules/app'
 import DvDetailInfo from '@/views/common/DvDetailInfo.vue'
+import { useEmbedded } from '@/store/modules/embedded'
 import { storeApi, storeStatusApi } from '@/api/visualization/dataVisualization'
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
+import ShareVisualHead from '@/views/share/share/ShareVisualHead.vue'
 import { XpackComponent } from '@/components/plugin'
+import { useEmitt } from '@/hooks/web/useEmitt'
+import DeFullscreen from '@/components/visualization/common/DeFullscreen.vue'
 const dvMainStore = dvMainStoreWithOut()
+const appStore = useAppStoreWithOut()
 const { dvInfo } = storeToRefs(dvMainStore)
-const emit = defineEmits(['reload', 'download'])
+const emit = defineEmits(['reload', 'download', 'downloadAsAppTemplate'])
 const { t } = useI18n()
+const embeddedStore = useEmbedded()
 
 const favorited = ref(false)
+const fullScreeRef = ref(null)
 const preview = () => {
-  const url = '#/preview?dvId=' + dvInfo.value.id
-  window.open(url, '_blank')
+  const baseUrl = isDataEaseBi.value ? embeddedStore.baseUrl : ''
+  const url = baseUrl + '#/preview?dvId=' + dvInfo.value.id
+  const newWindow = window.open(url, '_blank')
+  initOpenHandler(newWindow)
 }
+const isDataEaseBi = computed(() => appStore.getIsDataEaseBi)
+const isIframe = computed(() => appStore.getIsIframe)
 
 const reload = () => {
   emit('reload', dvInfo.value.id)
@@ -24,10 +36,27 @@ const reload = () => {
 const download = type => {
   emit('download', type)
 }
+const downloadAsAppTemplate = downloadType => {
+  emit('downloadAsAppTemplate', downloadType)
+}
 
 const dvEdit = () => {
+  if (isDataEaseBi.value || isIframe.value) {
+    embeddedStore.clearState()
+    if (dvInfo.value.type === 'dataV') {
+      embeddedStore.setDvId(dvInfo.value.id)
+    } else {
+      embeddedStore.setResourceId(dvInfo.value.id)
+    }
+    useEmitt().emitter.emit(
+      'changeCurrentComponent',
+      dvInfo.value.type === 'dataV' ? 'VisualizationEditor' : 'DashboardEditor'
+    )
+    return
+  }
   const baseUrl = dvInfo.value.type === 'dataV' ? '#/dvCanvas?dvId=' : '#/dashboard?resourceId='
-  window.open(baseUrl + dvInfo.value.id, '_blank')
+  const newWindow = window.open(baseUrl + dvInfo.value.id, '_blank')
+  initOpenHandler(newWindow)
 }
 
 const executeStore = () => {
@@ -52,6 +81,17 @@ watch(
     storeQuery()
   }
 )
+
+const openHandler = ref(null)
+const initOpenHandler = newWindow => {
+  if (openHandler?.value) {
+    const pm = {
+      methodName: 'initOpenHandler',
+      args: newWindow
+    }
+    openHandler.value.invokeMethod(pm)
+  }
+}
 </script>
 
 <template>
@@ -73,7 +113,7 @@ watch(
     </el-tooltip>
     <el-divider style="margin: 0 16px 0 7px" direction="vertical" />
     <div class="create-area flex-align-center">
-      <span>创建人:{{ dvInfo.creatorName }}</span>
+      <span style="line-height: 22px">创建人:{{ dvInfo.creatorName }}</span>
       <el-popover show-arrow :offset="8" placement="bottom" width="400" trigger="hover">
         <template #reference>
           <el-icon class="info-tips"><Icon name="dv-info"></Icon></el-icon>
@@ -82,26 +122,32 @@ watch(
       </el-popover>
     </div>
     <div class="canvas-opt-button">
-      <!--      <el-button type="primary" @click="download()">导出</el-button>-->
-      <el-button @click="preview()">
+      <de-fullscreen ref="fullScreeRef"></de-fullscreen>
+      <el-button v-if="!isIframe" secondary @click="() => fullScreeRef.toggleFullscreen()">
+        <template #icon>
+          <icon name="icon_pc_fullscreen"></icon>
+        </template>
+        全屏</el-button
+      >
+      <el-button secondary @click="preview()">
         <template #icon>
           <icon name="icon_pc_outlined"></icon>
         </template>
         预览</el-button
       >
-      <XpackComponent
-        jsname="L2NvbXBvbmVudC9zaGFyZS9TaGFyZVZpc3VhbEhlYWQ="
+      <ShareVisualHead
         :resource-id="dvInfo.id"
         :weight="dvInfo.weight"
+        :resource-type="dvInfo.type"
       />
-      <el-button v-if="dvInfo.weight > 6" type="primary" @click="dvEdit()">
+      <el-button class="custom-button" v-if="dvInfo.weight > 6" type="primary" @click="dvEdit()">
         <template #icon>
           <icon name="icon_edit_outlined"></icon>
         </template>
         编辑</el-button
       >
       <el-dropdown trigger="click">
-        <el-icon style="margin-left: 8px" class="hover-icon">
+        <el-icon class="head-more-icon">
           <Icon name="dv-head-more"></Icon>
         </el-icon>
         <template #dropdown>
@@ -123,6 +169,12 @@ watch(
                   <el-dropdown-item style="width: 118px" @click="download('pdf')"
                     >PDF</el-dropdown-item
                   >
+                  <el-dropdown-item style="width: 118px" @click="downloadAsAppTemplate('template')"
+                    >模板</el-dropdown-item
+                  >
+                  <el-dropdown-item style="width: 118px" @click="downloadAsAppTemplate('app')"
+                    >应用</el-dropdown-item
+                  >
                   <el-dropdown-item @click="download('img')">{{
                     t('chart.image')
                   }}</el-dropdown-item>
@@ -134,6 +186,7 @@ watch(
       </el-dropdown>
     </div>
   </div>
+  <XpackComponent ref="openHandler" jsname="L2NvbXBvbmVudC9lbWJlZGRlZC1pZnJhbWUvT3BlbkhhbmRsZXI=" />
 </template>
 
 <style lang="less">
@@ -162,11 +215,35 @@ watch(
     justify-content: right;
     align-items: center;
     flex: 1;
+    .head-more-icon {
+      color: #1f2329;
+      margin-left: 12px;
+      cursor: pointer;
+      font-size: 20px;
+      border-radius: 4px;
+      position: relative;
+      &:hover {
+        &::after {
+          content: '';
+          position: absolute;
+          top: -4px;
+          left: -4px;
+          border-radius: 4px;
+          height: 28px;
+          width: 28px;
+          background: #1f23291a;
+        }
+      }
+    }
   }
 }
 .info-tips {
   margin-left: 4px;
   font-size: 16px;
   color: #646a73;
+}
+
+.custom-button {
+  margin-left: 12px;
 }
 </style>

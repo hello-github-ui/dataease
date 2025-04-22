@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { propTypes } from '@/utils/propTypes'
-import { computed, onBeforeMount, PropType, toRefs } from 'vue'
+import { computed, onBeforeMount, PropType, toRefs, inject, ref } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
 import { KeyValue } from './ApiTestModel.js'
 import draggable from 'vuedraggable'
@@ -19,6 +19,10 @@ const props = defineProps({
   needMock: propTypes.bool.def(false),
   showDesc: propTypes.bool.def(false),
   items: {
+    type: Array as PropType<Item[]>,
+    default: () => []
+  },
+  valueList: {
     type: Array as PropType<Item[]>,
     default: () => []
   },
@@ -42,18 +46,25 @@ onBeforeMount(() => {
   if (!items.value.length || items.value[items.value.length - 1].name) {
     items.value.push(new KeyValue({ enable: true, name: '', value: '' }))
   }
+  for (let i = 0; i < items.value.length; i++) {
+    if (!items.value[i].hasOwnProperty('nameType')) {
+      items.value[i].nameType = 'fixed'
+    }
+  }
 })
 
+const activeName = inject('api-active-name')
+
 const remove = (index: number) => {
-  if (isDisable(index)) return
+  if (isDisable()) return
   // 移除整行输入控件及内容
   items.value.splice(index, 1)
 }
 const change = () => {
-  items.value.push(new KeyValue({ enable: true }))
+  items.value.push(new KeyValue({ enable: true, nameType: 'fixed' }))
 }
-const isDisable = (index: number) => {
-  return items.value.length - 1 === index
+const isDisable = () => {
+  return items.value.length === 1
 }
 const querySearch = (queryString, cb) => {
   const results = queryString
@@ -66,6 +77,20 @@ const createFilter = (queryString: string) => {
     return restaurant.value.toLowerCase().indexOf(queryString.toLowerCase()) === 0
   }
 }
+const options = [
+  {
+    label: '参数',
+    value: 'params'
+  },
+  {
+    label: '固定值',
+    value: 'fixed'
+  },
+  {
+    label: '自定义',
+    value: 'custom'
+  }
+]
 </script>
 
 <template>
@@ -77,7 +102,7 @@ const createFilter = (queryString: string) => {
             <el-icon class="drag handle">
               <Icon name="icon_drag_outlined"></Icon>
             </el-icon>
-            <el-col :span="8" v-if="!unShowSelect">
+            <el-col :span="activeName === 'params' ? 8 : 6" v-if="!unShowSelect">
               <el-input
                 v-if="!suggestions"
                 v-model="element.name"
@@ -96,7 +121,16 @@ const createFilter = (queryString: string) => {
                 show-word-limit
               />
             </el-col>
-
+            <el-col :span="3" v-if="activeName === 'table'">
+              <el-select v-model="element.nameType">
+                <el-option
+                  v-for="item in options"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </el-select>
+            </el-col>
             <el-col :span="8" v-if="unShowSelect">
               <el-input
                 v-if="!!suggestions.length"
@@ -108,12 +142,31 @@ const createFilter = (queryString: string) => {
               />
             </el-col>
 
-            <el-col :span="7">
+            <el-col :span="activeName === 'params' ? 7 : 6">
               <el-input
-                v-if="!needMock"
+                v-if="!needMock && activeName === 'params'"
                 v-model="element.value"
                 :disabled="isReadOnly"
                 :placeholder="unShowSelect ? t('common.description') : valueText"
+                show-word-limit
+              />
+              <el-select
+                v-model="element.value"
+                v-if="!needMock && activeName === 'table' && element.nameType === 'params'"
+              >
+                <el-option
+                  v-for="item in valueList"
+                  :key="item.originName"
+                  :label="item.name"
+                  :value="item.originName"
+                />
+              </el-select>
+
+              <el-input
+                v-if="!needMock && activeName === 'table' && element.nameType !== 'params'"
+                v-model="element.value"
+                :disabled="isReadOnly"
+                :placeholder="element.nameType === 'fixed' ? '值' : '可用${参数名}，使用参数'"
                 show-word-limit
               />
             </el-col>
@@ -128,7 +181,7 @@ const createFilter = (queryString: string) => {
             </el-col>
 
             <el-col :span="1">
-              <el-button text :disabled="isDisable(index)" @click="remove(index)">
+              <el-button text :disabled="isDisable()" @click="remove(index)">
                 <template #icon>
                   <Icon name="icon_delete-trash_outlined"></Icon>
                 </template>

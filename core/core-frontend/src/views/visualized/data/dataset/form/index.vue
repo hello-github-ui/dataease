@@ -1,6 +1,8 @@
 <script lang="tsx" setup>
 import {
   ref,
+  toRaw,
+  unref,
   nextTick,
   reactive,
   shallowRef,
@@ -11,44 +13,39 @@ import {
   onBeforeUnmount
 } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
+import { useEmitt } from '@/hooks/web/useEmitt'
 import { ElIcon, ElMessageBox, ElMessage } from 'element-plus-secondary'
+import FixedSizeList from 'element-plus-secondary/es/components/virtual-list/src/components/fixed-size-list.mjs'
 import type { Action } from 'element-plus-secondary'
 import FieldMore from './FieldMore.vue'
 import EmptyBackground from '@/components/empty-background/src/EmptyBackground.vue'
 import { Icon } from '@/components/icon-custom'
+import { useWindowSize } from '@vueuse/core'
 import CalcFieldEdit from './CalcFieldEdit.vue'
 import { useRoute, useRouter } from 'vue-router'
 import UnionEdit from './UnionEdit.vue'
 import type { FormInstance } from 'element-plus-secondary'
+import type { BusiTreeNode } from '@/models/tree/TreeNode'
 import CreatDsGroup from './CreatDsGroup.vue'
-import { guid, getFieldName, timeTypes } from './util'
+import { guid, getFieldName, timeTypes, type DataSource } from './util'
 import { fieldType } from '@/utils/attr'
 import { cancelMap } from '@/config/axios/service'
+import { useEmbedded } from '@/store/modules/embedded'
+import { useAppStoreWithOut } from '@/store/modules/app'
 import {
   getDatasourceList,
   getTables,
   getPreviewData,
   getDatasetDetails,
-  saveDatasetTree
+  saveDatasetTree,
+  barInfoApi
 } from '@/api/dataset'
 import type { Table } from '@/api/dataset'
 import DatasetUnion from './DatasetUnion.vue'
 import { cloneDeep, debounce } from 'lodash-es'
-
+import { XpackComponent } from '@/components/plugin'
 interface DragEvent extends MouseEvent {
   dataTransfer: DataTransfer
-}
-export interface Position {
-  x: number
-  y: number
-}
-
-export type PointerType = 'mouse' | 'touch' | 'pen'
-
-export interface DataSource {
-  id: string
-  name: string
-  children?: DataSource[]
 }
 
 interface Field {
@@ -58,7 +55,8 @@ interface Field {
   originName: string
   deType: number
 }
-
+const appStore = useAppStoreWithOut()
+const embeddedStore = useEmbedded()
 const { t } = useI18n()
 const route = useRoute()
 const { push } = useRouter()
@@ -70,7 +68,6 @@ const editUnion = ref(false)
 const datasetDrag = ref()
 const datasetName = ref('未命名数据集')
 const tabActive = ref('preview')
-const originName = ref('')
 const activeName = ref('')
 const dataSource = ref('')
 const searchTable = ref('')
@@ -91,6 +88,7 @@ const currentField = ref({
   name: '',
   idArr: []
 })
+let isUpdate = false
 
 const fieldTypes = index => {
   return [
@@ -101,6 +99,10 @@ const fieldTypes = index => {
     t('dataset.value'),
     t('dataset.location')
   ][index]
+}
+
+const changeUpdate = () => {
+  isUpdate = true
 }
 
 const fieldOptions = [
@@ -118,20 +120,12 @@ const fieldOptions = [
         label: 'yyyy/MM/dd'
       },
       {
-        value: 'yyyyMMdd',
-        label: 'yyyyMMdd'
-      },
-      {
         value: 'yyyy-MM-dd HH:mm:ss',
         label: 'yyyy-MM-dd HH:mm:ss'
       },
       {
         value: 'yyyy/MM/dd HH:mm:ss',
         label: 'yyyy/MM/dd HH:mm:ss'
-      },
-      {
-        value: 'yyyyMMdd HH:mm:ss',
-        label: 'yyyyMMdd HH:mm:ss'
       },
       {
         value: 'custom',
@@ -210,13 +204,33 @@ const dfsName = (arr, id) => {
   return name
 }
 
+const { height } = useWindowSize()
+
+const dfsChild = arr => {
+  return arr.filter(ele => {
+    if (ele.leaf) {
+      return true
+    }
+    if (!!ele.children?.length) {
+      ele.children = dfsChild(ele.children || [])
+    }
+    return !!ele.children?.length
+  })
+}
+
 const getDsName = (id: string) => {
   return dfsName(state.dataSourceList, id)
 }
 
 const pushDataset = () => {
+  if (appStore.isDataEaseBi) {
+    embeddedStore.clearState()
+    useEmitt().emitter.emit('changeCurrentComponent', 'Dataset')
+    return
+  }
+  const routeName = embeddedStore.getToken && appStore.getIsIframe ? 'dataset-embedded' : 'dataset'
   push({
-    name: 'dataset',
+    name: routeName,
     params: {
       id: nodeInfo.id
     }
@@ -224,8 +238,8 @@ const pushDataset = () => {
 }
 
 const backToMain = () => {
-  if (!nodeInfo.id) {
-    ElMessageBox.confirm('数据集未保存,确认退出吗?', {
+  if (isUpdate) {
+    ElMessageBox.confirm('当前的更改尚未保存,确定退出吗?', {
       confirmButtonText: t('dataset.confirm'),
       cancelButtonText: t('common.cancel'),
       showCancelButton: true,
@@ -281,6 +295,7 @@ const confirmCustomTime = () => {
     })
     delete currentField.value.name
     recoverSelection()
+    updateCustomTime.value = false
   } else {
     ruleFormRef.value.validate(valid => {
       if (valid) {
@@ -297,16 +312,17 @@ const confirmCustomTime = () => {
       }
     })
   }
-  updateCustomTime.value = false
 }
 
 watch(searchTable, val => {
-  state.tableData = tableList.filter(ele => ele.name.includes(val))
+  datasourceTableData.value = tableList.filter(ele =>
+    ele.tableName.toLowerCase().includes(val.toLowerCase())
+  )
 })
 const editeSave = () => {
   const union = []
   loading.value = true
-  dfsNodeList(union, datasetDrag.value.nodeList)
+  dfsNodeList(union, datasetDrag.value.getNodeList())
   saveDatasetTree({
     ...nodeInfo,
     name: datasetName.value,
@@ -315,7 +331,11 @@ const editeSave = () => {
     nodeType: 'dataset'
   })
     .then(() => {
+      isUpdate = false
       ElMessage.success('保存成功')
+      if (willBack) {
+        pushDataset()
+      }
     })
     .finally(() => {
       loading.value = false
@@ -323,6 +343,7 @@ const editeSave = () => {
 }
 
 const handleFieldMore = (ele, type) => {
+  changeUpdate()
   if (tabActive.value === 'manage') {
     dimensionsSelection.value = dimensionsTable.value.getSelectionRows().map(ele => ele.id)
     quotaSelection.value = quotaTable.value.getSelectionRows().map(ele => ele.id)
@@ -419,6 +440,32 @@ const delFieldById = arr => {
   }
 }
 
+const delFieldByIdFake = (arr, fakeAllfields) => {
+  const delId = [...arr]
+  let idList = []
+  while (delId.length) {
+    const [targetId] = delId
+    delId.shift()
+    fakeAllfields = fakeAllfields.filter(ele => ele.id !== targetId)
+    const allfieldsId = fakeAllfields.map(ele => ele.id)
+    fakeAllfields = fakeAllfields.filter(ele => {
+      if (ele.extField !== 2) return true
+      const idMap = ele.originName.match(/\[(.+?)\]/g)
+      if (!idMap) return true
+      const result = idMap.every(itm => {
+        const id = itm.slice(1, -1)
+        return allfieldsId.includes(id)
+      })
+      if (result) return true
+      delId.push(ele.id)
+      idList.push(ele.id)
+      return false
+    })
+  }
+
+  return idList
+}
+
 const deleteField = item => {
   ElMessageBox.confirm(t('dataset.confirm_delete'), {
     confirmButtonText: t('dataset.confirm'),
@@ -431,7 +478,7 @@ const deleteField = item => {
     callback: (action: Action) => {
       if (action === 'confirm') {
         delFieldById([item.id])
-        datasetDrag.value.dfsNodeFieldBack(datasetDrag.value.nodeList, item)
+        datasetDrag.value.dfsNodeFieldBack(datasetDrag.value.getNodeList(), item)
         ElMessage({
           message: t('chart.delete_success'),
           type: 'success'
@@ -508,6 +555,10 @@ const confirmEditCalc = () => {
         return
       }
       const obj = cloneDeep(calcEdit.value.fieldForm)
+      const { deType, dateFormat, deExtractType } = obj
+      obj.dateFormat = deType === 1 ? dateFormat : ''
+      obj.dateFormatType = deType === 1 ? dateFormat : ''
+      obj.deTypeArr = deType === 1 && deExtractType === 0 ? [deType, dateFormat] : [deType]
       const result = allfields.value.findIndex(ele => obj.id === ele.id)
       if (result !== -1) {
         allfields.value.splice(result, 1, obj)
@@ -547,7 +598,7 @@ const dsChange = (val: string) => {
   return getTables({ datasourceId: val })
     .then(res => {
       tableList = res || []
-      state.tableData = [...tableList]
+      datasourceTableData.value = [...tableList]
     })
     .finally(() => {
       dsLoading.value = false
@@ -561,25 +612,41 @@ const getTableName = async (datasourceId, tableName) => {
   }
 }
 
-const initEdite = () => {
-  const { id, datasourceId, tableName } = route.query
+const initEdite = async () => {
+  let { id, datasourceId, tableName } = route.query
+  let { id: copyId } = route.params
+  if (appStore.getIsDataEaseBi) {
+    id = embeddedStore.datasetId
+    datasourceId = embeddedStore.datasourceId
+    tableName = embeddedStore.tableName
+    copyId = embeddedStore.datasetCopyId || copyId
+  }
+  if (copyId || id) {
+    const barRes = await barInfoApi(copyId || id)
+    if (!barRes || !barRes['id']) {
+      return
+    }
+  }
   if (datasourceId) {
     dataSource.value = datasourceId as string
     getTableName(datasourceId as string, tableName)
   }
-  if (!id) return
+  if (!id && !copyId) return
+
   loading.value = true
-  getDatasetDetails(id)
+  getDatasetDetails(copyId || id)
     .then(res => {
       let arr = []
       const { id, pid, name } = res || {}
       nodeInfo = {
         id,
         pid,
-        name
+        name: copyId ? '复制数据集' : name
       }
-      datasetName.value = name
-      originName.value = name
+      if (copyId) {
+        nodeInfo.id = ''
+      }
+      datasetName.value = nodeInfo.name
       allfields.value = res.allFields || []
       dfsUnion(arr, res.union || [])
       const [fir] = res.union as { currentDs: { datasourceId: string } }[]
@@ -591,8 +658,6 @@ const initEdite = () => {
       loading.value = false
     })
 }
-
-initEdite()
 
 const joinEditor = (arr: []) => {
   state.editArr = cloneDeep(arr)
@@ -620,13 +685,18 @@ const tabChange = val => {
         ele.deType === 1 && ele.deExtractType === 0
           ? [ele.deType, ele.dateFormatType]
           : [ele.deType]
+    } else {
+      const [type] = ele.deTypeArr
+      if (ele.deTypeArr.length && type !== ele.deType) {
+        ele.deTypeArr.splice(0, 1, ele.deType)
+      }
     }
   })
 }
 
 const addComplete = () => {
   state.nodeNameList = [...datasetDrag.value.nodeNameList]
-  if (!state.nodeNameList) {
+  if (!state.nodeNameList?.length) {
     columns.value = []
     tableData.value = []
   }
@@ -635,15 +705,13 @@ const addComplete = () => {
 }
 
 const state = reactive({
-  nameList: [],
   nodeNameList: [],
   editArr: [],
-  nodeList: [],
   dataSourceList: [],
-  tableData: [],
   fieldCollapse: ['dimension', 'quota']
 })
 
+const datasourceTableData = shallowRef([])
 const getIconName = (type: number) => {
   if (type === 1) {
     return 'time'
@@ -669,10 +737,10 @@ let num = +new Date()
 
 const expandedD = ref(true)
 const expandedQ = ref(true)
-const setGuid = (arr, id, datasourceId) => {
+const setGuid = (arr, id, datasourceId, oldArr) => {
   arr.forEach(ele => {
     if (!ele.id) {
-      ele.id = `${++num}`
+      ele.id = oldArr.find(itx => itx.originName === ele.originName)?.id || `${++num}`
       ele.datasetTableId = id
       ele.datasourceId = datasourceId
     }
@@ -717,16 +785,40 @@ const fieldUnion = ref()
 
 const setFieldAll = () => {
   const arr = []
-  dfsFields(arr, datasetDrag.value.nodeList)
+  dfsFields(arr, datasetDrag.value.getNodeList())
   const delIdArr = getDelIdArr(arr, allfields.value)
   allfields.value = diffArr(arr, allfields.value)
   delFieldById(delIdArr)
   tabChange('manage')
   fieldUnion.value?.clearState()
 }
+
+const dfsNode = (arr, id) => {
+  return arr.reduce((pre, next) => {
+    if (next.id === id) {
+      pre = [...next.currentDsFields]
+    } else if (next.children?.length) {
+      pre = dfsNode(next.children, id)
+    }
+    return pre
+  }, [])
+}
+
+const dfsFieldsTips = (arr, list, idArr) => {
+  list.forEach(ele => {
+    if (ele.children?.length) {
+      dfsFieldsTips(arr, ele.children, idArr)
+    }
+    if (!idArr.includes(ele.id)) {
+      const { currentDsFields } = ele
+      arr.push(...cloneDeep(currentDsFields))
+    }
+  })
+}
 const confirmEditUnion = () => {
   const { node, parent } = fieldUnion.value
-
+  const to = node.id
+  const from = parent.id
   let unionFieldsLost = node.unionFields.some(ele => {
     const { currentField, parentField } = ele
     return !currentField || !parentField
@@ -737,14 +829,64 @@ const confirmEditUnion = () => {
     return
   }
 
-  setGuid(node.currentDsFields, node.id, node.datasourceId)
-  setGuid(parent.currentDsFields, parent.id, parent.datasourceId)
+  const nodeOldCurrentDsFields = dfsNode(datasetDrag.value.getNodeList(), to)
+  const parentOldCurrentDsFields = dfsNode(datasetDrag.value.getNodeList(), from)
+
+  setGuid(node.currentDsFields, node.id, node.datasourceId, nodeOldCurrentDsFields)
+  setGuid(parent.currentDsFields, parent.id, parent.datasourceId, parentOldCurrentDsFields)
   const top = cloneDeep(node)
   const bottom = cloneDeep(parent)
+
+  let arr = []
+  dfsFieldsTips(arr, datasetDrag.value.getNodeList(), [node.id, parent.id])
+  arr = [...arr, ...node.currentDsFields, ...parent.currentDsFields]
+  const delIdArr = getDelIdArr(arr, allfields.value)
+  let fakeAllfields = diffArr(arr, allfields.value)
+  const idList = delFieldByIdFake(delIdArr, fakeAllfields)
+  if (!!idList.length) {
+    const idArr = allfields.value.reduce((pre, next) => {
+      if (idList.includes(next.id)) {
+        const idMap = next.originName.match(/\[(.+?)\]/g)
+        const result = idMap.map(itm => {
+          return itm.slice(1, -1)
+        })
+        pre = [...result, ...pre]
+      }
+      return pre
+    }, [])
+
+    ElMessageBox.confirm(
+      `字段${allfields.value
+        .filter(ele => [...new Set(idArr)].includes(ele.id) && ele.extField !== 2)
+        .map(ele => ele.name)
+        .join(',')}未被选择，其相关的新建字段将被删除，是否继续？`,
+      {
+        confirmButtonText: t('dataset.confirm'),
+        cancelButtonText: t('common.cancel'),
+        showCancelButton: true,
+        confirmButtonType: 'danger',
+        type: 'warning',
+        autofocus: false,
+        showClose: false,
+        callback: (action: Action) => {
+          if (action === 'confirm') {
+            datasetDrag.value.setStateBack(top, bottom)
+            setFieldAll()
+            editUnion.value = false
+            addComplete()
+            datasetDrag.value.setChangeStatus(to, from)
+          }
+        }
+      }
+    )
+    return
+  }
+
   datasetDrag.value.setStateBack(top, bottom)
   setFieldAll()
   editUnion.value = false
   addComplete()
+  datasetDrag.value.setChangeStatus(to, from)
 }
 
 const updateAllfields = () => {
@@ -780,6 +922,10 @@ const mouseupDrag = () => {
   dom.removeEventListener('mousemove', calculateWidth)
   dom.removeEventListener('mousemove', calculateHeight)
 }
+
+const crossDatasources = computed(() => {
+  return datasetDrag.value?.crossDatasources
+})
 const calculateWidth = (e: MouseEvent) => {
   if (e.pageX < 240) {
     LeftWidth.value = 240
@@ -822,8 +968,22 @@ const handleResize = debounce(() => {
   }
   dragHeight.value = clientHeight - sqlResultHeight.value - 56
 }, 60)
+let willBack = false
+const saveAndBack = () => {
+  if (!willBack) return
+  pushDataset()
+}
 
-onMounted(() => {
+let p = null
+const XpackLoaded = () => p(true)
+onMounted(async () => {
+  await new Promise(r => (p = r))
+  await initEdite()
+  getDatasource()
+  useEmitt({
+    name: 'onDatasetSave',
+    callback: saveAndBack
+  })
   window.addEventListener('resize', handleResize)
   getSqlResultHeight()
   quotaTableHeight.value = sqlResultHeight.value - 242
@@ -839,26 +999,64 @@ const getDatasource = () => {
   getDatasourceList().then(res => {
     const _list = (res as unknown as DataSource[]) || []
     if (_list && _list.length > 0 && _list[0].id === '0') {
-      state.dataSourceList = _list[0].children
+      state.dataSourceList = dfsChild(_list[0].children)
     } else {
-      state.dataSourceList = _list
+      state.dataSourceList = dfsChild(_list)
     }
   })
 }
 
-getDatasource()
+const resetDfsFields = (arr, idMap) => {
+  for (let i in arr) {
+    const id = guid()
+    idMap[arr[i].currentDs.id] = id
+    arr[i].currentDs.id = id
+    if (!!arr[i].childrenDs?.length) {
+      resetDfsFields(arr[i].childrenDs, idMap)
+    }
+  }
+}
+
+const resetAllfieldsId = arr => {
+  const idMap = {}
+  for (let i in allfields.value) {
+    const id = guid()
+    idMap[allfields.value[i].id] = id
+    allfields.value[i].id = id
+    allfields.value[i].datasetGroupId = ''
+  }
+  resetDfsFields(arr, idMap)
+  return idMap
+}
+
+const resetAllfieldsUnionId = (arr, idMap) => {
+  let strUnion = JSON.stringify(arr) as string
+  let strNodeList = JSON.stringify(toRaw(datasetDrag.value.getNodeList())) as string
+  let strAllfields = JSON.stringify(unref(allfields.value)) as string
+  Object.entries(idMap).forEach(([key, value]) => {
+    strUnion = strUnion.replaceAll(key, value as string)
+    strAllfields = strAllfields.replaceAll(key, value as string)
+    strNodeList = strNodeList.replaceAll(key, value as string)
+  })
+  allfields.value = JSON.parse(strAllfields)
+  datasetDrag.value.initState(JSON.parse(strNodeList))
+  return JSON.parse(strUnion)
+}
 
 const datasetSave = () => {
   if (nodeInfo.id) {
     editeSave()
     return
   }
-  const union = []
-  dfsNodeList(union, datasetDrag.value.nodeList)
-  const { pid } = route.query
+  let union = []
+  dfsNodeList(union, datasetDrag.value.getNodeList())
+  const pid = appStore.getIsDataEaseBi ? embeddedStore.datasetPid : route.query.pid || nodeInfo.pid
   if (!union.length) {
     ElMessage.error('数据集不能为空')
     return
+  }
+  if (nodeInfo.pid && !nodeInfo.id) {
+    union = resetAllfieldsUnionId(union, resetAllfieldsId(union))
   }
 
   creatDsFolder.value.createInit(
@@ -868,13 +1066,17 @@ const datasetSave = () => {
     datasetName.value
   )
 }
+const datasetSaveAndBack = () => {
+  willBack = true
+  datasetSave()
+}
 
 const datasetPreviewLoading = ref(false)
 
 const datasetPreview = () => {
   if (datasetPreviewLoading.value) return
   const arr = []
-  dfsNodeList(arr, datasetDrag.value.nodeList)
+  dfsNodeList(arr, datasetDrag.value.getNodeList())
   datasetPreviewLoading.value = true
   getPreviewData({ union: arr, allFields: allfields.value })
     .then(res => {
@@ -967,11 +1169,6 @@ const cascaderChangeArr = val => {
   const [deType, dateFormat] = val
   dimensionsSelection.value = dimensionsTable.value.getSelectionRows().map(ele => ele.id)
   quotaSelection.value = quotaTable.value.getSelectionRows().map(ele => ele.id)
-  console.log(
-    'dimensionsSelection.value',
-    [...dimensionsSelection.value],
-    [...quotaSelection.value]
-  )
 
   const arr = [...quotaSelection.value, ...dimensionsSelection.value]
   if (dateFormat === 'custom') {
@@ -995,7 +1192,10 @@ const cascaderChangeArr = val => {
   })
   recoverSelection()
 }
-
+const filterNode = (value: string, data: BusiTreeNode) => {
+  if (!value) return true
+  return data.name?.toLowerCase().includes(value.toLowerCase())
+}
 const recoverSelection = () => {
   nextTick(() => {
     quota.value.forEach(ele => {
@@ -1066,6 +1266,7 @@ const finish = res => {
     pid,
     name
   }
+  allfields.value = res.allFields || []
 }
 
 const errorTips = ref('')
@@ -1089,6 +1290,21 @@ const treeProps = {
     return (!data.children?.length && !data.leaf) || data.extraFlag < 0
   }
 }
+
+const pluginDs = ref([])
+const loadDsPlugin = data => {
+  pluginDs.value = data
+}
+const getDsIcon = data => {
+  if (pluginDs?.value.length === 0) return null
+  if (!data.leaf) return null
+
+  const arr = pluginDs.value.filter(ele => {
+    return ele.type === data.type
+  })
+  return arr && arr.length > 0 ? arr[0].icon : null
+}
+
 const getDsIconName = data => {
   if (!data.leaf) return 'dv-folder'
   return `${data.type}-ds`
@@ -1118,6 +1334,9 @@ const getDsIconName = data => {
         </template>
       </span>
       <span class="oprate">
+        <el-button :disabled="showInput" type="primary" @click="datasetSaveAndBack"
+          >保存并返回</el-button
+        >
         <el-button :disabled="showInput" type="primary" @click="datasetSave">保存</el-button>
       </span>
     </div>
@@ -1143,15 +1362,19 @@ const getDsIconName = data => {
         <div class="table-list-top">
           <p class="select-ds">
             选择数据源
-            <el-icon class="left-outlined" @click="showLeft = false">
-              <Icon name="group-3400"></Icon>
-            </el-icon>
+            <span class="left-outlined">
+              <el-icon style="color: #1f2329" @click="showLeft = false">
+                <Icon name="icon_left_outlined" />
+              </el-icon>
+            </span>
           </p>
           <el-tree-select
             :check-strictly="false"
             @change="dsChange"
             :placeholder="t('dataset.pls_slc_data_source')"
             class="ds-list"
+            :filter-node-method="filterNode"
+            filterable
             popper-class="tree-select-ds_popper"
             v-model="dataSource"
             node-key="id"
@@ -1162,7 +1385,10 @@ const getDsIconName = data => {
             <template #default="{ data: { name, leaf, type, extraFlag } }">
               <div class="flex-align-center icon">
                 <el-icon>
-                  <icon :name="getDsIconName({ leaf, type })"></icon>
+                  <icon
+                    :static-content="getDsIcon({ leaf, type })"
+                    :name="getDsIconName({ leaf, type })"
+                  ></icon>
                 </el-icon>
                 <span v-if="!leaf || extraFlag > -1">{{ name }}</span>
                 <el-tooltip effect="dark" v-else :content="`无效数据源:${name}`" placement="top">
@@ -1177,7 +1403,7 @@ const getDsIconName = data => {
               <el-icon class="icon-color">
                 <Icon name="reference-table"></Icon>
               </el-icon>
-              {{ state.tableData.length }}
+              {{ datasourceTableData.length }}
             </span>
           </p>
           <el-input
@@ -1193,7 +1419,7 @@ const getDsIconName = data => {
             </template>
           </el-input>
         </div>
-        <div v-if="!state.tableData.length && searchTable !== ''" class="el-empty">
+        <div v-if="!datasourceTableData.length && searchTable !== ''" class="el-empty">
           <div
             class="el-empty__description"
             style="margin-top: 80px; color: #5e6d82; text-align: center"
@@ -1215,31 +1441,45 @@ const getDsIconName = data => {
             </el-icon>
             <span class="label">自定义SQL</span>
           </div>
-          <template v-for="ele in state.tableData" :key="ele.name">
-            <div
-              :class="[
-                {
-                  'not-allow': state.nodeNameList.includes(ele.tableName)
-                }
-              ]"
-              class="list-item_primary"
-              :title="ele.name"
-              @dragstart="$event => dragstart($event, ele)"
-              @dragend="maskShow = false"
-              :draggable="!state.nodeNameList.includes(ele.tableName)"
-              @click="setActiveName(ele)"
-            >
-              <el-icon class="icon-color">
-                <Icon name="reference-table"></Icon>
-              </el-icon>
-              <span class="label">{{ ele.tableName }}</span>
-            </div>
-          </template>
+          <FixedSizeList
+            :itemSize="40"
+            :data="datasourceTableData"
+            :total="datasourceTableData.length"
+            :width="LeftWidth - 7"
+            :height="height - 305"
+            :scrollbarAlwaysOn="false"
+            class-name="el-select-dropdown__list"
+            layout="vertical"
+          >
+            <template #default="{ index, style }">
+              <div
+                class="list-item_primary"
+                :style="style"
+                :title="datasourceTableData[index].tableName"
+                @dragstart="$event => dragstart($event, datasourceTableData[index])"
+                @dragend="maskShow = false"
+                :draggable="true"
+                @click="setActiveName(datasourceTableData[index])"
+              >
+                <el-icon class="icon-color">
+                  <Icon name="reference-table"></Icon>
+                </el-icon>
+                <span class="label">{{ datasourceTableData[index].tableName }}</span>
+              </div>
+            </template>
+          </FixedSizeList>
         </div>
       </div>
       <div class="drag-right" :style="{ width: `calc(100vw - ${showLeft ? LeftWidth : 0}px)` }">
+        <div v-if="crossDatasources" class="different-datasource">
+          <el-icon>
+            <Icon name="icon_warning_colorful"></Icon>
+          </el-icon>
+          您正在进行跨数据源的表关联,请确保使用calcite的标准语法和函数,否则会导致数据集报错
+        </div>
         <dataset-union
           @join-editor="joinEditor"
+          @changeUpdate="changeUpdate"
           :maskShow="maskShow"
           :dragHeight="dragHeight"
           :getDsName="getDsName"
@@ -1252,7 +1492,9 @@ const getDsIconName = data => {
         <div
           class="sql-result"
           :style="{
-            height: sqlResultHeight ? `${sqlResultHeight}px` : `calc(100% - ${dragHeight}px)`
+            height: sqlResultHeight
+              ? `${crossDatasources ? sqlResultHeight - 40 : sqlResultHeight}px`
+              : `calc(100% - ${crossDatasources ? dragHeight + 40 : dragHeight}px)`
           }"
         >
           <div class="sql-title">
@@ -1275,7 +1517,7 @@ const getDsIconName = data => {
               >
                 <template #icon>
                   <el-icon>
-                    <Icon name="icon_replace_outlined"></Icon>
+                    <Icon name="icon_refresh_outlined"></Icon>
                   </el-icon>
                 </template>
                 刷新数据
@@ -1353,21 +1595,39 @@ const getDsIconName = data => {
               </div>
             </div>
             <div class="preview-data">
-              <el-auto-resizer>
-                <template #default="{ height, width }">
-                  <el-table-v2
-                    :columns="columns"
-                    header-class="header-cell"
-                    :data="tableData"
-                    :width="width"
-                    :height="height"
-                    fixed
-                    ><template #empty>
-                      <empty-background description="暂无数据" img-type="noneWhite" />
-                    </template>
-                  </el-table-v2>
+              <el-table
+                v-loading="datasetPreviewLoading"
+                header-class="header-cell"
+                :data="tableData"
+                border
+                style="width: 100%; height: 100%"
+              >
+                <el-table-column
+                  :key="column.dataKey + column.deType"
+                  v-for="(column, index) in columns"
+                  :prop="column.dataKey"
+                  :label="column.title"
+                  :width="columns.length - 1 === index ? 150 : 'auto'"
+                  :fixed="columns.length - 1 === index ? 'right' : false"
+                >
+                  <template #header>
+                    <div class="flex-align-center">
+                      <ElIcon style="margin-right: 6px">
+                        <Icon
+                          :name="`field_${fieldType[column.deType]}`"
+                          :className="`field-icon-${fieldType[column.deType]}`"
+                        ></Icon>
+                      </ElIcon>
+                      <span class="ellipsis" :title="column.title" style="width: 120px">
+                        {{ column.title }}
+                      </span>
+                    </div>
+                  </template>
+                </el-table-column>
+                <template #empty>
+                  <empty-background description="暂无数据" img-type="noneWhite" />
                 </template>
-              </el-auto-resizer>
+              </el-table>
             </div>
           </div>
           <div v-show="tabActive !== 'preview' && !!allfields.length" class="batch-area">
@@ -1406,6 +1666,19 @@ const getDsIconName = data => {
                         <div class="column-style">
                           <span v-if="scope.row.extField === 0">{{ scope.row.originName }}</span>
                           <span style="color: #8d9199" v-else>{{ t('dataset.calc_field') }}</span>
+                        </div>
+                      </template>
+                    </el-table-column>
+
+                    <el-table-column
+                      prop="description"
+                      :label="t('deDataset.description')"
+                      width="240"
+                    >
+                      <template #default="scope">
+                        <div class="column-style">
+                          <span v-if="scope.row.extField === 0">{{ scope.row.description }}</span>
+                          <span style="color: #8d9199" v-else>&nbsp;</span>
                         </div>
                       </template>
                     </el-table-column>
@@ -1553,6 +1826,19 @@ const getDsIconName = data => {
                         <div class="column-style">
                           <span v-if="scope.row.extField === 0">{{ scope.row.originName }}</span>
                           <span v-else style="color: #8d9199">{{ t('dataset.calc_field') }}</span>
+                        </div>
+                      </template>
+                    </el-table-column>
+
+                    <el-table-column
+                      prop="description"
+                      :label="t('deDataset.description')"
+                      width="240"
+                    >
+                      <template #default="scope">
+                        <div class="column-style">
+                          <span v-if="scope.row.extField === 0">{{ scope.row.description }}</span>
+                          <span style="color: #8d9199" v-else>&nbsp;</span>
                         </div>
                       </template>
                     </el-table-column>
@@ -1738,10 +2024,8 @@ const getDsIconName = data => {
     >
       <union-edit ref="fieldUnion" :editArr="state.editArr" />
       <template #footer>
-        <el-button secondary @click="closeEditUnion()">{{ t('dataset.cancel') }} </el-button>
-        <el-button type="primary" @click="confirmEditUnion()"
-          >{{ t('dataset.confirm') }}
-        </el-button>
+        <el-button secondary @click="closeEditUnion">{{ t('dataset.cancel') }} </el-button>
+        <el-button type="primary" @click="confirmEditUnion">{{ t('dataset.confirm') }} </el-button>
       </template>
     </el-drawer>
   </div>
@@ -1752,7 +2036,7 @@ const getDsIconName = data => {
     width="1000px"
     :title="calcTitle"
   >
-    <calc-field-edit ref="calcEdit" />
+    <calc-field-edit ref="calcEdit" :crossDs="crossDatasources" />
     <template #footer>
       <el-button secondary @click="closeEditCalc()">{{ t('dataset.cancel') }} </el-button>
       <el-button type="primary" @click="confirmEditCalc()">{{ t('dataset.confirm') }} </el-button>
@@ -1794,12 +2078,33 @@ const getDsIconName = data => {
       </el-button>
     </template>
   </el-dialog>
+  <XpackComponent
+    jsname="L2NvbXBvbmVudC9lbWJlZGRlZC1pZnJhbWUvTmV3V2luZG93SGFuZGxlcg=="
+    @loaded="XpackLoaded"
+    @load-fail="XpackLoaded"
+  />
+  <XpackComponent
+    jsname="L2NvbXBvbmVudC9wbHVnaW5zLWhhbmRsZXIvRHNDYXRlZ29yeUhhbmRsZXI="
+    @load-ds-plugin="loadDsPlugin"
+  />
 </template>
 
 <style lang="less" scoped>
 @import '@/style/mixin.less';
+
+.ed-table {
+  --ed-table-header-bg-color: #f5f6f7;
+}
+
 .de-dataset-form {
   color: #1f2329;
+
+  :deep(.ed-table__border-left-patch),
+  :deep(.ed-table--border .ed-table__inner-wrapper::after) {
+    display: none !important;
+  }
+
+  --ed-border-color-lighter: #1f232926 !important;
   .top {
     height: 56px;
     display: flex;
@@ -1811,7 +2116,7 @@ const getDsIconName = data => {
 
     .name {
       color: #fff;
-      font-family: PingFang SC;
+      font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
       font-size: 16px;
       font-weight: 400;
       display: flex;
@@ -1834,7 +2139,7 @@ const getDsIconName = data => {
         height: 24px;
         :deep(.ed-input__wrapper) {
           background-color: #050e21;
-          box-shadow: 0 0 0 1px #3370ff;
+          box-shadow: 0 0 0 1px var(--ed-color-primary);
           padding: 0 4px;
         }
         :deep(.ed-input__inner) {
@@ -1868,7 +2173,7 @@ const getDsIconName = data => {
         position: absolute;
         left: -1px;
         top: 0;
-        background: #3370ff;
+        background: var(--ed-color-primary);
       }
     }
 
@@ -1885,12 +2190,20 @@ const getDsIconName = data => {
       width: 20px;
       box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
       border: 1px solid var(--deCardStrokeColor, #dee0e3);
-      border-top-right-radius: 13px;
-      border-bottom-right-radius: 13px;
+      display: flex;
+      align-items: center;
+      padding-left: 2px;
+      border-top-right-radius: 12px;
+      border-bottom-right-radius: 12px;
       background: #fff;
       font-size: 12px;
-      .ed-icon {
-        margin-left: 2px;
+
+      &:hover {
+        padding-left: 4px;
+        width: 24px;
+        .ed-icon {
+          color: var(--ed-color-primary, #3370ff);
+        }
       }
     }
 
@@ -1907,7 +2220,7 @@ const getDsIconName = data => {
       width: 240px;
       padding-bottom: 16px;
 
-      font-family: PingFang SC;
+      font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
       border-right: 1px solid rgba(31, 35, 41, 0.15);
 
       .select-ds {
@@ -1927,10 +2240,24 @@ const getDsIconName = data => {
 
         .left-outlined {
           position: absolute;
-          font-size: 36px;
+          font-size: 12px;
           right: -30px;
           top: -5px;
-          z-index: 5;
+          height: 24px;
+          border: 1px solid #dee0e3;
+          width: 24px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #fff;
+          box-shadow: 0px 5px 10px 0px #1f23291a;
+          z-index: 10;
+          &:hover {
+            .ed-icon {
+              color: var(--ed-color-primary, #3370ff) !important;
+            }
+          }
         }
       }
 
@@ -1979,8 +2306,25 @@ const getDsIconName = data => {
     display: flex;
     .drag-right {
       height: calc(100vh - 56px);
+      .different-datasource {
+        height: 40px;
+        width: 100%;
+        background: #ffe7cc;
+        color: #1f2329;
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 22px;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+
+        .ed-icon {
+          font-size: 16px;
+          margin-right: 8px;
+        }
+      }
       .sql-result {
-        font-family: PingFang SC;
+        font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
         font-size: 14px;
         overflow-y: auto;
         box-sizing: border-box;
@@ -2055,7 +2399,6 @@ const getDsIconName = data => {
             float: left;
             width: 260px;
             height: 100%;
-            border-right: 1px solid rgba(31, 35, 41, 0.15);
             position: relative;
 
             :deep(.ed-tree-node__content) {
@@ -2070,7 +2413,7 @@ const getDsIconName = data => {
             }
 
             .custom-tree-node {
-              flex: 1;
+              width: calc(100% - 32px);
               display: flex;
               align-items: center;
               padding-right: 8px;
@@ -2078,7 +2421,7 @@ const getDsIconName = data => {
 
               .label-tooltip {
                 margin-left: 5.33px;
-                width: 60%;
+                width: 70%;
                 overflow: hidden;
                 white-space: nowrap;
                 text-overflow: ellipsis;
@@ -2106,7 +2449,7 @@ const getDsIconName = data => {
                 margin: 1px;
                 top: 1px;
                 height: 49px;
-                font-family: 'PingFang SC';
+                font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
                 font-style: normal;
                 font-weight: 500;
                 font-size: 14px;
@@ -2299,6 +2642,10 @@ const getDsIconName = data => {
 .tree-select-ds_popper {
   .ed-tree-node.is-current > .ed-tree-node__content:not(.is-menu):after {
     display: none !important;
+  }
+
+  .flex-align-center {
+    padding-right: 15px;
   }
 }
 .calc-field-edit-dialog {

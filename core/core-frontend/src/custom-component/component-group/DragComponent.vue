@@ -54,12 +54,13 @@ const { icon, name, label, dragInfo, themes } = toRefs(props)
 .drag-component {
   border-radius: 4px;
   width: 88px !important;
+  margin-right: 12px;
   .icon-content {
     width: 88px !important;
     height: 64px !important;
     border-radius: 4px;
     &:hover {
-      border: 1px solid rgba(51, 112, 255, 1);
+      border: 1px solid var(--ed-color-primary);
       cursor: pointer;
     }
     display: flex;
@@ -72,6 +73,7 @@ const { icon, name, label, dragInfo, themes } = toRefs(props)
     .drag-icon {
       height: 40px;
       width: 40px;
+      color: #3370ff;
     }
   }
   .label-content {

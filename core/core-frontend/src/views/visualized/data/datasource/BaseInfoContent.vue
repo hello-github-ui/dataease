@@ -36,7 +36,7 @@ defineExpose({
 
   .update-records-time {
     color: #646a73;
-    font-family: PingFang SC;
+    font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
     font-size: 14px;
     font-style: normal;
     font-weight: 400;
@@ -52,7 +52,7 @@ defineExpose({
 
   .name {
     color: #1f2329;
-    font-family: PingFang SC;
+    font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
     font-size: 16px;
     font-style: normal;
     font-weight: 500;
@@ -64,7 +64,7 @@ defineExpose({
     .title {
       .ed-icon {
         transform: rotate(90deg);
-        color: #3370ff;
+        color: var(--ed-color-primary);
       }
     }
     overflow: auto;
@@ -77,7 +77,7 @@ defineExpose({
     .title {
       .ed-icon {
         transform: rotate(0);
-        color: #3370ff;
+        color: var(--ed-color-primary);
       }
     }
   }

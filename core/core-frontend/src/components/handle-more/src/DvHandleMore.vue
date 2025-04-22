@@ -3,7 +3,7 @@ import { Icon } from '@/components/icon-custom'
 import { propTypes } from '@/utils/propTypes'
 import type { Placement } from 'element-plus-secondary'
 import { ref, PropType } from 'vue'
-import { XpackComponent } from '@/components/plugin'
+import ShareHandler from '@/views/share/share/ShareHandler.vue'
 export interface Menu {
   svgName?: string
   label?: string
@@ -44,14 +44,16 @@ const menus = ref([
 ])
 const handleCommand = (command: string | number | object) => {
   if (command === 'share') {
-    shareComponent.value.invokeMethod({ methodName: 'execute' })
+    // shareComponent.value.invokeMethod({ methodName: 'execute' })
+    shareComponent.value.execute()
     return
   }
   emit('handleCommand', command)
 }
 const callBack = param => {
   if (props.node.leaf && props.node?.weight >= 7) {
-    menus.value.splice(2, 0, param)
+    menus.value[0]['divided'] = true
+    menus.value.splice(0, 0, param)
   }
 }
 const emit = defineEmits(['handleCommand'])
@@ -85,9 +87,8 @@ const emit = defineEmits(['handleCommand'])
       </el-dropdown-menu>
     </template>
   </el-dropdown>
-  <XpackComponent
+  <ShareHandler
     ref="shareComponent"
-    jsname="c2hhcmUtaGFuZGxlcg=="
     :resource-id="props.node.id"
     :resource-type="props.resourceType"
     :weight="node.weight"

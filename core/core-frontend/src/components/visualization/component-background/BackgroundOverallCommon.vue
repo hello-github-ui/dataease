@@ -4,7 +4,7 @@
       id="input"
       ref="files"
       type="file"
-      accept=".jpeg,.jpg,.png,.gif"
+      accept=".jpeg,.jpg,.png,.gif,.svg"
       hidden
       @click="
         e => {
@@ -187,7 +187,7 @@
                 class="image-hint"
                 :class="`image-hint_${themes}`"
               >
-                支持JPG、PNG、GIF
+                支持JPG、PNG、GIF、SVG
               </span>
 
               <el-button
@@ -375,7 +375,7 @@ watch(
 
     &:hover {
       .ed-icon {
-        color: #3370ff;
+        color: var(--ed-color-primary);
       }
     }
   }
@@ -428,7 +428,7 @@ watch(
 
     &:hover {
       .ed-icon {
-        color: #3370ff;
+        color: var(--ed-color-primary);
       }
     }
   }
@@ -513,7 +513,7 @@ watch(
 
 .re-update-span {
   cursor: pointer;
-  color: #3370ff;
+  color: var(--ed-color-primary);
   size: 14px;
   line-height: 22px;
   font-weight: 400;

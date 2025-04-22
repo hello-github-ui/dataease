@@ -1,6 +1,7 @@
 package io.dataease.api.ds.vo;
 
 
+import io.dataease.extensions.datasource.dto.TableField;
 import lombok.Data;
 
 import java.util.ArrayList;
@@ -19,10 +20,8 @@ public class ApiDefinition {
     private ApiDefinitionRequest request;
     private String status;
     private List<Map<String, Object>> data = new ArrayList<>();
-
-
-    private int previewNum = 10;
-    private int maxPreviewNum = 10;
+    private Integer apiQueryTimeout = 10;
+    private int previewNum = 100;
     private int serialNumber;
     private boolean useJsonPath;
     private String jsonPath;
@@ -30,4 +29,5 @@ public class ApiDefinition {
     private String orgName;
     private boolean showApiStructure;
     private Long updateTime;
+    private String type = "table";
 }

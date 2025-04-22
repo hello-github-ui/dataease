@@ -240,7 +240,7 @@ const handleCheckedFieldsChange = (value: string[]) => {
             <template #icon>
               <Icon name="icon_add_outlined"></Icon>
             </template>
-            添加联动视图字段
+            添加联动图表字段
           </el-button>
         </div>
       </div>
@@ -258,7 +258,7 @@ const handleCheckedFieldsChange = (value: string[]) => {
 
 <style lang="less">
 .jump-linkage {
-  font-family: PingFang SC;
+  font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
   font-size: 14px;
 
   .chart-dataset-name {
@@ -273,7 +273,7 @@ const handleCheckedFieldsChange = (value: string[]) => {
         color: #1f2329;
 
         .main-color {
-          color: #3370ff;
+          color: var(--ed-color-primary);
         }
       }
     }

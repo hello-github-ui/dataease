@@ -1,5 +1,5 @@
 <script lang="tsx" setup>
-import { nextTick, reactive, ref, shallowRef } from 'vue'
+import { nextTick, reactive, ref, shallowRef, provide } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
 import type { FormInstance, FormRules } from 'element-plus-secondary'
 import { ElIcon, ElMessage } from 'element-plus-secondary'
@@ -11,7 +11,8 @@ import EmptyBackground from '@/components/empty-background/src/EmptyBackground.v
 import { checkApiItem } from '@/api/datasource'
 import { cloneDeep } from 'lodash-es'
 import { fieldType } from '@/utils/attr'
-import { ApiConfiguration } from '@/views/visualized/data/datasource/form/index.vue'
+import type { ApiConfiguration } from '@/views/visualized/data/datasource/form/option'
+import { cancelMap } from '@/config/axios/service'
 
 export interface Field {
   name: string
@@ -23,6 +24,7 @@ export interface Field {
 export interface ApiItem {
   status: string
   name: string
+  type: string
   deTableName?: string
   url: string
   method: string
@@ -30,6 +32,7 @@ export interface ApiItem {
   fields: Field[]
   jsonFields: JsonField[]
   useJsonPath: boolean
+  apiQueryTimeout: number
   showApiStructure: boolean
   jsonPath: string
   serialNumber: number
@@ -55,10 +58,12 @@ const originFieldItem = reactive({
 })
 
 let apiItemList = reactive<ApiConfiguration[]>([])
+let paramsList = reactive<ApiConfiguration[]>([])
 
 let apiItem = reactive<ApiItem>({
   status: '',
   name: '',
+  type: 'table',
   url: '',
   method: 'GET',
   request: {
@@ -80,20 +85,40 @@ let apiItem = reactive<ApiItem>({
   fields: [],
   jsonFields: [],
   useJsonPath: false,
+  apiQueryTimeout: 10,
   showApiStructure: false,
   jsonPath: '',
   serialNumber: -1
 })
 let errMsg = []
-const api_table_title = ref('datasource.data_table')
 const apiItemForm = ref()
 const showEmpty = ref(false)
 const edit_api_item = ref(false)
 const active = ref(1)
 const loading = ref(false)
+const formLoading = ref(false)
 const columns = shallowRef([])
+const valueList = shallowRef([])
 const tableData = shallowRef([])
 const apiItemBasicInfo = ref<FormInstance>()
+const isNumber = (rule, value, callback) => {
+  if (!value) {
+    callback(new Error(t('datasource.please_input_query_timeout')))
+    return
+  }
+  let isNumber = false
+  var reg = /^\d+$/
+  isNumber = reg.test(value)
+  if (!isNumber) {
+    callback(new Error(t('datasource.please_input_query_timeout')))
+    return
+  }
+  if (value <= 0 || value > 300) {
+    callback(new Error(t('datasource.please_input_query_timeout')))
+    return
+  }
+  callback()
+}
 const rule = reactive<FormRules>({
   name: [
     {
@@ -103,9 +128,16 @@ const rule = reactive<FormRules>({
     },
     {
       min: 2,
-      max: 25,
-      message: t('datasource.input_limit_2_25', [2, 25]),
+      max: 64,
+      message: t('datasource.input_limit_2_25', [2, 64]),
       trigger: 'blur'
+    }
+  ],
+  apiQueryTimeout: [
+    {
+      required: true,
+      validator: isNumber,
+      trigger: ['blur', 'change']
     }
   ],
   url: [
@@ -122,9 +154,18 @@ const rule = reactive<FormRules>({
     }
   ]
 })
-
-const initApiItem = (val: ApiItem, apiList) => {
-  apiItemList = apiList
+const activeName = ref('table')
+provide('api-active-name', activeName)
+const initApiItem = (val: ApiItem, from, name) => {
+  activeName.value = name
+  apiItemList = from.apiConfiguration
+  paramsList = from.paramsConfiguration
+  if (val.type !== 'params') {
+    valueList.value = []
+    for (let i = 0; i < paramsList.length; i++) {
+      valueList.value = valueList.value.concat(paramsList[i].fields)
+    }
+  }
   Object.assign(apiItem, val)
   edit_api_item.value = true
   active.value = 0
@@ -137,10 +178,16 @@ const showApiData = () => {
   apiItemBasicInfo.value.validate(valid => {
     if (valid) {
       const data = Base64.encode(JSON.stringify(apiItem))
+      const params = Base64.encode(JSON.stringify(paramsList))
       loading.value = true
-      checkApiItem({ data: data, type: 'apiStructure' }).then(response => {
-        originFieldItem.jsonFields = response.data.jsonFields
-      })
+      cancelMap['/datasource/checkApiDatasource']?.()
+      checkApiItem({ data: data, type: 'apiStructure', paramsList: params })
+        .then(response => {
+          originFieldItem.jsonFields = response.data.jsonFields
+        })
+        .catch(error => {
+          console.log(error?.message)
+        })
       loading.value = false
     } else {
       return false
@@ -168,9 +215,24 @@ const fieldOptions = [
 ]
 const disabledNext = ref(false)
 const saveItem = () => {
-  if (apiItem.fields.length === 0) {
+  if (apiItem.type !== 'params' && apiItem.fields.length === 0) {
     ElMessage.error(t('datasource.api_field_not_empty'))
     return
+  }
+  if (apiItem.type === 'params') {
+    for (let i = 0; i < apiItem.fields.length; i++) {
+      for (let j = 0; j < paramsList.length; j++) {
+        for (let k = 0; k < paramsList[j].fields.length; k++) {
+          if (
+            apiItem.fields[i].name === paramsList[j].fields[k].name &&
+            apiItem.serialNumber !== paramsList[j].serialNumber
+          ) {
+            ElMessage.error('已经存在同名参数：' + apiItem.fields[i].name)
+            return
+          }
+        }
+      }
+    }
   }
   for (let i = 0; i < apiItem.fields.length - 1; i++) {
     for (let j = i + 1; j < apiItem.fields.length; j++) {
@@ -193,22 +255,48 @@ const next = () => {
         ElMessage.error(t('datasource.please_input_dataPath'))
         return
       }
-      for (let i = 0; i < apiItemList.length; i++) {
-        if (
-          apiItemList[i].name === apiItem.name &&
-          apiItem.serialNumber !== apiItemList[i].serialNumber
-        ) {
-          ElMessage.error(t('datasource.has_repeat_name'))
-          return
+      if (apiItem.type === 'params') {
+        for (let i = 0; i < paramsList.length; i++) {
+          if (
+            paramsList[i].name === apiItem.name &&
+            apiItem.serialNumber !== paramsList[i].serialNumber
+          ) {
+            ElMessage.error('已经存在同名的参数表')
+            return
+          }
+        }
+      } else {
+        for (let i = 0; i < apiItemList.length; i++) {
+          if (
+            apiItemList[i].name === apiItem.name &&
+            apiItem.serialNumber !== apiItemList[i].serialNumber
+          ) {
+            ElMessage.error(t('datasource.has_repeat_name'))
+            return
+          }
         }
       }
-      checkApiItem({ data: Base64.encode(JSON.stringify(apiItem)) }).then(response => {
-        apiItem.jsonFields = response.data.jsonFields
-        apiItem.fields = []
-        handleFiledChange(apiItem)
-        previewData()
-        active.value += 1
-      })
+
+      cancelMap['/datasource/checkApiDatasource']?.()
+
+      const params = Base64.encode(JSON.stringify(paramsList))
+      disabledNext.value = true
+      formLoading.value = true
+      checkApiItem({ data: Base64.encode(JSON.stringify(apiItem)), paramsList: params })
+        .then(response => {
+          disabledNext.value = false
+          formLoading.value = false
+          apiItem.jsonFields = response.data.jsonFields
+          apiItem.fields = []
+          handleFiledChange(apiItem)
+          previewData()
+          active.value += 1
+        })
+        .catch(error => {
+          disabledNext.value = false
+          formLoading.value = false
+          console.log(error?.message)
+        })
     }
   })
 }
@@ -220,7 +308,9 @@ const validate = () => {
         ElMessage.error(t('datasource.please_input_dataPath'))
         return
       }
-      checkApiItem({ data: Base64.encode(JSON.stringify(apiItem)) })
+      cancelMap['/datasource/checkApiDatasource']?.()
+      const params = Base64.encode(JSON.stringify(paramsList))
+      checkApiItem({ data: Base64.encode(JSON.stringify(apiItem)), paramsList: params })
         .then(response => {
           apiItem.jsonFields = response.data.jsonFields
           apiItem.fields = []
@@ -235,10 +325,22 @@ const validate = () => {
   })
 }
 const closeEditItem = () => {
+  cancelMap['/datasource/checkApiDatasource']?.()
   edit_api_item.value = false
 }
 
 const disabledByChildren = item => {
+  if (item.hasOwnProperty('children') && item.children.length > 0) {
+    return true
+  } else {
+    return false
+  }
+}
+
+const disabledChangeFieldByChildren = item => {
+  if (apiItem.type == 'params') {
+    return true
+  }
   if (item.hasOwnProperty('children') && item.children.length > 0) {
     return true
   } else {
@@ -261,8 +363,8 @@ const previewData = () => {
   for (let i = 0; i < apiItem.fields.length; i++) {
     for (let j = 0; j < apiItem.fields[i].value.length; j++) {
       data[j][apiItem.fields[i].name] = apiItem.fields[i].value[j]
-      data[j]['id'] = apiItem.fields[i].name
     }
+
     columnTmp.push({
       key: apiItem.fields[i].name,
       dataKey: apiItem.fields[i].name,
@@ -340,7 +442,7 @@ defineExpose({
 
 <template>
   <el-drawer
-    :title="t(api_table_title)"
+    :title="activeName === 'table' ? t('datasource.data_table') : '接口参数'"
     v-model="edit_api_item"
     custom-class="api-datasource-drawer"
     size="840px"
@@ -365,7 +467,9 @@ defineExpose({
               <span class="icon">
                 {{ active <= 1 ? '2' : '' }}
               </span>
-              <span class="title">{{ t('datasource.api_step_2') }}</span>
+              <span class="title">{{
+                activeName === 'table' ? t('datasource.api_step_2') : '提取参数'
+              }}</span>
             </div>
           </template>
         </el-step>
@@ -380,6 +484,7 @@ defineExpose({
         label-width="100px"
         require-asterisk-position="right"
         :rules="rule"
+        v-loading="formLoading"
       >
         <div class="title-form_primary base-info">
           <span>{{ t('datasource.base_info') }}</span>
@@ -420,11 +525,16 @@ defineExpose({
             <api-http-request-form
               v-if="edit_api_item"
               :request="apiItem.request"
+              :value-list="valueList"
               @changeId="changeId"
             />
           </el-form-item>
         </div>
-
+        <el-form-item :label="$t('datasource.query_timeout')" prop="apiQueryTimeout">
+          <el-input v-model="apiItem.apiQueryTimeout" autocomplete="off" type="number" :min="0">
+            <template v-slot:append>{{ $t('chart.second') }}</template>
+          </el-input>
+        </el-form-item>
         <div class="title-form_primary request-info">
           <span>{{ t('datasource.isUseJsonPath') }}</span>
         </div>
@@ -523,11 +633,15 @@ defineExpose({
               </template>
             </el-table-column>
 
-            <el-table-column prop="deExtractType" :label="t('datasource.field_type')">
+            <el-table-column
+              prop="deExtractType"
+              :label="t('datasource.field_type')"
+              :disabled="apiItem.type == 'params'"
+            >
               <template #default="scope">
                 <el-select
                   v-model="scope.row.deExtractType"
-                  :disabled="disabledByChildren(scope.row)"
+                  :disabled="disabledChangeFieldByChildren(scope.row)"
                   class="select-type"
                   style="display: inline-block; width: 120px"
                 >
@@ -571,7 +685,11 @@ defineExpose({
           </el-icon>
           <span class="name">{{ t('datasource.data_preview') }}</span>
         </p>
-        <div v-show="activeDataPreview" class="info-table">
+        <div
+          v-show="activeDataPreview"
+          class="info-table"
+          :style="{ height: Math.min(tableData.length, 20) * 40 + 'px' }"
+        >
           <empty-background
             v-if="showEmpty"
             description="暂无数据，请在数据结构勾选字段"
@@ -646,7 +764,7 @@ defineExpose({
       background-color: transparent;
       .step-icon {
         .icon {
-          background: #3370ff;
+          background: var(--ed-color-primary);
         }
       }
     }
@@ -655,7 +773,7 @@ defineExpose({
       background-color: transparent;
       .step-icon {
         .icon {
-          border: 1px solid #3370ff;
+          border: 1px solid var(--ed-color-primary);
         }
       }
     }
@@ -693,7 +811,7 @@ defineExpose({
   .ed-form {
     width: 100%;
 
-    .ed-form-item {
+    .ed-form-item:not(.is-error) {
       margin-bottom: 16px;
     }
   }
@@ -725,8 +843,7 @@ defineExpose({
   }
 
   .info-table {
-    max-height: 300px;
-    height: 200px;
+    min-height: 300px;
     .ed-table-v2__header-cell {
       background-color: #f5f6f7;
     }
@@ -739,7 +856,7 @@ defineExpose({
     cursor: pointer;
     .name {
       color: #1f2329;
-      font-family: PingFang SC;
+      font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
       font-size: 16px;
       font-style: normal;
       font-weight: 500;
@@ -750,14 +867,14 @@ defineExpose({
     &.active {
       .ed-icon {
         transform: rotate(90deg);
-        color: #3370ff;
+        color: var(--ed-color-primary);
       }
     }
 
     &.deactivate {
       .ed-icon {
         transform: rotate(0);
-        color: #3370ff;
+        color: var(--ed-color-primary);
       }
     }
   }

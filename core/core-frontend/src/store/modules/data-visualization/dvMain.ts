@@ -1,24 +1,34 @@
 import { defineStore } from 'pinia'
 import { store } from '../../index'
 import { deepCopy } from '@/utils/utils'
-import { BASE_VIEW_CONFIG } from '@/views/chart/components/editor/util/chart'
+import {
+  BASE_VIEW_CONFIG,
+  DEFAULT_INDICATOR_NAME_STYLE,
+  DEFAULT_INDICATOR_STYLE,
+  SENIOR_STYLE_SETTING_LIGHT
+} from '@/views/chart/components/editor/util/chart'
 import {
   DEFAULT_CANVAS_STYLE_DATA_DARK,
   DEFAULT_CANVAS_STYLE_DATA_LIGHT,
   DEFAULT_CANVAS_STYLE_DATA_SCREEN_DARK
-} from '@/views/chart/components/editor/util/dataVisualiztion'
+} from '@/views/chart/components/editor/util/dataVisualization'
 import { useEmitt } from '@/hooks/web/useEmitt'
 import chartViewManager from '@/views/chart/components/js/panel'
 import {
   COMMON_COMPONENT_BACKGROUND_BASE,
+  COMMON_COMPONENT_BACKGROUND_DARK,
+  COMMON_COMPONENT_BACKGROUND_LIGHT,
   defaultStyleValue,
   findBaseDeFaultAttr
 } from '@/custom-component/component-list'
 import { get, set } from 'lodash-es'
+import { viewFieldTimeTrans } from '@/utils/viewUtils'
 
 export const dvMainStore = defineStore('dataVisualization', {
   state: () => {
     return {
+      canvasAttachInfo: {}, // 仪表板附加信息
+      fullscreenFlag: false, // 全屏启用标识
       staticResourcePath: '/static-resource/',
       canvasCollapse: {
         defaultSide: false,
@@ -28,8 +38,16 @@ export const dvMainStore = defineStore('dataVisualization', {
         chartAreaCollapse: false,
         datasetAreaCollapse: false
       },
-      editMode: 'edit', // 编辑器模式 edit preview
+      canvasState: {
+        curPointArea: 'base' // 当前焦点所在画布区域  base 主画布区域 hidden 隐藏画布区域
+      },
+      embeddedCallBack: 'no', // 嵌入模式是否允许反馈参数
+      editMode: 'preview', // 编辑器模式 edit preview
+      mobileInPc: false,
+      inMobile: false,
+      firstLoadMap: [],
       canvasStyleData: { ...deepCopy(DEFAULT_CANVAS_STYLE_DATA_DARK), backgroundColor: null },
+      appData: null, //应用信息
       // 当前展示画布缓存数据
       componentDataCache: null,
       // PC布局画布组件数据
@@ -52,17 +70,24 @@ export const dvMainStore = defineStore('dataVisualization', {
       // 大屏基础信息
       dvInfo: {
         dataState: null,
+        optType: null,
         id: null,
         name: null,
         pid: null,
         status: null,
         selfWatermarkStatus: null,
-        type: null
+        watermarkInfo: {},
+        type: null,
+        mobileLayout: false
       },
       // 图表信息
       canvasViewInfo: {},
       // 图表展示数据信息
       canvasViewDataInfo: {},
+      // 图表实例信息
+      canvasViewInstanceInfo: {},
+      // 图表原始数据，未被联动、查询、下钻过滤
+      canvasViewOriginDataInfo: {},
       // 图表最新请求信息
       lastViewRequestInfo: {},
       // 仪表板基础矩阵信息
@@ -103,8 +128,8 @@ export const dvMainStore = defineStore('dataVisualization', {
         height: 1080
       },
       pcMatrixCount: {
-        x: 36,
-        y: 18
+        x: 72,
+        y: 36
       },
       mobileMatrixCount: {
         x: 6,
@@ -164,8 +189,17 @@ export const dvMainStore = defineStore('dataVisualization', {
     }
   },
   actions: {
+    setCanvasAttachInfo(value) {
+      this.canvasAttachInfo = value
+    },
+    setEmbeddedCallBack(value) {
+      this.embeddedCallBack = value
+    },
     setPublicLinkStatus(value) {
       this.publicLinkStatus = value
+    },
+    setFirstLoadMap(value) {
+      this.firstLoadMap = value
     },
     setDataPrepareState(value) {
       this.dataPrepareState = value
@@ -175,6 +209,9 @@ export const dvMainStore = defineStore('dataVisualization', {
     },
     aceSetCanvasData(value) {
       this.canvasStyleData = value
+    },
+    setInMobile(value) {
+      this.inMobile = value
     },
 
     aceSetCurComponent(value) {
@@ -194,23 +231,57 @@ export const dvMainStore = defineStore('dataVisualization', {
     setEditMode(mode) {
       this.editMode = mode
     },
+    setMobileInPc(mobileInPc) {
+      this.mobileInPc = mobileInPc
+    },
 
     setInEditorStatus(status) {
       this.isInEditor = status
     },
 
     setCanvasStyle(style) {
+      style.component['seniorStyleSetting'] =
+        style.component['seniorStyleSetting'] || deepCopy(SENIOR_STYLE_SETTING_LIGHT)
       this.canvasStyleData = style
+    },
+    setCanvasStyleScale(value) {
+      this.canvasStyleData.scale = value
     },
     setCanvasViewInfo(canvasViewInfo) {
       this.canvasViewInfo = canvasViewInfo
     },
-
+    getAppDataInfo() {
+      return this.appData
+    },
+    setAppDataInfo(appDataInfo) {
+      this.appData = appDataInfo
+    },
     setCurComponent({ component, index }) {
       if (!component && this.curComponent) {
         this.curComponent['editing'] = false
+        this.curComponent['resizing'] = false
+        this.curComponent['dragging'] = false
+        this.curComponent['canvasActive'] = false
+        // 如果当前组件不在主画布中 对应的分组的canvasActive 也要设置为false
+        if (this.curComponent.canvasId !== 'canvas-main') {
+          this.componentData.forEach(componentItem => {
+            if (this.curComponent.canvasId.includes(componentItem.id)) {
+              componentItem['canvasActive'] = false
+            }
+          })
+        }
+      }
+      if (!this.curComponent) {
+        this.componentData.forEach(componentItem => {
+          componentItem['canvasActive'] = false
+        })
       }
       if (component) {
+        this.componentData.forEach(componentItem => {
+          if (!component.canvasId.includes(componentItem.id)) {
+            componentItem['canvasActive'] = false
+          }
+        })
         // Is the current component in editing status
         if (!this.curComponent) {
           component['editing'] = false
@@ -220,12 +291,53 @@ export const dvMainStore = defineStore('dataVisualization', {
       }
       this.curComponent = component
       this.curComponentIndex = index
+      // 更新当前活动区域
+      if (this.curComponent && this.curComponent['category']) {
+        // 如果是图片 且图片配置了切换显示区
+        if (
+          this.curComponent.component !== 'Picture' ||
+          (this.curComponent.component === 'Picture' &&
+            (!this.curComponent.events?.checked ||
+              this.curComponent.events?.type !== 'displayChange'))
+        ) {
+          this.canvasState['curPointArea'] = this.curComponent['category']
+        }
+      }
     },
     setBashMatrixInfo(bashMatrixInfo) {
       this.bashMatrixInfo = bashMatrixInfo
     },
 
-    setShapeStyle({ top, left, width, height, rotate }) {
+    setShapeStyle(
+      { top, left, width, height, rotate },
+      areaDataComponents = [],
+      moveType = 'move',
+      baseGroupComponentsRadio = {}
+    ) {
+      if (this.curComponent.component === 'GroupArea' && areaDataComponents.length > 0) {
+        const topOffset = top - this.curComponent.style.top
+        const leftOffset = left - this.curComponent.style.left
+        const widthOffset = width - this.curComponent.style.width
+        const heightOffset = height - this.curComponent.style.height
+        if (moveType === 'move') {
+          areaDataComponents.forEach(component => {
+            component.style.top = component.style.top + topOffset
+            component.style.left = component.style.left + leftOffset
+            component.style.width = component.style.width + widthOffset
+            component.style.height = component.style.height + heightOffset
+          })
+        } else {
+          areaDataComponents.forEach(component => {
+            const componentRadio = baseGroupComponentsRadio[component.id]
+            if (componentRadio) {
+              component.style.top = top + height * componentRadio.topRadio
+              component.style.left = left + width * componentRadio.leftRadio
+              component.style.width = width * componentRadio.widthRadio
+              component.style.height = height * componentRadio.heightRadio
+            }
+          })
+        }
+      }
       if (this.dvInfo.type === 'dashboard') {
         if (top) this.curComponent.style.top = top < 0 ? 0 : Math.round(top)
         if (left) this.curComponent.style.left = left < 0 ? 0 : Math.round(left)
@@ -233,11 +345,11 @@ export const dvMainStore = defineStore('dataVisualization', {
         if (height) this.curComponent.style.height = Math.round(height)
         if (rotate) this.curComponent.style.rotate = Math.round(rotate)
       } else {
-        if (top) this.curComponent.style.top = Math.round(top)
-        if (left) this.curComponent.style.left = Math.round(left)
-        if (width) this.curComponent.style.width = Math.round(width)
-        if (height) this.curComponent.style.height = Math.round(height)
-        if (rotate) this.curComponent.style.rotate = Math.round(rotate)
+        if (top) this.curComponent.style.top = top
+        if (left) this.curComponent.style.left = left
+        if (width) this.curComponent.style.width = width
+        if (height) this.curComponent.style.height = height
+        if (rotate) this.curComponent.style.rotate = rotate
       }
     },
 
@@ -299,11 +411,23 @@ export const dvMainStore = defineStore('dataVisualization', {
       }
       //如果当前的组件是UserView 图表，则想canvasView中增加一项 UserView ID 和componentID保持一致
       if (component.component === 'UserView') {
+        const defaultConfig = JSON.parse(JSON.stringify(BASE_VIEW_CONFIG))
+        if (component.innerType === 'bar-range') {
+          defaultConfig.customStyle.xAxis.axisLine.show = false
+          defaultConfig.customStyle.xAxis.splitLine.show = true
+          defaultConfig.customStyle.yAxis.axisLine.show = true
+          defaultConfig.customStyle.yAxis.splitLine.show = false
+        }
         let newView = {
-          ...JSON.parse(JSON.stringify(BASE_VIEW_CONFIG)),
+          ...defaultConfig,
           id: component.id,
           type: component.innerType,
-          render: component.render
+          render: component.render,
+          isPlugin: component.isPlugin,
+          plugin: {
+            isPlugin: component.isPlugin,
+            staticMap: component.staticMap
+          }
         } as unknown as ChartObj
         // 处理配置项默认值，不同图表的同一配置项默认值不同
         const chartViewInstance = chartViewManager.getChartView(newView.render, newView.type)
@@ -329,7 +453,6 @@ export const dvMainStore = defineStore('dataVisualization', {
               borderShow: false,
               text,
               textColorShow: false,
-              labelColorShow: false,
               labelColor,
               borderColor,
               title: '',
@@ -339,7 +462,19 @@ export const dvMainStore = defineStore('dataVisualization', {
               titleColor,
               titleLayout,
               layout,
-              btnList: ['sure']
+              btnList: ['sure'],
+              fontSize: '14',
+              labelShow: true,
+              fontWeight: '',
+              fontStyle: '',
+              fontSizeBtn: '14',
+              fontWeightBtn: '',
+              fontStyleBtn: '',
+              queryConditionWidth: 227,
+              nameboxSpacing: 8,
+              queryConditionSpacing: 16,
+              labelColorBtn: '#ffffff',
+              btnColor: '#3370ff'
             }
           }
         }
@@ -350,6 +485,9 @@ export const dvMainStore = defineStore('dataVisualization', {
       this.linkageSettingStatus = true
       this.curLinkageView = this.curComponent
       this.targetLinkageInfo = targetLinkageInfo
+    },
+    setFullscreenFlag(val) {
+      this.fullscreenFlag = val
     },
     removeViewFilter(componentId) {
       this.componentData = this.componentData.map(item => {
@@ -401,6 +539,7 @@ export const dvMainStore = defineStore('dataVisualization', {
       if (item.linkageFilters && item.linkageFilters.length > 0) {
         const historyLinkageFiltersLength = item.linkageFilters.length
         const newList = item.linkageFilters.filter(linkage => linkage.sourceViewId !== viewId)
+        console.log('===newList= ' + JSON.stringify(newList))
         item.linkageFilters.splice(0, item.linkageFilters.length)
         // 重新push 可保证数组指针不变 可以watch到
         if (newList.length > 0) {
@@ -436,7 +575,7 @@ export const dvMainStore = defineStore('dataVisualization', {
       const id = componentInfo.id
       const componentType = componentInfo.component
       this.curBatchOptComponents.push(id)
-      // 视图批量操作
+      // 图表批量操作
       if (componentType === 'UserView') {
         // get view base info
         const viewBaseInfo = this.canvasViewInfo[id]
@@ -449,6 +588,12 @@ export const dvMainStore = defineStore('dataVisualization', {
           if (this.curBatchOptComponents.length === 1) {
             this.changeProperties.customAttr = viewBaseInfo.customAttr
             this.changeProperties.customStyle = viewBaseInfo.customStyle
+            // 补充历史指标卡缺失属性
+            this.changeProperties.customAttr['indicator'] =
+              this.changeProperties.customAttr.indicator || deepCopy(DEFAULT_INDICATOR_STYLE)
+            this.changeProperties.customAttr['indicatorName'] =
+              this.changeProperties.customAttr.indicatorName ||
+              deepCopy(DEFAULT_INDICATOR_NAME_STYLE)
           }
           this.batchOptComponents[id] = {
             properties: chartViewInstance.properties,
@@ -490,7 +635,11 @@ export const dvMainStore = defineStore('dataVisualization', {
             mode: 'batchOpt',
             render: batchAttachInfo.render,
             type: batchAttachInfo.type,
-            commonBackground: deepCopy(COMMON_COMPONENT_BACKGROUND_BASE),
+            commonBackground: deepCopy(
+              this.curOriginThemes === 'light'
+                ? COMMON_COMPONENT_BACKGROUND_LIGHT
+                : COMMON_COMPONENT_BACKGROUND_DARK
+            ),
             customAttr: this.changeProperties.customAttr,
             customStyle: this.changeProperties.customStyle
           }
@@ -548,7 +697,10 @@ export const dvMainStore = defineStore('dataVisualization', {
           mixPropertiesTemp = deepCopy(componentInfo.properties)
           mixPropertyInnerTemp = deepCopy(componentInfo.propertyInner)
         }
-        batchAttachInfo.type = componentInfo.value
+        batchAttachInfo.type =
+          batchAttachInfo.type === null || batchAttachInfo.type === componentInfo.value
+            ? componentInfo.value
+            : 'mix'
       }
       mixPropertiesTemp.forEach(property => {
         if (mixPropertyInnerTemp[property]) {
@@ -580,7 +732,9 @@ export const dvMainStore = defineStore('dataVisualization', {
           if (['tablePageMode', 'tablePageSize'].includes(propertyInfo.subProp)) {
             useEmitt().emitter.emit('calcData-' + viewId, viewInfo)
           } else {
-            useEmitt().emitter.emit('renderChart-' + viewId, viewInfo)
+            setTimeout(() => {
+              useEmitt().emitter.emit('renderChart-' + viewId, viewInfo)
+            }, 0)
           }
         })
       } else {
@@ -719,14 +873,22 @@ export const dvMainStore = defineStore('dataVisualization', {
     setNowPanelJumpInfo(jumpInfo) {
       this.nowPanelJumpInfo = jumpInfo.baseJumpInfoMap
     },
+    setNowPanelJumpInfoInner(jumpInfo) {
+      this.nowPanelJumpInfo = jumpInfo
+    },
     setNowTargetPanelJumpInfo(jumpInfo) {
       this.nowPanelJumpInfoTargetPanel = jumpInfo.baseJumpInfoVisualizationMap
+    },
+    setNowPanelOuterParamsInfo(outerParamsInfo) {
+      this.nowPanelOuterParamsInfo = outerParamsInfo.outerParamsInfoMap
     },
     // 添加联动 下钻 等查询组件
     addViewTrackFilter(data) {
       const viewId = data.viewId
       let trackInfo
       if (data.option === 'linkage') {
+        // 维度日期类型转换
+        viewFieldTimeTrans(this.canvasViewDataInfo[viewId], data)
         trackInfo = this.nowPanelTrackInfo
       } else {
         trackInfo = this.nowPanelJumpInfoTargetPanel
@@ -735,53 +897,187 @@ export const dvMainStore = defineStore('dataVisualization', {
       const checkQDList = [...data.dimensionList, ...data.quotaList]
       for (let indexOuter = 0; indexOuter < this.componentData.length; indexOuter++) {
         const element = this.componentData[indexOuter]
-        if (element.component === 'UserView' && element.innerType != 'VQuery') {
-          this.trackFilterCursor(element, checkQDList, trackInfo, preActiveComponentIds, viewId)
-          this.componentData[indexOuter] = element
-        } else if (element.component === 'Group') {
-          element.propValue.forEach((groupItem, index) => {
-            this.trackFilterCursor(groupItem, checkQDList, trackInfo, preActiveComponentIds, viewId)
-            element.propValue[index] = groupItem
-          })
-        } else if (element.component === 'DeTabs') {
-          element.propValue.forEach(tabItem => {
-            tabItem.componentData.forEach((tabComponent, index) => {
+        if (element.id !== viewId) {
+          if (['UserView', 'VQuery'].includes(element.component)) {
+            this.trackFilterCursor(element, checkQDList, trackInfo, preActiveComponentIds, viewId)
+            this.componentData[indexOuter] = element
+          } else if (element.component === 'Group') {
+            element.propValue.forEach((groupItem, index) => {
               this.trackFilterCursor(
-                tabComponent,
+                groupItem,
                 checkQDList,
                 trackInfo,
                 preActiveComponentIds,
                 viewId
               )
-              tabItem.componentData[index] = tabComponent
+              element.propValue[index] = groupItem
             })
-          })
+          } else if (element.component === 'DeTabs') {
+            element.propValue.forEach(tabItem => {
+              tabItem.componentData.forEach((tabComponent, index) => {
+                this.trackFilterCursor(
+                  tabComponent,
+                  checkQDList,
+                  trackInfo,
+                  preActiveComponentIds,
+                  viewId
+                )
+                tabItem.componentData[index] = tabComponent
+              })
+            })
+          }
         }
       }
       preActiveComponentIds.forEach(viewId => {
         useEmitt().emitter.emit('query-data-' + viewId)
       })
     },
+    // 添加外部参数的过滤条件
+    addOuterParamsFilter(params, curComponentData = this.componentData, source = 'inner') {
+      // params 结构 {key1:value1,key2:value2}
+      if (params) {
+        const preActiveComponentIds = []
+        const trackInfo = this.nowPanelOuterParamsInfo
+        for (let index = 0; index < curComponentData.length; index++) {
+          const element = curComponentData[index]
+          if (!['UserView', 'VQuery'].includes(element.component)) continue
+          const currentFilters = element.outerParamsFilters || [] // 外部参数信息
+
+          // 外部参数 可能会包含多个参数
+          Object.keys(params).forEach(function (sourceInfo) {
+            // 获取外部参数的值 sourceInfo 是外部参数名称 支持数组传入
+            let paramValue = params[sourceInfo]
+            let paramValueStr = params[sourceInfo]
+            const parmaValueSource = params[sourceInfo]
+            let operator = 'in'
+            if (paramValue && !Array.isArray(paramValue)) {
+              paramValue = [paramValue]
+              operator = 'eq'
+            } else if (paramValue && Array.isArray(paramValue)) {
+              paramValueStr = ''
+              paramValue.forEach((innerValue, index) => {
+                if (index === 0) {
+                  paramValueStr = innerValue
+                } else {
+                  paramValueStr = paramValueStr + ',' + innerValue
+                }
+              })
+            }
+            // 获取所有目标联动信息
+            const targetInfoList = trackInfo[sourceInfo] || []
+
+            targetInfoList.forEach(targetInfo => {
+              const targetInfoArray = targetInfo.split('#')
+              const targetViewId = targetInfoArray[0] // 目标视图
+              if (element.component === 'UserView' && element.id === targetViewId) {
+                // 如果目标视图 和 当前循环组件id相等 则进行条件增减
+                const targetFieldId = targetInfoArray[1] // 目标视图列ID
+                const condition = {
+                  fieldId: targetFieldId,
+                  operator: operator,
+                  value: paramValue,
+                  viewIds: [targetViewId]
+                }
+                let j = currentFilters.length
+                while (j--) {
+                  const filter = currentFilters[j]
+                  // 兼容性准备 viewIds 只会存放一个值
+                  if (targetFieldId === filter.fieldId && filter.viewIds.includes(targetViewId)) {
+                    currentFilters.splice(j, 1)
+                  }
+                }
+                // 不存在该条件 且 条件有效 直接保存该条件
+                // !filterExist && vValid && currentFilters.push(condition)
+                currentFilters.push(condition)
+                preActiveComponentIds.push(element.id)
+              }
+              if (element.component === 'VQuery') {
+                element.propValue.forEach(filterItem => {
+                  if (filterItem.id === targetViewId) {
+                    let queryParams = paramValue
+                    if (!['1', '7'].includes(filterItem.displayType)) {
+                      // 查询组件除了时间组件 其他入参只支持文本 这里全部转为文本
+                      queryParams = paramValue.map(number => String(number))
+                    }
+                    filterItem.defaultValueCheck = true
+                    filterItem.timeType = 'fixed'
+                    if (['0', '2'].includes(filterItem.displayType)) {
+                      // 0 文本类型 1 数字类型
+                      if (filterItem.multiple) {
+                        // multiple === true 多选
+                        filterItem.selectValue = queryParams
+                        filterItem.defaultValue = queryParams
+                      } else {
+                        // 单选
+                        filterItem.selectValue = queryParams[0]
+                        filterItem.defaultValue = queryParams[0]
+                      }
+                    } else if (filterItem.displayType === '1') {
+                      // 1 时间类型
+                      filterItem.selectValue = queryParams[0]
+                      filterItem.defaultValue = queryParams[0]
+                    } else if (filterItem.displayType === '7') {
+                      // 7 时间范围类型
+                      filterItem.selectValue = queryParams
+                      filterItem.defaultValue = queryParams
+                    } else if (filterItem.displayType === '8') {
+                      // 8 文本搜索
+                      filterItem.conditionValueF = parmaValueSource + ''
+                      filterItem.defaultConditionValueF = parmaValueSource + ''
+                    }
+                  }
+                })
+              }
+            })
+            if (element.component === 'UserView') {
+              element['outerParamsFilters'] = currentFilters
+            }
+            curComponentData[index] = element
+          })
+        }
+        if (source === 'outer') {
+          preActiveComponentIds.forEach(viewId => {
+            useEmitt().emitter.emit('query-data-' + viewId)
+          })
+        }
+      }
+    },
     trackFilterCursor(element, checkQDList, trackInfo, preActiveComponentIds, viewId) {
-      const currentFilters = element.linkageFilters || [] // 当前联动filter
+      let currentFilters = element.linkageFilters || [] // 当前联动filter
+      if (['table-info', 'table-normal'].includes(element.innerType)) {
+        currentFilters = []
+      }
       // 联动的图表情况历史条件
       // const currentFilters = []
       checkQDList.forEach(QDItem => {
         const sourceInfo = viewId + '#' + QDItem.id
         // 获取所有目标联动信息
         const targetInfoList = trackInfo[sourceInfo] || []
+        const paramValue = [QDItem.value]
         targetInfoList.forEach(targetInfo => {
           const targetInfoArray = targetInfo.split('#')
           const targetViewId = targetInfoArray[0] // 目标图表
-          if (element.id === targetViewId) {
+          if (element.component === 'UserView' && element.id === targetViewId) {
             // 如果目标图表 和 当前循环组件id相等 则进行条件增减
             const targetFieldId = targetInfoArray[1] // 目标图表列ID
-            const condition = {
-              fieldId: targetFieldId,
-              operator: 'eq',
-              value: [QDItem.value],
-              viewIds: [targetViewId],
-              sourceViewId: viewId
+            let condition
+            if (QDItem.timeValue && Array.isArray(QDItem.timeValue)) {
+              // 如果dimension.timeValue存在值且是数组 目前判断为是时间组件
+              condition = {
+                fieldId: targetFieldId,
+                operator: 'between',
+                value: QDItem.timeValue,
+                viewIds: [targetViewId],
+                sourceViewId: viewId
+              }
+            } else {
+              condition = {
+                fieldId: targetFieldId,
+                operator: 'eq',
+                value: [QDItem.value],
+                viewIds: [targetViewId],
+                sourceViewId: viewId
+              }
             }
             let j = currentFilters.length
             while (j--) {
@@ -795,6 +1091,43 @@ export const dvMainStore = defineStore('dataVisualization', {
             // !filterExist && vValid && currentFilters.push(condition)
             currentFilters.push(condition)
             preActiveComponentIds.includes(element.id) || preActiveComponentIds.push(element.id)
+          }
+          if (element.component === 'VQuery') {
+            element.propValue.forEach(filterItem => {
+              if (filterItem.id === targetViewId) {
+                let queryParams = paramValue
+                if (!['1', '7'].includes(filterItem.displayType)) {
+                  // 查询组件除了时间组件 其他入参只支持文本 这里全部转为文本
+                  queryParams = paramValue.map(number => String(number))
+                }
+                filterItem.defaultValueCheck = true
+                filterItem.timeType = 'fixed'
+                if (['0', '2'].includes(filterItem.displayType)) {
+                  // 0 文本类型 1 数字类型
+                  if (filterItem.multiple) {
+                    // multiple === true 多选
+                    filterItem.selectValue = queryParams
+                    filterItem.defaultValue = queryParams
+                  } else {
+                    // 单选
+                    filterItem.selectValue = queryParams[0]
+                    filterItem.defaultValue = queryParams[0]
+                  }
+                } else if (filterItem.displayType === '1') {
+                  // 1 时间类型
+                  filterItem.selectValue = queryParams[0]
+                  filterItem.defaultValue = queryParams[0]
+                } else if (filterItem.displayType === '7') {
+                  // 7 时间范围类型
+                  filterItem.selectValue = queryParams
+                  filterItem.defaultValue = queryParams
+                } else if (filterItem.displayType === '8') {
+                  // 8 文本搜索
+                  filterItem.conditionValueF = queryParams[0]
+                  filterItem.defaultConditionValueF = queryParams[0]
+                }
+              }
+            })
           }
         })
       })
@@ -845,12 +1178,15 @@ export const dvMainStore = defineStore('dataVisualization', {
     resetDvInfo() {
       this.dvInfo = {
         dataState: null,
+        optType: null,
         id: null,
         name: null,
         pid: null,
         status: null,
         selfWatermarkStatus: null,
-        type: null
+        watermarkInfo: {},
+        type: null,
+        mobileLayout: false
       }
     },
     setViewDataDetails(viewId, dataInfo) {
@@ -859,8 +1195,20 @@ export const dvMainStore = defineStore('dataVisualization', {
     getViewDataDetails(viewId) {
       return this.canvasViewDataInfo[viewId]
     },
+    setViewOriginData(viewId, dataInfo) {
+      this.canvasViewOriginDataInfo[viewId] = dataInfo
+    },
+    getViewOriginData(viewId) {
+      return this.canvasViewOriginDataInfo[viewId]
+    },
+    setViewInstanceInfo(viewId, instance) {
+      this.canvasViewInstanceInfo[viewId] = instance
+    },
+    getViewInstanceInfo(viewId) {
+      return this.canvasViewInstanceInfo[viewId]
+    },
     setLastViewRequestInfo(viewId, viewRequestInfo) {
-      this.lastViewRequestInfo[viewId] = viewRequestInfo.requestInfo
+      this.lastViewRequestInfo[viewId] = viewRequestInfo
     },
     getLastViewRequestInfo(viewId) {
       return this.lastViewRequestInfo[viewId]
@@ -871,19 +1219,38 @@ export const dvMainStore = defineStore('dataVisualization', {
     updateDvInfoId(newId) {
       if (this.dvInfo) {
         this.dvInfo.dataState = 'ready'
-        this.dvInfo.id = newId
+        this.dvInfo.optType = null
+        if (newId) {
+          this.dvInfo.id = newId
+        }
       }
     },
-    createInit(dvType, resourceId?, pid?) {
+    popAreaActiveSwitch() {
+      if (this.canvasState['curPointArea'] === 'base') {
+        this.canvasState['curPointArea'] = 'hidden'
+      } else {
+        this.canvasState['curPointArea'] = 'base'
+      }
+    },
+    canvasStateChange({ key, value }) {
+      if (this.canvasState[key] && value) {
+        this.canvasState[key] = value
+      }
+    },
+    createInit(dvType, resourceId?, pid?, watermarkInfo?, preName) {
       const optName = dvType === 'dashboard' ? '新建仪表板' : '新建数据大屏'
+      const name = preName ? preName : optName
       this.dvInfo = {
         dataState: 'prepare',
+        optType: null,
         id: resourceId,
-        name: optName,
+        name: name,
         pid: pid,
         type: dvType,
         status: 1,
-        selfWatermarkStatus: 0
+        selfWatermarkStatus: true,
+        watermarkInfo: watermarkInfo,
+        mobileLayout: false
       }
       const canvasStyleDataNew =
         dvType === 'dashboard'
@@ -894,19 +1261,49 @@ export const dvMainStore = defineStore('dataVisualization', {
       this.componentData = []
       this.canvasViewInfo = {}
     },
+    removeLinkageInfo(targetId) {
+      if (!!targetId && !!this.nowPanelTrackInfo) {
+        Object.keys(this.nowPanelTrackInfo).forEach(trackId => {
+          const targetInfo = this.nowPanelTrackInfo[trackId]
+          for (let i = 0; i < targetInfo.length; i++) {
+            if (targetInfo[i].indexOf(targetId) > -1) {
+              targetInfo.splice(i, 1)
+              i--
+            }
+          }
+        })
+        Object.keys(this.nowPanelTrackInfo).forEach(trackId => {
+          if (trackId.indexOf(targetId) > -1 || this.nowPanelTrackInfo[trackId].length === 0) {
+            delete this.nowPanelTrackInfo[trackId]
+          }
+        })
+      }
+    },
     canvasDataInit() {
       this.canvasViewInfo = {}
       this.componentData = []
       this.dvInfo = {
         dataState: null,
+        optType: null,
         id: null,
         name: null,
         pid: null,
         status: null,
         selfWatermarkStatus: null,
-        type: null
+        watermarkInfo: {},
+        type: null,
+        mobileLayout: false
       }
       this.canvasStyleData = { ...deepCopy(DEFAULT_CANVAS_STYLE_DATA_DARK), backgroundColor: null }
+    },
+    removeGroupArea(curComponentData = this.componentData) {
+      // 清理临时组件
+      const groupAreaHis = curComponentData.filter(ele => ele.component === 'GroupArea')
+      if (groupAreaHis && groupAreaHis.length > 0) {
+        groupAreaHis.forEach(ele => {
+          this.deleteComponentById(ele.id, curComponentData)
+        })
+      }
     }
   }
 })

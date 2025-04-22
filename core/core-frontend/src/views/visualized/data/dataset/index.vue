@@ -1,6 +1,9 @@
 <script lang="tsx" setup>
 import { useI18n } from '@/hooks/web/useI18n'
-import { ref, reactive, shallowRef, computed, watch, onBeforeMount, nextTick } from 'vue'
+import { ref, reactive, shallowRef, computed, watch, onBeforeMount, nextTick, unref } from 'vue'
+import ArrowSide from '@/views/common/DeResourceArrow.vue'
+import { useEmbedded } from '@/store/modules/embedded'
+import { useEmitt } from '@/hooks/web/useEmitt'
 import {
   ElIcon,
   ElMessageBox,
@@ -23,16 +26,20 @@ import { guid } from '@/views/visualized/data/dataset/form/util'
 import { save } from '@/api/visualization/dataVisualization'
 import { cloneDeep } from 'lodash-es'
 import { fieldType } from '@/utils/attr'
+import { useAppStoreWithOut } from '@/store/modules/app'
+import treeSort from '@/utils/treeSortUtils'
 
 import {
   DEFAULT_CANVAS_STYLE_DATA_LIGHT,
   DEFAULT_CANVAS_STYLE_DATA_SCREEN_DARK
-} from '@/views/chart/components/editor/util/dataVisualiztion'
+} from '@/views/chart/components/editor/util/dataVisualization'
 import type { TabPaneName } from 'element-plus-secondary'
 import { timestampFormatDate } from './form/util'
 import { interactiveStoreWithOut } from '@/store/modules/interactive'
 import { XpackComponent } from '@/components/plugin'
+import { useCache } from '@/hooks/web/useCache'
 const interactiveStore = interactiveStoreWithOut()
+const { wsCache } = useCache()
 interface Field {
   fieldShortName: string
   name: string
@@ -50,18 +57,23 @@ interface Node {
   createTime: number
   weight: number
 }
+const appStore = useAppStoreWithOut()
 const rootManage = ref(false)
 const nickName = ref('')
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const state = reactive({
-  datasetTree: [] as BusiTreeNode[]
+  datasetTree: [] as BusiTreeNode[],
+  curSortType: 'time_desc'
 })
 
 const resourceGroupOpt = ref()
 const curCanvasType = ref('')
+const mounted = ref(false)
 
+const isDataEaseBi = computed(() => appStore.getIsDataEaseBi)
+const isIframe = computed(() => appStore.getIsIframe)
 const createPanel = path => {
   const baseUrl = `#/${path}?opt=create&id=${nodeInfo.id}`
   window.open(baseUrl, '_blank')
@@ -71,6 +83,14 @@ const resourceOptFinish = param => {
   if (param && param.opt === 'newLeaf') {
     resourceCreate(param.pid, param.name)
   }
+}
+
+let originResourceTree = []
+
+const sortTypeChange = sortType => {
+  state.datasetTree = treeSort(originResourceTree, sortType)
+  state.curSortType = sortType
+  wsCache.set('TreeSort-dataset', state.curSortType)
 }
 
 const resourceCreate = (pid, name) => {
@@ -83,7 +103,7 @@ const resourceCreate = (pid, name) => {
     pid: pid,
     type: curCanvasType.value,
     status: 1,
-    selfWatermarkStatus: 0
+    selfWatermarkStatus: true
   }
   const canvasStyleDataNew =
     curCanvasType.value === 'dashboard'
@@ -146,7 +166,7 @@ const allFieldsColumns = [
   {
     key: 'description',
     dataKey: 'description',
-    title: '备注',
+    title: '字段备注',
     width: 250
   }
 ]
@@ -195,12 +215,17 @@ const getData = () => {
       if (nodeData.length && nodeData[0]['id'] === '0' && nodeData[0]['name'] === 'root') {
         rootManage.value = nodeData[0]['weight'] >= 7
         state.datasetTree = nodeData[0]['children'] || []
+        originResourceTree = cloneDeep(unref(state.datasetTree))
+        sortTypeChange(state.curSortType)
         return
       }
       state.datasetTree = nodeData
+      originResourceTree = cloneDeep(unref(state.datasetTree))
+      sortTypeChange(state.curSortType)
     })
     .finally(() => {
       dtLoading.value = false
+      mounted.value = true
       nextTick(() => {
         if (!!nickName.value.length) {
           datasetListTree.value.filter(nickName.value)
@@ -234,6 +259,7 @@ const dfsDatasetTree = (ds, id) => {
 
 onBeforeMount(() => {
   nodeInfo.id = (route.params.id as string) || ''
+  loadInit()
   getData()
 })
 
@@ -258,15 +284,17 @@ const handleNodeClick = (data: BusiTreeNode) => {
 }
 
 const editorDataset = () => {
-  router.push({
-    path: '/dataset-form',
-    query: {
-      id: nodeInfo.id
-    }
-  })
+  handleEdit(nodeInfo.id)
 }
+const embedded = useEmbedded()
 
 const handleEdit = id => {
+  if (isDataEaseBi.value) {
+    embedded.clearState()
+    embedded.setDatasetId(id as string)
+    useEmitt().emitter.emit('changeCurrentComponent', 'DatasetEditor')
+    return
+  }
   router.push({
     path: '/dataset-form',
     query: {
@@ -276,6 +304,12 @@ const handleEdit = id => {
 }
 
 const createDataset = (data?: BusiTreeNode) => {
+  if (isDataEaseBi.value) {
+    embedded.clearState()
+    embedded.setdatasetPid(data?.id as string)
+    useEmitt().emitter.emit('changeCurrentComponent', 'DatasetEditor')
+    return
+  }
   router.push({
     path: '/dataset-form',
     query: {
@@ -320,6 +354,21 @@ const handleClick = (tabName: TabPaneName) => {
 }
 
 const operation = (cmd: string, data: BusiTreeNode, nodeType: string) => {
+  if (cmd === 'copy') {
+    if (isDataEaseBi.value) {
+      embedded.clearState()
+      embedded.setDatasetCopyId(data.id as string)
+      useEmitt().emitter.emit('changeCurrentComponent', 'DatasetEditor')
+      return
+    }
+    router.push({
+      name: 'dataset-form',
+      params: {
+        id: data.id
+      }
+    })
+    return
+  }
   if (cmd === 'delete') {
     let options = {
       confirmButtonType: 'danger',
@@ -381,47 +430,142 @@ const menuList = [
 const expandedKey = ref([])
 
 const nodeExpand = data => {
-  expandedKey.value.push(data.id)
+  if (data.id) {
+    expandedKey.value.push(data.id)
+  }
 }
 
 const nodeCollapse = data => {
-  expandedKey.value = expandedKey.value.filter(ele => ele !== data.id)
+  if (data.id) {
+    expandedKey.value.splice(expandedKey.value.indexOf(data.id), 1)
+  }
 }
 
-const datasetTypeList = [
-  {
-    label: '新建数据集',
-    svgName: 'icon_dataset',
-    command: 'dataset'
-  },
-  {
-    label: t('deDataset.new_folder'),
-    divided: true,
-    svgName: 'dv-folder',
-    command: 'folder'
-  }
-]
+const datasetTypeList = computed(() => {
+  return [
+    {
+      label: '新建数据集',
+      svgName: 'icon_dataset',
+      command: 'dataset'
+    },
+    {
+      label: t('deDataset.new_folder'),
+      divided: true,
+      svgName: 'dv-folder',
+      command: 'folder'
+    }
+  ]
+})
 
 const defaultProps = {
   children: 'children',
   label: 'name'
 }
 
+const defaultTab = [
+  {
+    title: t('chart.data_preview'),
+    name: 'dataPreview'
+  },
+  {
+    title: '结构预览',
+    name: 'structPreview'
+  }
+]
+
+const sortList = [
+  {
+    name: '按创建时间升序',
+    value: 'time_asc'
+  },
+  {
+    name: '按创建时间降序',
+    value: 'time_desc',
+    divided: true
+  },
+  {
+    name: '按照名称升序',
+    value: 'name_asc'
+  },
+  {
+    name: '按照名称降序',
+    value: 'name_desc'
+  }
+]
+
+const loadInit = () => {
+  const historyTreeSort = wsCache.get('TreeSort-dataset')
+  if (historyTreeSort) {
+    state.curSortType = historyTreeSort
+  }
+}
+
+const sortTypeTip = computed(() => {
+  return sortList.find(ele => ele.value === state.curSortType).name
+})
+
+const tablePanes = ref([])
+const tablePaneList = computed(() => {
+  return nodeInfo.weight >= 7 ? [...defaultTab, ...tablePanes.value] : [...defaultTab]
+})
+const panelLoad = paneInfo => {
+  tablePanes.value = paneInfo
+}
 const datasetListTree = ref()
 
 watch(nickName, (val: string) => {
   datasetListTree.value.filter(val)
 })
+const sideTreeStatus = ref(true)
+const changeSideTreeStatus = val => {
+  sideTreeStatus.value = val
+}
 
 const filterNode = (value: string, data: BusiTreeNode) => {
   if (!value) return true
-  return data.name?.toLocaleLowerCase().includes(value.toLocaleLowerCase())
+  return data.name?.toLowerCase().includes(value.toLowerCase())
+}
+const mouseenter = () => {
+  appStore.setArrowSide(true)
+}
+
+const mouseleave = () => {
+  appStore.setArrowSide(false)
+}
+
+const getMenuList = (val: boolean) => {
+  return !val
+    ? menuList
+    : [
+        {
+          label: t('common.copy'),
+          svgName: 'icon_copy_filled',
+          command: 'copy'
+        }
+      ].concat(menuList)
 }
 </script>
 
 <template>
-  <div class="dataset-manage" v-loading="dtLoading">
-    <el-aside class="resource-area" ref="node" :style="{ width: width + 'px' }">
+  <div class="dataset-manage" :class="isIframe && 'de-100vh'" v-loading="dtLoading">
+    <ArrowSide
+      :style="{ left: (sideTreeStatus ? width - 12 : 0) + 'px' }"
+      @change-side-tree-status="changeSideTreeStatus"
+      :isInside="!sideTreeStatus"
+    ></ArrowSide>
+    <el-aside
+      class="resource-area"
+      @mouseenter="mouseenter"
+      @mouseleave="mouseleave"
+      :class="{ retract: !sideTreeStatus }"
+      ref="node"
+      :style="{ width: width + 'px' }"
+    >
+      <ArrowSide
+        :isInside="!sideTreeStatus"
+        :style="{ left: (sideTreeStatus ? width - 12 : 0) + 'px' }"
+        @change-side-tree-status="changeSideTreeStatus"
+      ></ArrowSide>
       <div class="resource-tree">
         <div class="tree-header">
           <div class="icon-methods">
@@ -460,6 +604,38 @@ const filterNode = (value: string, data: BusiTreeNode) => {
               </el-icon>
             </template>
           </el-input>
+          <el-dropdown @command="sortTypeChange" trigger="click">
+            <el-icon class="filter-icon-span">
+              <el-tooltip :offset="16" effect="dark" :content="sortTypeTip" placement="top">
+                <Icon
+                  v-if="state.curSortType.includes('asc')"
+                  name="dv-sort-asc"
+                  class="opt-icon"
+                ></Icon>
+              </el-tooltip>
+              <el-tooltip :offset="16" effect="dark" :content="sortTypeTip" placement="top">
+                <Icon
+                  v-show="state.curSortType.includes('desc')"
+                  name="dv-sort-desc"
+                  class="opt-icon"
+                ></Icon>
+              </el-tooltip>
+            </el-icon>
+            <template #dropdown>
+              <el-dropdown-menu style="width: 246px">
+                <template :key="ele.value" v-for="ele in sortList">
+                  <el-dropdown-item
+                    class="ed-select-dropdown__item"
+                    :class="ele.value === state.curSortType && 'selected'"
+                    :command="ele.value"
+                  >
+                    {{ ele.name }}
+                  </el-dropdown-item>
+                  <li v-if="ele.divided" class="ed-dropdown-menu__item--divided"></li>
+                </template>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
 
         <el-scrollbar class="custom-tree">
@@ -469,6 +645,8 @@ const filterNode = (value: string, data: BusiTreeNode) => {
             node-key="id"
             :data="state.datasetTree"
             :filter-node-method="filterNode"
+            expand-on-click-node
+            highlight-current
             @node-expand="nodeExpand"
             @node-collapse="nodeCollapse"
             :default-expanded-keys="expandedKey"
@@ -493,12 +671,12 @@ const filterNode = (value: string, data: BusiTreeNode) => {
                     placement="bottom-start"
                     v-if="!data.leaf"
                   ></handle-more>
-                  <el-icon class="hover-icon" @click.stop="handleEdit(data.id)" v-else>
+                  <el-icon v-else class="hover-icon" @click.stop="handleEdit(data.id)">
                     <icon name="icon_edit_outlined"></icon>
                   </el-icon>
                   <handle-more
                     @handle-command="cmd => operation(cmd, data, data.leaf ? 'dataset' : 'folder')"
-                    :menu-list="menuList"
+                    :menu-list="getMenuList(data.leaf)"
                   ></handle-more>
                 </div>
               </span>
@@ -508,8 +686,13 @@ const filterNode = (value: string, data: BusiTreeNode) => {
       </div>
     </el-aside>
 
-    <div class="dataset-content">
-      <template v-if="!state.datasetTree.length">
+    <div
+      class="dataset-content"
+      :class="{
+        auto: isIframe || isDataEaseBi
+      }"
+    >
+      <template v-if="!state.datasetTree.length && mounted">
         <empty-background description="暂无数据集" img-type="none">
           <el-button v-if="rootManage" @click="() => createDataset()" type="primary">
             <template #icon>
@@ -560,19 +743,17 @@ const filterNode = (value: string, data: BusiTreeNode) => {
           </div>
           <div class="tab-border">
             <el-tabs v-model="activeName" @tab-change="handleClick">
-              <el-tab-pane :label="t('chart.data_preview')" name="dataPreview"></el-tab-pane>
-              <el-tab-pane label="结构预览" name="structPreview"></el-tab-pane>
               <el-tab-pane
-                v-if="nodeInfo.weight >= 7"
-                :label="t('dataset.row_permissions')"
-                name="row"
-              ></el-tab-pane>
-              <el-tab-pane
-                v-if="nodeInfo.weight >= 7"
-                :label="t('dataset.column_permissions')"
-                name="column"
+                v-for="ele in tablePaneList"
+                :key="ele.name"
+                :label="ele.title"
+                :name="ele.name"
               ></el-tab-pane>
             </el-tabs>
+            <XpackComponent
+              jsname="L2NvbXBvbmVudC9yb3ctY29sLXBlcm1pc3Npb24vcGFuZS9pbmRleA=="
+              @loaded="panelLoad"
+            />
           </div>
         </div>
         <div class="dataset-table-info">
@@ -581,9 +762,10 @@ const filterNode = (value: string, data: BusiTreeNode) => {
           </div>
           <template v-if="['dataPreview', 'structPreview'].includes(activeName)">
             <div class="info-table" :class="[{ 'struct-preview': activeName === 'structPreview' }]">
-              <el-auto-resizer>
+              <el-auto-resizer v-if="activeName === 'structPreview'">
                 <template #default="{ height, width }">
                   <el-table-v2
+                    key="structPreview"
                     :columns="columns"
                     v-loading="dataPreviewLoading"
                     header-class="header-cell"
@@ -596,6 +778,42 @@ const filterNode = (value: string, data: BusiTreeNode) => {
                   ></el-table-v2>
                 </template>
               </el-auto-resizer>
+              <template v-if="activeName === 'dataPreview'">
+                <el-table
+                  v-loading="dataPreviewLoading"
+                  header-class="header-cell"
+                  :data="tableData"
+                  key="dataPreview"
+                  border
+                  style="width: 100%; height: 100%"
+                >
+                  <el-table-column
+                    :key="column.dataKey"
+                    v-for="(column, index) in columns"
+                    :prop="column.dataKey"
+                    :label="column.title"
+                    :width="columns.length - 1 === index ? 150 : 'auto'"
+                    :fixed="columns.length - 1 === index ? 'right' : false"
+                  >
+                    <template #header>
+                      <div class="flex-align-center">
+                        <ElIcon style="margin-right: 6px">
+                          <Icon
+                            :name="`field_${fieldType[column.deType]}`"
+                            :className="`field-icon-${fieldType[column.deType]}`"
+                          ></Icon>
+                        </ElIcon>
+                        <span class="ellipsis" :title="column.title" style="width: 120px">
+                          {{ column.title }}
+                        </span>
+                      </div>
+                    </template>
+                  </el-table-column>
+                  <template #empty>
+                    <empty-background description="暂无数据" img-type="noneWhite" />
+                  </template>
+                </el-table>
+              </template>
             </div>
           </template>
           <template v-if="['row', 'column'].includes(activeName)">
@@ -614,7 +832,7 @@ const filterNode = (value: string, data: BusiTreeNode) => {
           </template>
         </div>
       </template>
-      <template v-else>
+      <template v-else-if="mounted">
         <empty-background :description="t('deDataset.on_the_left')" img-type="select" />
       </template>
     </div>
@@ -629,11 +847,43 @@ const filterNode = (value: string, data: BusiTreeNode) => {
 
 <style lang="less" scoped>
 @import '@/style/mixin.less';
+
+.ed-table {
+  --ed-table-header-bg-color: #f5f6f7;
+}
+
+.filter-icon-span {
+  border: 1px solid #bbbfc4;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  color: #1f2329;
+  padding: 8px;
+  margin-left: 8px;
+  font-size: 16px;
+  cursor: pointer;
+
+  .opt-icon:focus {
+    outline: none !important;
+  }
+  &:hover {
+    background: #f5f6f7;
+  }
+
+  &:active {
+    background: #eff0f1;
+  }
+}
 .dataset-manage {
   display: flex;
   width: 100%;
   height: 100%;
   background: #fff;
+  position: relative;
+
+  &.de-100vh {
+    height: 100vh;
+  }
 
   .resource-area {
     position: relative;
@@ -642,6 +892,9 @@ const filterNode = (value: string, data: BusiTreeNode) => {
     padding: 0;
     border-right: 1px solid #d7d7d7;
     overflow: visible;
+    &.retract {
+      display: none;
+    }
 
     .resource-tree {
       padding: 16px 0 0;
@@ -661,7 +914,7 @@ const filterNode = (value: string, data: BusiTreeNode) => {
         font-size: 20px;
         font-weight: 500;
         color: var(--TextPrimary, #1f2329);
-        padding-bottom: 10px;
+        padding-bottom: 16px;
 
         .title {
           margin-right: auto;
@@ -673,7 +926,7 @@ const filterNode = (value: string, data: BusiTreeNode) => {
 
         .custom-icon {
           &.btn {
-            color: #3370ff;
+            color: var(--ed-color-primary);
           }
 
           &:hover {
@@ -684,6 +937,7 @@ const filterNode = (value: string, data: BusiTreeNode) => {
 
       .search-bar {
         padding-bottom: 10px;
+        width: calc(100% - 40px);
       }
     }
   }
@@ -697,6 +951,9 @@ const filterNode = (value: string, data: BusiTreeNode) => {
 
   .dataset-content {
     background: #f5f6f7;
+    &.auto {
+      height: auto;
+    }
   }
 
   .dataset-list {
@@ -718,7 +975,7 @@ const filterNode = (value: string, data: BusiTreeNode) => {
         width: 100%;
         display: flex;
         align-items: center;
-        font-family: PingFang SC;
+        font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
         font-size: 16px;
         font-weight: 500;
 
@@ -764,7 +1021,7 @@ const filterNode = (value: string, data: BusiTreeNode) => {
 
     .preview-num {
       color: var(--deTextSecondary, #606266);
-      font-family: PingFang SC;
+      font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
       font-size: 14px;
       font-weight: 400;
       line-height: 22px;

@@ -99,6 +99,10 @@ htmlStream.pipe(parserStream).on('finish', () => {
         }
         if (url.includes(suffix)) {
           prefix = new URL(url).origin
+          const index = url.indexOf(\`/js/div_import_${suffix}\`)
+          if (index > 0) {
+            prefix = url.substring(0, index)
+          }
           return true
         }
       }
@@ -114,7 +118,8 @@ htmlStream.pipe(parserStream).on('finish', () => {
     let element = document.createElement(name)
     Object.entries(obj).forEach(([key, value]) => {
       if (['href', 'src'].includes(key)) {
-        element[key] = \`\${preUrl}\${value}\`
+        const relativeVal = value.startsWith('./') ? value.substr(1) : value
+        element[key] = \`\${preUrl}\${relativeVal}\`
       } else {
         element.setAttribute(key, value || '')
       }
@@ -129,10 +134,8 @@ htmlStream.pipe(parserStream).on('finish', () => {
   document.documentElement.insertBefore(head, document.querySelector('head'))`
 
   fs.writeFile('../dist/demo.html', template, err => {
-    console.log('写入成功')
   })
 
   fs.writeFile(`../dist/js/div_import_${suffix}.js`, templateJs, err => {
-    console.log('写入成功templateJs')
   })
 })

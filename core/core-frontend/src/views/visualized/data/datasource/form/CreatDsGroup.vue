@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
-import { checkRepeat, listDatasources, save } from '@/api/datasource'
+import { checkRepeat, listDatasources, save, update } from '@/api/datasource'
 import { ElMessage, ElMessageBox, ElMessageBoxOptions } from 'element-plus-secondary'
 import type { DatasetOrFolder } from '@/api/dataset'
 import nothingTree from '@/assets/img/nothing-tree.png'
@@ -107,7 +107,10 @@ const showAll = ref(true)
 const datasource = ref()
 const loading = ref(false)
 const createDataset = ref(false)
-const filterMethod = (value, data) => data.name.includes(value)
+const filterMethod = (value, data) => {
+  if (!data) return false
+  data.name.includes(value)
+}
 const resetForm = () => {
   createDataset.value = false
 }
@@ -233,7 +236,6 @@ const saveDataset = () => {
         nodeType: nodeType.value as 'folder' | 'datasource',
         name: datasetForm.name
       }
-
       switch (cmd.value) {
         case 'move':
           params.pid = activeAll.value ? '0' : (datasetForm.pid as string)
@@ -257,6 +259,9 @@ const saveDataset = () => {
       if (cmd.value === 'move' && !checkPid(params.pid)) {
         return
       }
+      if (loading.value) {
+        return
+      }
       loading.value = true
       if (request) {
         let options = {
@@ -266,15 +271,17 @@ const saveDataset = () => {
           showClose: false,
           tip: ''
         }
+        request.apiConfiguration = ''
         checkRepeat(request).then(res => {
+          let method = request.id === '' ? save : update
           if (res) {
-            ElMessageBox.confirm(t('datasource.has_same_ds'), options as ElMessageBoxOptions).then(
-              () => {
-                save({ ...request, name: datasetForm.name, pid: params.pid })
+            ElMessageBox.confirm(t('datasource.has_same_ds'), options as ElMessageBoxOptions)
+              .then(() => {
+                method({ ...request, name: datasetForm.name, pid: params.pid })
                   .then(res => {
                     if (res !== undefined) {
                       wsCache.set('ds-new-success', true)
-                      emits('handleShowFinishPage', res)
+                      emits('handleShowFinishPage', { ...res, pid: params.pid })
                       ElMessage.success('保存数据源成功')
                       successCb()
                     }
@@ -282,14 +289,18 @@ const saveDataset = () => {
                   .finally(() => {
                     loading.value = false
                   })
-              }
-            )
+              })
+              .catch(() => {
+                console.log('aaa')
+                loading.value = false
+                createDataset.value = false
+              })
           } else {
-            save({ ...request, name: datasetForm.name, pid: params.pid })
+            method({ ...request, name: datasetForm.name, pid: params.pid })
               .then(res => {
                 if (res !== undefined) {
                   wsCache.set('ds-new-success', true)
-                  emits('handleShowFinishPage', res)
+                  emits('handleShowFinishPage', { ...res, pid: params.pid })
                   ElMessage.success('保存数据源成功')
                   successCb()
                 }
@@ -432,7 +443,7 @@ const emits = defineEmits(['finish', 'handleShowFinishPage'])
       margin-bottom: 8px;
     }
     span {
-      font-family: PingFang SC;
+      font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
       font-size: 14px;
       font-weight: 400;
       line-height: 22px;

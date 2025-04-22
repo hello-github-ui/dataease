@@ -5,7 +5,7 @@
     <parent>
         <artifactId>dataease</artifactId>
         <groupId>io.dataease</groupId>
-        <version>2.0.0</version>
+        <version>${dataease.version}</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
@@ -16,6 +16,7 @@
         <module>common</module>
         <module>api</module>
         <module>distributed</module>
+        <module>extensions</module>
     </modules>
 
 </project>

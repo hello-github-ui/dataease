@@ -16,6 +16,7 @@ import { deepCopy } from '@/utils/utils'
 import { useEmitt } from '@/hooks/web/useEmitt'
 import { merge } from 'lodash-es'
 import CanvasBackground from '@/components/visualization/component-background/CanvasBackground.vue'
+import SeniorStyleSetting from '@/components/dashboard/subject-setting/dashboard-style/SeniorStyleSetting.vue'
 const dvMainStore = dvMainStoreWithOut()
 const snapshotStore = snapshotStoreWithOut()
 const { canvasStyleData, componentData, canvasViewInfo } = storeToRefs(dvMainStore)
@@ -54,16 +55,20 @@ const themeAttrChange = (custom, property, value) => {
   if (canvasAttrInit) {
     Object.keys(canvasViewInfo.value).forEach(function (viewId) {
       const viewInfo = canvasViewInfo.value[viewId]
-      if (custom === 'customAttr') {
-        merge(viewInfo['customAttr'], value)
-      } else {
-        Object.keys(value).forEach(function (key) {
-          if (viewInfo[custom][property][key] !== undefined) {
-            viewInfo[custom][property][key] = value[key]
-          }
-        })
+      try {
+        if (custom === 'customAttr') {
+          merge(viewInfo['customAttr'], value)
+        } else {
+          Object.keys(value).forEach(function (key) {
+            if (viewInfo[custom][property][key] !== undefined) {
+              viewInfo[custom][property][key] = value[key]
+            }
+          })
+        }
+        useEmitt().emitter.emit('renderChart-' + viewId, viewInfo)
+      } catch (e) {
+        console.warn('themeAttrChange-error')
       }
-      useEmitt().emitter.emit('renderChart-' + viewId, viewInfo)
     })
     snapshotStore.recordSnapshotCache('renderChart')
   }
@@ -141,6 +146,13 @@ const saveSelfSubject = () => {
         >
           <filter-style-simple-selector />
         </el-collapse-item>
+        <el-collapse-item
+          title="高级样式设置"
+          name="seniorStyleSetting"
+          class="no-padding no-border-bottom"
+        >
+          <senior-style-setting></senior-style-setting>
+        </el-collapse-item>
       </el-collapse>
     </el-row>
   </div>
@@ -164,6 +176,7 @@ const saveSelfSubject = () => {
     position: absolute;
     top: 4px;
     right: 4px;
+    font-size: 12px;
   }
 }
 
@@ -234,7 +247,7 @@ const saveSelfSubject = () => {
 
     &:hover {
       .ed-icon {
-        color: #3370ff;
+        color: var(--ed-color-primary);
       }
     }
   }
@@ -290,7 +303,7 @@ const saveSelfSubject = () => {
 
 .re-update-span {
   cursor: pointer;
-  color: #3370ff;
+  color: var(--ed-color-primary);
   size: 14px;
   line-height: 22px;
   font-weight: 400;

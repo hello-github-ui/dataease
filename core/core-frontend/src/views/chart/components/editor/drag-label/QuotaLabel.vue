@@ -20,7 +20,7 @@ const props = defineProps({
       v-else-if="
         props.view.type &&
         (includesAny(props.view.type, 'bar', 'line', 'scatter') ||
-          equalsAny(props.view.type, 'waterfall', 'area', 'area-stack', 'flow-map'))
+          equalsAny(props.view.type, 'waterfall', 'area', 'area-stack', 'flow-map', 'symbolic-map'))
       "
       >{{ t('chart.drag_block_value_axis') }}</span
     >
@@ -36,7 +36,7 @@ const props = defineProps({
     <span v-else-if="props.view.type && props.view.type.includes('gauge')">{{
       t('chart.drag_block_gauge_angel')
     }}</span>
-    <span v-else-if="props.view.type && props.view.type.includes('text')">{{
+    <span v-else-if="props.view.type && props.view.type.includes('indicator')">{{
       t('chart.drag_block_label_value')
     }}</span>
     <span v-else-if="props.view.type && props.view.type === 'map'">{{
@@ -45,7 +45,7 @@ const props = defineProps({
     <span v-else-if="props.view.type && props.view.type.includes('tree')">{{
       t('chart.drag_block_treemap_size')
     }}</span>
-    <span v-else-if="props.view.type && props.view.type === 'chart-mix'">{{
+    <span v-else-if="props.view.type && props.view.type.includes('chart-mix')">{{
       t('chart.drag_block_value_axis_main')
     }}</span>
     <span v-else-if="props.view.type && props.view.type === 'liquid'">{{

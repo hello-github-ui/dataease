@@ -7,7 +7,11 @@ import { usePermissionStoreWithOut, pathValid, getFirstAuthMenu } from '@/store/
 import { usePageLoading } from '@/hooks/web/usePageLoading'
 import { getRoleRouters } from '@/api/common'
 import { useCache } from '@/hooks/web/useCache'
+import { isMobile, checkPlatform, isLarkPlatform, isPlatformClient } from '@/utils/utils'
 import { interactiveStoreWithOut } from '@/store/modules/interactive'
+import { useAppearanceStoreWithOut } from '@/store/modules/appearance'
+import { useEmbedded } from '@/store/modules/embedded'
+const appearanceStore = useAppearanceStoreWithOut()
 const { wsCache } = useCache()
 const permissionStore = usePermissionStoreWithOut()
 const interactiveStore = interactiveStoreWithOut()
@@ -18,17 +22,35 @@ const { start, done } = useNProgress()
 
 const { loadStart, loadDone } = usePageLoading()
 
-const whiteList = ['/login', '/de-link'] // 不重定向白名单
-
+const whiteList = ['/login', '/de-link', '/chart-view', '/notSupport', '/admin-login', '/401'] // 不重定向白名单
+const embeddedWindowWhiteList = ['/dvCanvas', '/dashboard', '/preview', '/dataset-embedded-form']
+const embeddedRouteWhiteList = ['/dataset-embedded', '/dataset-form', '/dataset-embedded-form']
 router.beforeEach(async (to, from, next) => {
   start()
   loadStart()
+  checkPlatform()
   let isDesktop = wsCache.get('app.desktop')
   if (isDesktop === null) {
     await appStore.setAppModel()
     isDesktop = appStore.getDesktop
   }
-  if (wsCache.get('user.token') || isDesktop) {
+  if (isMobile() && !['/notSupport', '/chart-view'].includes(to.path)) {
+    done()
+    loadDone()
+    if (to.name === 'link') {
+      window.location.href = window.origin + '/mobile.html#' + to.path
+    } else if (to.path === '/dvCanvas') {
+      next('/notSupport')
+    } else if (
+      wsCache.get('user.token') ||
+      isDesktop ||
+      (!isPlatformClient() && !isLarkPlatform())
+    ) {
+      window.location.href = window.origin + '/mobile.html#/index'
+    }
+  }
+  await appearanceStore.setAppearance()
+  if ((wsCache.get('user.token') || isDesktop) && !to.path.startsWith('/de-link/')) {
     if (!userStore.getUid) {
       await userStore.setUser()
     }
@@ -85,7 +107,23 @@ router.beforeEach(async (to, from, next) => {
       next(nextData)
     }
   } else {
-    if (whiteList.indexOf(to.path) !== -1 || to.path.startsWith('/de-link/')) {
+    const embeddedStore = useEmbedded()
+    if (
+      embeddedStore.getToken &&
+      appStore.getIsIframe &&
+      embeddedRouteWhiteList.includes(to.path)
+    ) {
+      if (to.path.includes('/dataset-form')) {
+        next({ path: '/dataset-embedded-form', query: to.query })
+        return
+      }
+      permissionStore.setCurrentPath(to.path)
+      next()
+    } else if (
+      embeddedWindowWhiteList.includes(to.path) ||
+      whiteList.includes(to.path) ||
+      to.path.startsWith('/de-link/')
+    ) {
       permissionStore.setCurrentPath(to.path)
       next()
     } else {

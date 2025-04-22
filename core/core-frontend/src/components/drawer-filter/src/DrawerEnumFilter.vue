@@ -53,11 +53,12 @@ defineExpose({
 <style lang="less" scope>
 .filter {
   display: flex;
+  align-items: center;
   min-height: 46px;
 
   > :nth-child(1) {
     color: var(--deTextSecondary, #1f2329);
-    font-family: 'PingFang SC';
+    font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
     font-style: normal;
     font-weight: 400;
     font-size: 14px;
@@ -71,7 +72,7 @@ defineExpose({
 
     .item,
     .more {
-      font-family: PingFang SC;
+      font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
       white-space: nowrap;
       font-size: 14px;
       font-weight: 400;
@@ -84,12 +85,12 @@ defineExpose({
       border-radius: 2px;
       cursor: pointer;
       display: inline-block;
-      margin-bottom: 12px;
+      // margin-bottom: 12px;
     }
 
     .active,
     .more:hover {
-      background: var(--primary10, rgba(51, 112, 255, 0.1));
+      background: var(--primary10, var(--ed-color-primary-1a, rgba(51, 112, 255, 0.1)));
       color: var(--primaryselect, #0c296e);
     }
 

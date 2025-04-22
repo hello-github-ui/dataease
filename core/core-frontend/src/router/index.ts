@@ -21,11 +21,48 @@ export const routes: AppRouteRecordRaw[] = [
     ]
   },
   {
+    path: '/copilot',
+    name: 'copilot',
+    component: () => import('@/layout/index.vue'),
+    hidden: true,
+    meta: {},
+    children: [
+      {
+        path: 'index',
+        name: 'cpt',
+        hidden: true,
+        component: () => import('@/views/copilot/index.vue'),
+        meta: { hidden: true }
+      }
+    ]
+  },
+  {
+    path: '/notSupport',
+    name: 'notSupport',
+    hidden: true,
+    meta: {},
+    component: () => import('@/views/mobile/panel/NotSupport.vue')
+  },
+  {
     path: '/login',
     name: 'login',
     hidden: true,
     meta: {},
     component: () => import('@/views/login/index.vue')
+  },
+  {
+    path: '/admin-login',
+    name: 'admin-login',
+    hidden: true,
+    meta: {},
+    component: () => import('@/views/login/index.vue')
+  },
+  {
+    path: '/401',
+    name: '401',
+    hidden: true,
+    meta: {},
+    component: () => import('@/views/401/index.vue')
   },
   {
     path: '/dvCanvas',
@@ -70,8 +107,15 @@ export const routes: AppRouteRecordRaw[] = [
     component: () => import('@/views/common/DeResourceTree.vue')
   },
   {
-    path: '/dataset',
-    name: 'dataset',
+    path: '/dataset-embedded',
+    name: 'dataset-embedded',
+    hidden: true,
+    meta: {},
+    component: () => import('@/views/visualized/data/dataset/index.vue')
+  },
+  {
+    path: '/dataset-embedded-form',
+    name: 'dataset-embedded-form',
     hidden: true,
     meta: {},
     component: () => import('@/views/visualized/data/dataset/form/index.vue')
@@ -96,6 +140,29 @@ export const routes: AppRouteRecordRaw[] = [
     hidden: true,
     meta: {},
     component: () => import('@/custom-component/rich-text/DeRichTextView.vue')
+  },
+  {
+    path: '/modify-pwd',
+    name: 'modify-pwd',
+    hidden: true,
+    meta: {},
+    component: () => import('@/layout/index.vue'),
+    children: [
+      {
+        path: 'index',
+        name: 'mpi',
+        hidden: true,
+        component: () => import('@/views/system/modify-pwd/index.vue'),
+        meta: { hidden: true }
+      }
+    ]
+  },
+  {
+    path: '/chart-view',
+    name: 'chart-view',
+    hidden: true,
+    meta: {},
+    component: () => import('@/views/chart/ChartView.vue')
   }
 ]
 

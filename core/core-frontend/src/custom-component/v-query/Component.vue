@@ -1,8 +1,10 @@
 <script lang="ts" setup>
 import eventBus from '@/utils/eventBus'
+import { ElMessage } from 'element-plus-secondary'
 import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
 import QueryConditionConfiguration from './QueryConditionConfiguration.vue'
 import type { ComponentInfo } from '@/api/chart'
+import { infoFormat } from './options'
 import {
   onBeforeUnmount,
   reactive,
@@ -11,11 +13,13 @@ import {
   watch,
   computed,
   onMounted,
-  CSSProperties
+  onBeforeMount,
+  CSSProperties,
+  shallowRef,
+  provide
 } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from '@/hooks/web/useI18n'
-import { guid } from '@/views/visualized/data/dataset/form/util.js'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { comInfo } from './com-info'
 import { useEmitt } from '@/hooks/web/useEmitt'
@@ -42,12 +46,17 @@ const props = defineProps({
     type: String,
     required: true,
     default: ''
+  },
+  scale: {
+    type: Number,
+    required: false,
+    default: 1
   }
 })
-const { element, view } = toRefs(props)
+const { element, view, scale } = toRefs(props)
 const { t } = useI18n()
 const dvMainStore = dvMainStoreWithOut()
-const { curComponent, canvasViewInfo } = storeToRefs(dvMainStore)
+const { curComponent, canvasViewInfo, mobileInPc, firstLoadMap } = storeToRefs(dvMainStore)
 const canEdit = ref(false)
 const queryConfig = ref()
 const defaultStyle = {
@@ -60,53 +69,103 @@ const defaultStyle = {
   titleShow: false,
   titleColor: '',
   textColorShow: false,
-  labelColor: '',
   bgColorShow: false,
   borderShow: false,
-  labelColorShow: false,
-  title: ''
+  labelShow: true,
+  title: '',
+  labelColor: '#1f2329',
+  fontSize: '14',
+  fontWeight: '',
+  fontStyle: '',
+  fontSizeBtn: '14',
+  fontWeightBtn: '',
+  fontStyleBtn: '',
+  queryConditionWidth: 227,
+  nameboxSpacing: 8,
+  queryConditionSpacing: 16,
+  btnColor: '#3370ff',
+  labelColorBtn: '#ffffff'
 }
 const customStyle = reactive({ ...defaultStyle })
 const snapshotStore = snapshotStoreWithOut()
 
+const btnStyle = computed(() => {
+  const style = {
+    backgroundColor: customStyle.btnColor,
+    borderColor: customStyle.btnColor,
+    color: customStyle.labelColorBtn
+  } as CSSProperties
+  if (customStyle.fontSizeBtn) {
+    style.fontSize = customStyle.fontSizeBtn + 'px'
+  }
+
+  if (customStyle.fontWeightBtn) {
+    style.fontWeight = customStyle.fontWeightBtn
+  }
+
+  if (customStyle.fontStyleBtn) {
+    style.fontStyle = customStyle.fontStyleBtn
+  }
+
+  return style
+})
 const curComponentView = computed(() => {
   return (canvasViewInfo.value[element.value.id] || {}).customStyle
 })
 
-const { datasetFieldList } = comInfo(element.value.id)
+const { datasetFieldList } = comInfo()
 
 const setCustomStyle = val => {
   const {
-    show,
     borderShow,
     borderColor,
     bgColorShow,
     btnList,
     titleLayout,
     labelColor,
-    labelColorShow,
     text,
     bgColor,
     layout,
     titleShow,
     titleColor,
     textColorShow,
-    title
+    title,
+    fontSize,
+    fontWeight,
+    fontStyle,
+    fontSizeBtn,
+    fontWeightBtn,
+    fontStyleBtn,
+    queryConditionWidth,
+    nameboxSpacing,
+    queryConditionSpacing,
+    labelColorBtn,
+    btnColor,
+    labelShow
   } = val
-  if (!show) {
-    Object.assign(customStyle, { ...defaultStyle })
-    return
-  }
   customStyle.background = bgColorShow ? bgColor || '' : ''
   customStyle.border = borderShow ? borderColor || '' : ''
   customStyle.btnList = [...btnList]
   customStyle.layout = layout
   customStyle.titleShow = titleShow
   customStyle.titleColor = titleColor
-  customStyle.labelColor = labelColorShow ? labelColor || '' : ''
+  customStyle.labelColor = labelShow ? labelColor || '' : ''
+  customStyle.fontSize = labelShow ? fontSize || '14' : '14'
+  customStyle.fontWeight = labelShow ? fontWeight || '' : ''
+  customStyle.fontStyle = labelShow ? fontStyle || '' : ''
   customStyle.title = title
   customStyle.text = textColorShow ? text || '' : ''
   customStyle.titleLayout = titleLayout
+  customStyle.fontSizeBtn = fontSizeBtn || '14'
+  customStyle.fontWeightBtn = fontWeightBtn
+  customStyle.fontStyleBtn = fontStyleBtn
+  customStyle.queryConditionWidth = queryConditionWidth ?? 227
+  customStyle.nameboxSpacing = nameboxSpacing ?? 8
+  customStyle.queryConditionSpacing = queryConditionSpacing ?? 16
+  customStyle.labelColorBtn = labelColorBtn || '#ffffff'
+  customStyle.labelShow = labelShow ?? true
+  customStyle.btnColor = btnColor || '#3370ff'
+  snapshotStore.recordSnapshotCache()
 }
 
 watch(
@@ -150,6 +209,77 @@ const onComponentClick = () => {
 }
 
 const { emitter } = useEmitt()
+const unMountSelect = shallowRef([])
+onBeforeMount(() => {
+  unMountSelect.value = list.value.map(ele => ele.id)
+})
+
+const releaseSelect = id => {
+  unMountSelect.value = unMountSelect.value.filter(ele => ele !== id)
+}
+
+const queryDataForId = id => {
+  let requiredName = ''
+  const emitterList = (element.value.propValue || [])
+    .filter(ele => ele.id === id)
+    .reduce((pre, next) => {
+      if (next.required) {
+        if (!next.defaultValueCheck) {
+          requiredName = next.name
+        }
+
+        if (next.displayType === '8') {
+          const { conditionValueF, conditionValueS, conditionType } = next
+          if (conditionType === 0) {
+            requiredName = conditionValueF === '' ? next.name : ''
+          } else {
+            requiredName =
+              [conditionValueF || '', conditionValueS || ''].filter(ele => ele !== '').length < 2
+                ? next.name
+                : ''
+          }
+        } else if (
+          (Array.isArray(next.selectValue) && !next.selectValue.length) ||
+          (next.selectValue !== 0 && !next.selectValue)
+        ) {
+          requiredName = next.name
+        }
+      }
+      const keyList = Object.entries(next.checkedFieldsMap)
+        .filter(ele => next.checkedFields.includes(ele[0]))
+        .filter(ele => !!ele[1])
+        .map(ele => ele[0])
+      pre = [...new Set([...keyList, ...pre])]
+      return pre
+    }, [])
+  if (!!requiredName) {
+    ElMessage.error(`【${requiredName}】查询条件是必填项，请设置选项值后，再进行查询！`)
+    return
+  }
+  if (!emitterList.length) return
+  emitterList.forEach(ele => {
+    emitter.emit(`query-data-${ele}`)
+  })
+}
+const getQueryConditionWidth = () => {
+  return customStyle.queryConditionWidth
+}
+
+const getCascadeList = () => {
+  return props.element.cascade
+}
+
+const isConfirmSearch = id => {
+  if (componentWithSure.value) return
+  queryDataForId(id)
+}
+
+provide('is-confirm-search', isConfirmSearch)
+provide('unmount-select', unMountSelect)
+provide('release-unmount-select', releaseSelect)
+provide('query-data-for-id', queryDataForId)
+provide('com-width', getQueryConditionWidth)
+provide('cascade-list', getCascadeList)
 
 onBeforeUnmount(() => {
   emitter.off(`addQueryCriteria${element.value.id}`)
@@ -176,6 +306,21 @@ const updateQueryCriteria = () => {
         })
         ele.checkedFields = checkedFields
         ele.checkedFieldsMap = checkedFieldsMap
+      } else {
+        if (
+          !ele.dataset.id ||
+          !!ele.parameters.length ||
+          ele.optionValueSource !== 1 ||
+          ![0, 2, 5].includes(+ele.displayType)
+        )
+          return
+        const checkedFields = datasetFieldList.value.map(itx => itx.id)
+        ele.checkedFields.forEach(itx => {
+          if (!checkedFields.includes(itx)) {
+            ele.checkedFieldsMap[itx] = ''
+          }
+        })
+        ele.checkedFields = ele.checkedFields.filter(itx => checkedFields.includes(itx))
       }
     })
 }
@@ -191,60 +336,25 @@ const dragover = () => {
   // do
 }
 
-const infoFormat = (obj: ComponentInfo) => {
-  const { id, name, deType, type, datasetId } = obj
-  return {
-    id: guid(),
-    name,
-    showError: true,
-    timeGranularity: 'date',
-    timeGranularityMultiple: 'datetimerange',
-    field: {
-      id,
-      type,
-      name,
-      deType
-    },
-    auto: false,
-    defaultValue: undefined,
-    selectValue: undefined,
-    optionValueSource: 0,
-    valueSource: [],
-    dataset: {
-      id: datasetId,
-      name: '',
-      fields: []
-    },
-    visible: true,
-    defaultValueCheck: false,
-    multiple: false,
-    displayType: '0',
-    checkedFields: [],
-    parameters: [],
-    parametersCheck: false,
-    parametersList: [],
-    checkedFieldsMap: {}
-  }
-}
-
 const drop = e => {
-  const componentInfo: ComponentInfo = JSON.parse(e.dataTransfer.getData('dimension') || '{}')
-  if (!componentInfo.id) return
-  const checkedFields = []
-  const checkedFieldsMap = {}
-  datasetFieldList.value.forEach(ele => {
-    if (ele.tableId === componentInfo.datasetId) {
-      checkedFields.push(ele.id)
-      checkedFieldsMap[ele.id] = componentInfo.id
-    }
-  })
-  list.value.push({
-    ...infoFormat(componentInfo),
-    auto: true,
-    optionValueSource: 1,
-    checkedFields,
-    checkedFieldsMap,
-    displayType: `${componentInfo.deType}`
+  const componentInfoArr: ComponentInfo[] = JSON.parse(e.dataTransfer.getData('dimension') || '{}')
+  componentInfoArr.forEach(componentInfo => {
+    const checkedFields = []
+    const checkedFieldsMap = {}
+    datasetFieldList.value.forEach(ele => {
+      if (ele.tableId === componentInfo.datasetId) {
+        checkedFields.push(ele.id)
+        checkedFieldsMap[ele.id] = componentInfo.id
+      }
+    })
+    list.value.push({
+      ...infoFormat(componentInfo),
+      auto: true,
+      optionValueSource: 1,
+      checkedFields,
+      checkedFieldsMap,
+      displayType: `${componentInfo.deType}`
+    })
   })
   element.value.propValue = [...list.value]
   snapshotStore.recordSnapshotCache()
@@ -254,34 +364,9 @@ const editeQueryConfig = (queryId: string) => {
   queryConfig.value.setCondition(queryId)
 }
 
-const addQueryCriteria = () => {
-  const componentInfo: ComponentInfo = {
-    id: '',
-    name: '未命名',
-    deType: 0,
-    type: 'VARCHAR',
-    datasetId: ''
-  }
-  list.value.push(infoFormat(componentInfo))
-  element.value.propValue = [...list.value]
-  snapshotStore.recordSnapshotCache()
-  editeQueryConfig(list.value[list.value.length - 1].id)
-}
-
-const addQueryCriteriaConfig = () => {
-  const componentInfo: ComponentInfo = {
-    id: '',
-    name: '未命名',
-    deType: 0,
-    type: 'VARCHAR',
-    datasetId: ''
-  }
-  return infoFormat(componentInfo)
-}
-
 const editQueryCriteria = () => {
   if (!list.value.length) {
-    addQueryCriteria()
+    addCriteriaConfigOut()
     return
   }
   editeQueryConfig(list.value[0].id)
@@ -299,10 +384,20 @@ const delQueryConfig = index => {
 
 const resetData = () => {
   ;(list.value || []).reduce((pre, next) => {
+    next.conditionValueF = next.defaultConditionValueF
+    next.conditionValueOperatorF = next.defaultConditionValueOperatorF
+    next.conditionValueS = next.defaultConditionValueS
+    next.conditionValueOperatorS = next.defaultConditionValueOperatorS
+
     if (!next.defaultValueCheck) {
       next.defaultValue = next.multiple || +next.displayType === 7 ? [] : undefined
     }
     next.selectValue = Array.isArray(next.defaultValue) ? [...next.defaultValue] : next.defaultValue
+    if (next.optionValueSource === 1 && next.defaultMapValue?.length) {
+      next.mapValue = Array.isArray(next.defaultMapValue)
+        ? [...next.defaultMapValue]
+        : next.defaultMapValue
+    }
     const keyList = Object.entries(next.checkedFieldsMap)
       .filter(ele => next.checkedFields.includes(ele[0]))
       .filter(ele => !!ele[1])
@@ -310,11 +405,17 @@ const resetData = () => {
     pre = [...new Set([...keyList, ...pre])]
     return pre
   }, [])
+  !componentWithSure.value && queryData()
 }
 
 const clearData = () => {
   ;(list.value || []).reduce((pre, next) => {
     next.selectValue = next.multiple || +next.displayType === 7 ? [] : undefined
+    if (next.optionValueSource === 1 && next.defaultMapValue?.length) {
+      next.mapValue = next.multiple ? [] : undefined
+    }
+    next.conditionValueF = ''
+    next.conditionValueS = ''
     const keyList = Object.entries(next.checkedFieldsMap)
       .filter(ele => next.checkedFields.includes(ele[0]))
       .filter(ele => !!ele[1])
@@ -322,17 +423,53 @@ const clearData = () => {
     pre = [...new Set([...keyList, ...pre])]
     return pre
   }, [])
+  !componentWithSure.value && queryData()
 }
 const listVisible = computed(() => {
   return list.value.filter(itx => itx.visible)
 })
 
-const addCriteriaConfig = () => {
-  queryConfig.value.setConditionInit(queryConfig.value.addCriteriaConfig())
-}
+const componentWithSure = computed(() => {
+  return customStyle.btnList.includes('sure')
+})
+
+watch(
+  () => componentWithSure.value,
+  (val, oldVal) => {
+    if (!val && oldVal) {
+      queryData()
+    }
+  },
+  {
+    immediate: false
+  }
+)
 
 const queryData = () => {
+  let requiredName = ''
   const emitterList = (element.value.propValue || []).reduce((pre, next) => {
+    if (next.required) {
+      if (!next.defaultValueCheck) {
+        requiredName = next.name
+      }
+
+      if (next.displayType === '8') {
+        const { conditionValueF, conditionValueS, conditionType } = next
+        if (conditionType === 0) {
+          requiredName = conditionValueF === '' ? next.name : ''
+        } else {
+          requiredName =
+            [conditionValueF || '', conditionValueS || ''].filter(ele => ele !== '').length < 2
+              ? next.name
+              : ''
+        }
+      } else if (
+        (Array.isArray(next.selectValue) && !next.selectValue.length) ||
+        (next.selectValue !== 0 && !next.selectValue)
+      ) {
+        requiredName = next.name
+      }
+    }
     const keyList = Object.entries(next.checkedFieldsMap)
       .filter(ele => next.checkedFields.includes(ele[0]))
       .filter(ele => !!ele[1])
@@ -340,8 +477,12 @@ const queryData = () => {
     pre = [...new Set([...keyList, ...pre])]
     return pre
   }, [])
+  if (!!requiredName) {
+    ElMessage.error(`【${requiredName}】查询条件是必填项，请设置选项值后，再进行查询！`)
+    return
+  }
   if (!emitterList.length) return
-
+  dvMainStore.setFirstLoadMap([...new Set([...emitterList, ...firstLoadMap.value])])
   emitterList.forEach(ele => {
     emitter.emit(`query-data-${ele}`)
   })
@@ -354,21 +495,51 @@ const titleStyle = computed(() => {
 })
 
 const labelStyle = computed(() => {
-  return {
-    color: customStyle.labelColor || '#1f2329'
+  const style = {
+    fontSize: customStyle.fontSize + 'px',
+    lineHeight: +customStyle.fontSize + 8 + 'px'
   } as CSSProperties
+  if (customStyle.fontWeight) {
+    style.fontWeight = customStyle.fontWeight
+  }
+
+  if (customStyle.fontStyle) {
+    style.fontStyle = customStyle.fontStyle
+  }
+
+  if (customStyle.labelColor) {
+    style.color = customStyle.labelColor
+  }
+  return style
 })
-const opacityStyle = computed(() => {
-  return element.value?.style?.opacity
-    ? ({
-        opacity: element.value.style.opacity
-      } as CSSProperties)
-    : {}
+
+const paddingTop = computed<CSSProperties>(() => {
+  return {
+    paddingTop: customStyle.layout !== 'horizontal' ? customStyle.nameboxSpacing + 22 + 'px' : '0'
+  }
+})
+
+const marginRight = computed<CSSProperties>(() => {
+  return {
+    marginRight: customStyle.layout === 'horizontal' ? customStyle.nameboxSpacing + 'px' : '8px'
+  }
+})
+
+const autoStyle = computed(() => {
+  return {
+    position: 'absolute',
+    height: 100 / scale.value + '%!important',
+    width: 100 / scale.value + '%!important',
+    left: 50 * (1 - 1 / scale.value) + '%', // 放大余量 除以 2
+    top: 50 * (1 - 1 / scale.value) + '%', // 放大余量 除以 2
+    transform: 'scale(' + scale.value + ')',
+    opacity: element.value?.style?.opacity || 1
+  } as CSSProperties
 })
 </script>
 
 <template>
-  <div class="v-query-container" :style="opacityStyle">
+  <div class="v-query-container" :style="autoStyle" @keydown.stop @keyup.stop>
     <p v-if="customStyle.titleShow" class="title" :style="titleStyle">
       {{ customStyle.title }}
     </p>
@@ -384,23 +555,36 @@ const opacityStyle = computed(() => {
       <div v-if="!listVisible.length" class="no-list-label flex-align-center">
         <div class="container flex-align-center">
           将右侧的字段拖拽到这里 或 点击
-          <el-button :disabled="showPosition === 'preview'" @click="addCriteriaConfig" text>
+          <el-button
+            :disabled="showPosition === 'preview' || mobileInPc"
+            @click="addCriteriaConfigOut"
+            text
+          >
             添加查询条件
           </el-button>
         </div>
       </div>
       <div class="query-fields-container">
-        <div class="query-item" :key="ele.id" v-for="(ele, index) in listVisible">
-          <div class="query-field">
-            <div class="label">
-              <div class="label-wrapper">
+        <div
+          class="query-item"
+          :style="{ marginRight: `${customStyle.queryConditionSpacing}px` }"
+          :key="ele.id"
+          v-for="(ele, index) in listVisible"
+        >
+          <div class="query-field" :style="paddingTop">
+            <div class="label" :style="marginRight">
+              <div class="label-wrapper" v-show="customStyle.labelShow">
                 <div class="label-wrapper-text" :style="labelStyle">
                   <el-tooltip effect="dark" :content="ele.name" placement="top">
                     {{ ele.name }}
                   </el-tooltip>
                 </div>
+                <span v-if="ele.required" class="required">*</span>
               </div>
-              <div class="label-wrapper-tooltip" v-if="showPosition !== 'preview'">
+              <div
+                class="label-wrapper-tooltip"
+                v-if="showPosition !== 'preview' && !dvMainStore.mobileInPc"
+              >
                 <el-tooltip effect="dark" content="设置过滤条件" placement="top">
                   <el-icon @click="editeQueryConfig(ele.id)">
                     <Icon name="icon_edit_outlined"></Icon>
@@ -414,7 +598,11 @@ const opacityStyle = computed(() => {
               </div>
             </div>
             <div class="query-select">
-              <StyleInject :customStyle="customStyle" :config="ele"></StyleInject>
+              <StyleInject
+                v-if="customStyle.queryConditionWidth !== 0"
+                :customStyle="customStyle"
+                :config="ele"
+              ></StyleInject>
             </div>
           </div>
         </div>
@@ -428,7 +616,8 @@ const opacityStyle = computed(() => {
           <el-button
             @click.stop="queryData"
             style="margin-right: 7px"
-            v-if="customStyle.btnList.includes('sure')"
+            :style="btnStyle"
+            v-if="componentWithSure"
             type="primary"
           >
             {{ t('commons.adv_search.search') }}
@@ -439,8 +628,8 @@ const opacityStyle = computed(() => {
   </div>
   <Teleport to="body">
     <QueryConditionConfiguration
-      :add-query-criteria-config="addQueryCriteriaConfig"
       :query-element="element"
+      @queryData="queryData"
       ref="queryConfig"
     ></QueryConditionConfiguration>
   </Teleport>
@@ -465,7 +654,7 @@ const opacityStyle = computed(() => {
       justify-content: center;
       color: #646a73;
       text-align: center;
-      font-family: PingFang SC;
+      font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
       font-size: 16px;
       font-style: normal;
       font-weight: 400;
@@ -481,7 +670,7 @@ const opacityStyle = computed(() => {
   .title {
     color: #1f2329;
     font-feature-settings: 'clig' off, 'liga' off;
-    font-family: PingFang SC;
+    font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
     font-size: 14px;
     font-style: normal;
     font-weight: 500;
@@ -532,6 +721,7 @@ const opacityStyle = computed(() => {
           overflow: hidden;
         }
         .label-wrapper-text {
+          position: relative;
           cursor: pointer;
           flex: 0 1 auto;
           max-width: 100%;
@@ -539,10 +729,17 @@ const opacityStyle = computed(() => {
           text-overflow: ellipsis;
           white-space: nowrap;
           color: #1f2329;
-          font-family: PingFang SC;
+          font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
           font-size: 14px;
           font-style: normal;
           font-weight: 400;
+          line-height: 22px;
+        }
+
+        .required {
+          font-size: 14px;
+          color: #f54a45;
+          margin-left: 3px;
           line-height: 22px;
         }
         .label-wrapper-tooltip {
@@ -562,23 +759,19 @@ const opacityStyle = computed(() => {
         display: flex;
         flex-wrap: wrap;
         line-height: 28px;
+        position: relative;
 
         :deep(.ed-date-editor) {
-          width: 227px;
           .ed-input__wrapper {
             width: 100%;
           }
-        }
-
-        :deep(.ed-select-v2) {
-          min-width: 170px;
         }
       }
     }
   }
   .query-button {
     align-self: flex-end;
-    line-height: 28px;
+    line-height: 40px;
     margin: auto 0 5px auto;
     z-index: 0;
   }

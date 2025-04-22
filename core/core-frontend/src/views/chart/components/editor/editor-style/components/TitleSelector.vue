@@ -358,7 +358,14 @@ watch(
     >
       <div @keydown.stop @keyup.stop>
         <el-form-item :label="t('chart.remark')" class="form-item" prop="chartShowName">
-          <el-input type="textarea" autosize v-model="tempRemark" :maxlength="50" clearable />
+          <el-input
+            type="textarea"
+            autosize
+            v-model="tempRemark"
+            :maxlength="50"
+            clearable
+            :placeholder="t('chart.remark_placeholder')"
+          />
         </el-form-item>
       </div>
       <template #footer>
@@ -391,8 +398,8 @@ watch(
   &.dark {
     color: #a6a6a6;
     &.active {
-      color: #3370ff;
-      background-color: rgba(51, 112, 255, 0.1);
+      color: var(--ed-color-primary);
+      background-color: var(--ed-color-primary-1a, rgba(51, 112, 255, 0.1));
     }
     &:hover {
       background-color: rgba(255, 255, 255, 0.1);
@@ -400,8 +407,8 @@ watch(
   }
 
   &.active {
-    color: #3370ff;
-    background-color: rgba(51, 112, 255, 0.1);
+    color: var(--ed-color-primary);
+    background-color: var(--ed-color-primary-1a, rgba(51, 112, 255, 0.1));
   }
 
   &:hover {
@@ -472,7 +479,7 @@ watch(
 }
 .remark-label {
   color: var(--N600, #646a73);
-  font-family: PingFang SC;
+  font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
   font-size: 12px;
   font-style: normal;
   font-weight: 400;

@@ -4,7 +4,9 @@ import FunctionCfg from '@/views/chart/components/editor/editor-senior/component
 import ScrollCfg from '@/views/chart/components/editor/editor-senior/components/ScrollCfg.vue'
 import AssistLine from '@/views/chart/components/editor/editor-senior/components/AssistLine.vue'
 import Threshold from '@/views/chart/components/editor/editor-senior/components/Threshold.vue'
+import MapMapping from '@/views/chart/components/editor/editor-senior/components/MapMapping.vue'
 import CollapseSwitchItem from '@/components/collapse-switch-item/src/CollapseSwitchItem.vue'
+import { useAppStoreWithOut } from '@/store/modules/app'
 import { computed, PropType, ref, toRefs, watch } from 'vue'
 import LinkJumpSet from '@/components/visualization/LinkJumpSet.vue'
 import LinkageSet from '@/components/visualization/LinkageSet.vue'
@@ -17,10 +19,10 @@ import { ElIcon, ElMessage } from 'element-plus-secondary'
 import { storeToRefs } from 'pinia'
 import { BASE_VIEW_CONFIG } from '../util/chart'
 import { cloneDeep, defaultsDeep } from 'lodash-es'
+import BubbleAnimateCfg from '@/views/chart/components/editor/editor-senior/components/BubbleAnimateCfg.vue'
 const dvMainStore = dvMainStoreWithOut()
-const { dvInfo } = storeToRefs(dvMainStore)
 
-const { nowPanelTrackInfo, nowPanelJumpInfo } = storeToRefs(dvMainStore)
+const { nowPanelTrackInfo, nowPanelJumpInfo, dvInfo, componentData } = storeToRefs(dvMainStore)
 
 const { t } = useI18n()
 const linkJumpRef = ref(null)
@@ -35,7 +37,9 @@ const emit = defineEmits([
   'onFunctionCfgChange',
   'onAssistLineChange',
   'onScrollCfgChange',
-  'onThresholdChange'
+  'onThresholdChange',
+  'onMapMappingChange',
+  'onBubbleAnimateChange'
 ])
 
 const props = defineProps({
@@ -44,6 +48,10 @@ const props = defineProps({
     required: true
   },
   quotaData: {
+    type: Array,
+    required: true
+  },
+  quotaExtData: {
     type: Array,
     required: true
   },
@@ -113,6 +121,15 @@ const onThresholdChange = val => {
   emit('onThresholdChange', val)
 }
 
+const onMapMappingChange = val => {
+  emit('onMapMappingChange', val)
+}
+
+const onBubbleAnimateChange = val => {
+  console.log(val)
+  emit('onBubbleAnimateChange', val)
+}
+
 const showProperties = (prop: EditorProperty) => {
   return properties?.value?.includes(prop)
 }
@@ -145,7 +162,8 @@ const SENIOR_PROP: EditorProperty[] = [
   'scroll-cfg',
   'threshold',
   'jump-set',
-  'linkage'
+  'linkage',
+  'bubble-animate'
 ]
 const noSenior = computed(() => {
   return !includesAny(properties.value, ...SENIOR_PROP)
@@ -154,7 +172,7 @@ const noSenior = computed(() => {
 const linkJumpActiveChange = () => {
   // 直接触发刷新
   const params = {
-    sourceDvId: chart.value.sceneId,
+    sourceDvId: dvInfo.value.id,
     sourceViewId: chart.value.id,
     activeStatus: chart.value.jumpActive
   }
@@ -164,7 +182,7 @@ const linkJumpActiveChange = () => {
 }
 const linkageActiveChange = () => {
   const params = {
-    dvId: chart.value.sceneId,
+    dvId: dvInfo.value.id,
     sourceViewId: chart.value.id,
     activeStatus: chart.value.linkageActive
   }
@@ -172,6 +190,8 @@ const linkageActiveChange = () => {
     dvMainStore.setNowPanelTrackInfo(rsp.data)
   })
 }
+const appStore = useAppStoreWithOut()
+const isDataEaseBi = computed(() => appStore.getIsDataEaseBi)
 </script>
 
 <template>
@@ -194,6 +214,21 @@ const linkageActiveChange = () => {
             />
           </el-collapse-item>
 
+          <el-collapse-item
+            :effect="themes"
+            v-if="showProperties('map-mapping')"
+            name="mapMapping"
+            :title="t('chart.place_name_mapping')"
+            @modelChange="onFunctionCfgChange"
+          >
+            <map-mapping
+              :themes="themes"
+              :chart="props.chart"
+              :property-inner="propertyInnerAll['function-cfg']"
+              @onMapMappingChange="onMapMappingChange"
+            />
+          </el-collapse-item>
+
           <collapse-switch-item
             :effect="themes"
             :title="t('chart.assist_line')"
@@ -207,6 +242,7 @@ const linkageActiveChange = () => {
               :chart="props.chart"
               :themes="themes"
               :quota-data="props.quotaData"
+              :quota-ext-data="props.quotaExtData"
               :property-inner="propertyInnerAll['assist-line']"
               @onAssistLineChange="onAssistLineChange"
             />
@@ -261,22 +297,6 @@ const linkageActiveChange = () => {
                   <span class="set-text-info" :class="{ 'set-text-info-dark': themes === 'dark' }">
                     已设置
                   </span>
-
-                  <!--                  <el-button
-                    class="circle-button font14"
-                    :title="t('chart.delete')"
-                    :class="'label-' + props.themes"
-                    text
-                    size="small"
-                    :style="{ width: '24px', marginLeft: '6px' }"
-                    @click="linkageSetOpen"
-                  >
-                    <template #icon>
-                      <el-icon size="14px">
-                        <Icon name="icon_delete-trash_outlined" />
-                      </el-icon>
-                    </template>
-                  </el-button>-->
                 </template>
                 <el-button
                   class="circle-button font14"
@@ -298,7 +318,7 @@ const linkageActiveChange = () => {
             </div>
           </collapse-switch-item>
           <collapse-switch-item
-            v-if="showProperties('jump-set')"
+            v-if="showProperties('jump-set') && !isDataEaseBi"
             :themes="themes"
             name="jumpSet"
             :title="'跳转设置'"
@@ -346,6 +366,22 @@ const linkageActiveChange = () => {
                 </el-button>
               </span>
             </div>
+          </collapse-switch-item>
+          <collapse-switch-item
+            :effect="themes"
+            title="气泡动效"
+            :change-model="chart.senior.bubbleCfg"
+            v-if="showProperties('bubble-animate')"
+            v-model="chart.senior.bubbleCfg.enable"
+            name="bubbleAnimate"
+            @modelChange="onBubbleAnimateChange"
+          >
+            <bubble-animate-cfg
+              :themes="themes"
+              :chart="props.chart"
+              :property-inner="propertyInnerAll['bubble-animate']"
+              @onBubbleAnimateChange="onBubbleAnimateChange"
+            />
           </collapse-switch-item>
         </el-collapse>
       </el-row>
@@ -403,13 +439,13 @@ span {
 }
 
 .label-dark {
-  font-family: PingFang SC;
+  font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
   font-style: normal;
   font-weight: 400;
   line-height: 20px;
   color: #a6a6a6 !important;
   &.ed-button {
-    color: #3370ff !important;
+    color: var(--ed-color-primary) !important;
   }
   &.is-disabled {
     color: #5f5f5f !important;

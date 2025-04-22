@@ -29,6 +29,13 @@ const searchFunction = ref('')
 
 const mirror = ref()
 
+const props = defineProps({
+  crossDs: {
+    type: Boolean,
+    default: () => false
+  }
+})
+
 const fields = [
   { label: t('dataset.text'), value: 0 },
   { label: t('dataset.time'), value: 1 },
@@ -132,9 +139,6 @@ onBeforeUnmount(() => {
 })
 
 const insertParamToCodeMirror = (value: string) => {
-  mirror.value.dispatch({
-    changes: { from: 0, to: mirror.value.state.doc.toString().length, insert: '' }
-  })
   mirror.value.dispatch({
     changes: { from: mirror.value.viewState.state.selection.ranges[0].from, insert: value },
     selection: { anchor: mirror.value.viewState.state.selection.ranges[0].from }
@@ -290,9 +294,9 @@ initFunction()
             <span>*</span>
             <el-tooltip class="item" effect="dark" placement="top">
               <template #content>
-                {{ t('dataset.calc_tips.tip1') }}
-                <br />
-                {{ t('dataset.calc_tips.tip2') }}
+                <div v-if="props.crossDs">{{ t('dataset.calc_tips.tip1') }}</div>
+                <div v-else>{{ t('dataset.calc_tips.tip1_1') }}</div>
+                <div>{{ t('dataset.calc_tips.tip2') }}</div>
               </template>
               <el-icon size="16px">
                 <Icon name="icon_info_outlined"></Icon>
@@ -381,12 +385,14 @@ initFunction()
           {{ t('dataset.click_ref_function') }}
           <el-tooltip class="item" effect="dark" placement="bottom">
             <template #content>
-              {{ t('dataset.calc_tips.tip6') }}
-              <br />
-              {{ t('dataset.calc_tips.tip7') }}
-              <br />
-              {{ t('dataset.calc_tips.tip8') }}
-              https://calcite.apache.org/docs/reference.html
+              <div v-if="props.crossDs">
+                {{ t('dataset.calc_tips.tip6') }}
+                <br />
+                {{ t('dataset.calc_tips.tip8') }}
+                <br />
+                https://calcite.apache.org/docs/reference.html
+              </div>
+              <div v-else>{{ t('dataset.calc_tips.tip7') }}</div>
             </template>
             <el-icon size="16px">
               <Icon name="icon_info_outlined"></Icon>
@@ -472,7 +478,7 @@ initFunction()
     border-radius: 4px;
 
     .is-active {
-      background: rgba(51, 112, 255, 0.1);
+      background: var(--ed-color-primary-1a, rgba(51, 112, 255, 0.1));
     }
 
     .ed-button:not(.is-active) {
@@ -498,7 +504,7 @@ initFunction()
       & > :nth-child(2) {
         margin: 0 -0.67px 0 2px;
         color: #f54a45;
-        font-family: PingFang SC;
+        font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
         font-size: 14px;
         font-style: normal;
         font-weight: 400;
@@ -550,8 +556,8 @@ initFunction()
 }
 
 .item-dimension:hover {
-  border-color: var(--primary, #3370ff);
-  background: rgba(51, 112, 255, 0.1);
+  border-color: var(--ed-color-primary, #3370ff);
+  background: var(--ed-color-primary-1a, rgba(51, 112, 255, 0.1));
   cursor: pointer;
 }
 
@@ -579,7 +585,7 @@ initFunction()
 }
 
 .function-style:hover {
-  border-color: var(--primary, #3370ff);
+  border-color: var(--ed-color-primary, #3370ff);
   cursor: pointer;
 }
 .function-height {

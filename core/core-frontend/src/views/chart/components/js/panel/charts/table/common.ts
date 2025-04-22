@@ -4,6 +4,7 @@ export const TABLE_EDITOR_PROPERTY: EditorProperty[] = [
   'table-header-selector',
   'table-cell-selector',
   'title-selector',
+  'tooltip-selector',
   'function-cfg',
   'threshold',
   'scroll-cfg',
@@ -20,14 +21,22 @@ export const TABLE_EDITOR_PROPERTY_INNER: EditorPropertyInner = {
     'tableTitleHeight',
     'tableHeaderAlign',
     'showIndex',
-    'indexLabel'
+    'indexLabel',
+    'showColTooltip',
+    'showHorizonBorder',
+    'showVerticalBorder'
   ],
   'table-cell-selector': [
     'tableItemBgColor',
     'tableItemFontSize',
     'tableFontColor',
     'tableItemAlign',
-    'tableItemHeight'
+    'tableItemHeight',
+    'enableTableCrossBG',
+    'tableItemSubBgColor',
+    'showTooltip',
+    'showHorizonBorder',
+    'showVerticalBorder'
   ],
   'title-selector': [
     'title',
@@ -41,6 +50,7 @@ export const TABLE_EDITOR_PROPERTY_INNER: EditorPropertyInner = {
     'letterSpace',
     'fontShadow'
   ],
+  'tooltip-selector': ['fontSize', 'color', 'backgroundColor', 'show'],
   'function-cfg': ['emptyDataStrategy'],
   threshold: ['tableThreshold']
 }

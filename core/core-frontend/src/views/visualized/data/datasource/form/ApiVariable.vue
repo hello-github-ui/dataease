@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { propTypes } from '@/utils/propTypes'
-import { computed, onBeforeMount, PropType, toRefs } from 'vue'
+import { computed, onBeforeMount, PropType, toRefs, inject } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
 import { KeyValue } from './ApiTestModel.js'
 import { guid } from '@/views/visualized/data/dataset/form/util'
@@ -63,7 +63,7 @@ const typeChange = item => {
 }
 
 const remove = (index: number) => {
-  if (isDisable(index)) return
+  if (isDisable()) return
   // 移除整行输入控件及内容
   parameters.value.splice(index, 1)
 }
@@ -77,8 +77,8 @@ const change = () => {
     })
   )
 }
-const isDisable = (index: number) => {
-  return parameters.value.length - 1 === index
+const isDisable = () => {
+  return parameters.value.length === 1
 }
 const querySearch = (queryString, cb) => {
   const results = queryString
@@ -91,6 +91,7 @@ const createFilter = (queryString: string) => {
     return restaurant.value.toLowerCase().indexOf(queryString.toLowerCase()) === 0
   }
 }
+const activeName = inject('api-active-name')
 </script>
 
 <template>
@@ -146,11 +147,10 @@ const createFilter = (queryString: string) => {
                 :placeholder="valueText"
                 value-key="name"
                 highlight-first-item
-                @select="change"
               />
             </el-col>
 
-            <el-col :span="5">
+            <el-col :span="10">
               <el-input
                 v-model="element.description"
                 maxlength="200"
@@ -158,19 +158,8 @@ const createFilter = (queryString: string) => {
                 show-word-limit
               />
             </el-col>
-            <el-col :span="5">
-              <el-autocomplete
-                v-if="suggestions"
-                v-model="element.name"
-                :disabled="isReadOnly"
-                :fetch-suggestions="querySearch"
-                :placeholder="keyText"
-                show-word-limit
-              />
-            </el-col>
-
             <el-col :span="1">
-              <el-button text :disabled="isDisable(index) || isReadOnly" @click="remove(index)">
+              <el-button text :disabled="isDisable() || isReadOnly" @click="remove(index)">
                 <template #icon>
                   <Icon name="icon_delete-trash_outlined"></Icon>
                 </template>

@@ -4,6 +4,7 @@ import { useI18n } from '@/hooks/web/useI18n'
 import { COLOR_PANEL, DEFAULT_TABLE_HEADER } from '@/views/chart/components/editor/util/chart'
 import { ElSpace } from 'element-plus-secondary'
 import { cloneDeep, defaultsDeep } from 'lodash-es'
+import { convertToAlphaColor, isAlphaColor } from '@/views/chart/components/js/util'
 
 const { t } = useI18n()
 
@@ -56,6 +57,13 @@ const init = () => {
   const tableHeader = props.chart?.customAttr?.tableHeader
   if (tableHeader) {
     state.tableHeaderForm = defaultsDeep(cloneDeep(tableHeader), cloneDeep(DEFAULT_TABLE_HEADER))
+    if (!isAlphaColor(state.tableHeaderForm.tableHeaderBgColor)) {
+      const alpha = props.chart.customAttr.basicStyle.alpha
+      state.tableHeaderForm.tableHeaderBgColor = convertToAlphaColor(
+        state.tableHeaderForm.tableHeaderBgColor,
+        alpha
+      )
+    }
   }
 }
 const showProperty = prop => props.propertyInner?.includes(prop)
@@ -66,7 +74,12 @@ onMounted(() => {
 </script>
 
 <template>
-  <el-form ref="tableHeaderForm" :model="state.tableHeaderForm" label-position="top">
+  <el-form
+    :model="state.tableHeaderForm"
+    :disabled="!state.tableHeaderForm.showTableHeader"
+    ref="tableHeaderForm"
+    label-position="top"
+  >
     <el-form-item
       :label="t('chart.backgroundColor')"
       class="form-item"
@@ -79,6 +92,7 @@ onMounted(() => {
         is-custom
         :trigger-width="108"
         :predefine="predefineColors"
+        show-alpha
         @change="changeTableHeader('tableHeaderBgColor')"
       />
     </el-form-item>
@@ -118,14 +132,60 @@ onMounted(() => {
           />
         </el-select>
       </el-form-item>
+    </el-space>
+    <el-space>
+      <el-form-item class="form-item" :class="'form-item-' + themes">
+        <el-checkbox
+          :effect="themes"
+          class="icon-checkbox"
+          v-model="state.tableHeaderForm.isBolder"
+          @change="changeTableHeader('isBolder')"
+        >
+          <el-tooltip effect="dark" placement="top">
+            <template #content>
+              {{ t('chart.bolder') }}
+            </template>
+            <div
+              class="icon-btn"
+              :class="{ dark: themes === 'dark', active: state.tableHeaderForm.isBolder }"
+            >
+              <el-icon>
+                <Icon name="icon_bold_outlined" />
+              </el-icon>
+            </div>
+          </el-tooltip>
+        </el-checkbox>
+      </el-form-item>
 
+      <el-form-item class="form-item" :class="'form-item-' + themes">
+        <el-checkbox
+          :effect="themes"
+          class="icon-checkbox"
+          v-model="state.tableHeaderForm.isItalic"
+          @change="changeTableHeader('isItalic')"
+        >
+          <el-tooltip effect="dark" placement="top">
+            <template #content>
+              {{ t('chart.italic') }}
+            </template>
+            <div
+              class="icon-btn"
+              :class="{ dark: themes === 'dark', active: state.tableHeaderForm.isItalic }"
+            >
+              <el-icon>
+                <Icon name="icon_italic_outlined" />
+              </el-icon>
+            </div>
+          </el-tooltip>
+        </el-checkbox>
+      </el-form-item>
+
+      <div class="position-divider" :class="'position-divider--' + themes"></div>
       <el-form-item
         class="form-item"
         :class="'form-item-' + themes"
         v-if="showProperty('tableHeaderAlign')"
       >
-        <template #label>&nbsp;</template>
-
         <el-radio-group
           class="icon-radio-group"
           v-model="state.tableHeaderForm.tableHeaderAlign"
@@ -188,7 +248,6 @@ onMounted(() => {
         </el-radio-group>
       </el-form-item>
     </el-space>
-
     <el-row :gutter="8">
       <el-col :span="12">
         <el-form-item
@@ -209,12 +268,7 @@ onMounted(() => {
       </el-col>
     </el-row>
 
-    <el-form-item
-      :label="t('chart.table_show_index')"
-      class="form-item"
-      :class="'form-item-' + themes"
-      v-if="showProperty('showIndex')"
-    >
+    <el-form-item class="form-item" :class="'form-item-' + themes" v-if="showProperty('showIndex')">
       <el-checkbox
         size="small"
         :effect="themes"
@@ -236,6 +290,48 @@ onMounted(() => {
         @blur="changeTableHeader('indexLabel')"
       />
     </el-form-item>
+    <el-form-item
+      class="form-item"
+      :class="'form-item-' + themes"
+      v-if="showProperty('tableHeaderSort')"
+    >
+      <el-checkbox
+        size="small"
+        :effect="themes"
+        v-model="state.tableHeaderForm.tableHeaderSort"
+        @change="changeTableHeader('tableHeaderSort')"
+      >
+        {{ t('chart.table_header_sort') }}
+      </el-checkbox>
+    </el-form-item>
+    <el-form-item
+      class="form-item"
+      :class="'form-item-' + themes"
+      v-if="showProperty('showHorizonBorder')"
+    >
+      <el-checkbox
+        size="small"
+        :effect="themes"
+        v-model="state.tableHeaderForm.showHorizonBorder"
+        @change="changeTableHeader('showHorizonBorder')"
+      >
+        {{ t('chart.table_header_show_horizon_border') }}
+      </el-checkbox>
+    </el-form-item>
+    <el-form-item
+      class="form-item"
+      :class="'form-item-' + themes"
+      v-if="showProperty('showVerticalBorder')"
+    >
+      <el-checkbox
+        size="small"
+        :effect="themes"
+        v-model="state.tableHeaderForm.showVerticalBorder"
+        @change="changeTableHeader('showVerticalBorder')"
+      >
+        {{ t('chart.table_header_show_vertical_border') }}
+      </el-checkbox>
+    </el-form-item>
   </el-form>
 </template>
 
@@ -256,8 +352,8 @@ onMounted(() => {
   &.dark {
     color: #a6a6a6;
     &.active {
-      color: #3370ff;
-      background-color: rgba(51, 112, 255, 0.1);
+      color: var(--ed-color-primary);
+      background-color: var(--ed-color-primary-1a, rgba(51, 112, 255, 0.1));
     }
     &:hover {
       background-color: rgba(255, 255, 255, 0.1);
@@ -265,8 +361,8 @@ onMounted(() => {
   }
 
   &.active {
-    color: #3370ff;
-    background-color: rgba(51, 112, 255, 0.1);
+    color: var(--ed-color-primary);
+    background-color: var(--ed-color-primary-1a, rgba(51, 112, 255, 0.1));
   }
 
   &:hover {
@@ -285,6 +381,24 @@ onMounted(() => {
     display: none;
   }
   :deep(.ed-radio__label) {
+    padding: 0;
+  }
+}
+.position-divider {
+  width: 1px;
+  height: 18px;
+  margin-bottom: 8px;
+  background: rgba(31, 35, 41, 0.15);
+
+  &.position-divider--dark {
+    background: rgba(235, 235, 235, 0.15);
+  }
+}
+.icon-checkbox {
+  :deep(.ed-checkbox__input) {
+    display: none;
+  }
+  :deep(.ed-checkbox__label) {
     padding: 0;
   }
 }

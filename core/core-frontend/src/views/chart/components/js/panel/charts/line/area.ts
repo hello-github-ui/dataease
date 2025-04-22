@@ -5,7 +5,12 @@ import {
 import { Area as G2Area, AreaOptions } from '@antv/g2plot/esm/plots/area'
 import { getPadding, setGradientColor } from '@/views/chart/components/js/panel/common/common_antv'
 import { cloneDeep } from 'lodash-es'
-import { flow, hexColorToRGBA, parseJson } from '@/views/chart/components/js/util'
+import {
+  flow,
+  hexColorToRGBA,
+  parseJson,
+  setUpStackSeriesColor
+} from '@/views/chart/components/js/util'
 import { valueFormatter } from '@/views/chart/components/js/formatter'
 import {
   LINE_AXIS_TYPE,
@@ -16,6 +21,7 @@ import { Label } from '@antv/g2plot/lib/types/label'
 import { Datum } from '@antv/g2plot/esm/types/common'
 import { useI18n } from '@/hooks/web/useI18n'
 import { DEFAULT_LABEL } from '@/views/chart/components/editor/util/chart'
+import { clearExtremum, extremumEvt } from '@/views/chart/components/js/extremumUitl'
 
 const { t } = useI18n()
 const DEFAULT_DATA = []
@@ -23,8 +29,12 @@ export class Area extends G2PlotChartView<AreaOptions, G2Area> {
   properties = LINE_EDITOR_PROPERTY
   propertyInner = {
     ...LINE_EDITOR_PROPERTY_INNER,
-    'basic-style-selector': [...LINE_EDITOR_PROPERTY_INNER['basic-style-selector'], 'gradient'],
-    'label-selector': ['seriesLabelFormatter'],
+    'basic-style-selector': [
+      ...LINE_EDITOR_PROPERTY_INNER['basic-style-selector'],
+      'gradient',
+      'seriesColor'
+    ],
+    'label-selector': ['seriesLabelFormatter', 'showExtremum'],
     'tooltip-selector': [
       ...LINE_EDITOR_PROPERTY_INNER['tooltip-selector'],
       'seriesTooltipFormatter'
@@ -86,24 +96,26 @@ export class Area extends G2PlotChartView<AreaOptions, G2Area> {
 
   drawChart(drawOptions: G2PlotDrawOptions<G2Area>): G2Area {
     const { chart, container, action } = drawOptions
-    if (chart?.data) {
-      // data
-      const data = cloneDeep(chart.data.data)
-
-      const initOptions: AreaOptions = {
-        ...this.baseOptions,
-        data,
-        appendPadding: getPadding(chart)
-      }
-      // options
-      const options = this.setupOptions(chart, initOptions)
-      // 开始渲染
-      const newChart = new G2Area(container, options)
-
-      newChart.on('point:click', action)
-
-      return newChart
+    if (!chart.data.data?.length) {
+      clearExtremum(chart)
+      return
     }
+    // data
+    const data = cloneDeep(chart.data.data)
+
+    const initOptions: AreaOptions = {
+      ...this.baseOptions,
+      data,
+      appendPadding: getPadding(chart)
+    }
+    // options
+    const options = this.setupOptions(chart, initOptions)
+    // 开始渲染
+    const newChart = new G2Area(container, options)
+
+    newChart.on('point:click', action)
+    extremumEvt(newChart, chart, options, container)
+    return newChart
   }
 
   protected configLabel(chart: Chart, options: AreaOptions): AreaOptions {
@@ -114,7 +126,7 @@ export class Area extends G2PlotChartView<AreaOptions, G2Area> {
         label: false
       }
     }
-    const labelAttr = parseJson(chart.customAttr).label
+    const { label: labelAttr } = parseJson(chart.customAttr)
     const formatterMap = labelAttr.seriesLabelFormatter?.reduce((pre, next) => {
       pre[next.id] = next
       return pre
@@ -123,7 +135,10 @@ export class Area extends G2PlotChartView<AreaOptions, G2Area> {
     const label = {
       fields: [],
       ...tmpOptions.label,
-      formatter: (data: Datum) => {
+      formatter: (data: Datum, _point) => {
+        if (data.EXTREME) {
+          return ''
+        }
         if (!labelAttr.seriesLabelFormatter?.length) {
           return data.value
         }
@@ -140,7 +155,7 @@ export class Area extends G2PlotChartView<AreaOptions, G2Area> {
           type: 'text',
           attrs: {
             x: 0,
-            y: -4,
+            y: 0,
             text: value,
             textAlign: 'start',
             textBaseline: 'top',
@@ -176,12 +191,27 @@ export class Area extends G2PlotChartView<AreaOptions, G2Area> {
     const areaColors = [...colors, ...colors]
     let areaStyle
     if (customAttr.basicStyle.gradient) {
-      areaStyle = () => {
-        const ele = areaColors.shift()
+      const colorMap = new Map()
+      const yAxis = parseJson(chart.customStyle).yAxis
+      const axisValue = yAxis.axisValue
+      const start =
+        !axisValue?.auto && axisValue.min && axisValue.max ? axisValue.min / axisValue.max : 0
+      areaStyle = item => {
+        let ele: string
+        const key = `${item.field}-${item.category}`
+        if (colorMap.has(key)) {
+          ele = colorMap.get(key)
+        } else {
+          ele = areaColors.shift()
+          colorMap.set(key, ele)
+        }
         if (ele) {
           return {
-            fill: setGradientColor(hexColorToRGBA(ele, alpha), true, 270)
+            fill: setGradientColor(hexColorToRGBA(ele, alpha), true, 270, start)
           }
+        }
+        return {
+          fill: 'rgba(255,255,255,0)'
         }
       }
     }
@@ -229,6 +259,8 @@ export class Area extends G2PlotChartView<AreaOptions, G2Area> {
   protected setupOptions(chart: Chart, options: AreaOptions): AreaOptions {
     return flow(
       this.configTheme,
+      this.configEmptyDataStrategy,
+      this.configColor,
       this.configLabel,
       this.configTooltip,
       this.configBasicStyle,
@@ -236,9 +268,8 @@ export class Area extends G2PlotChartView<AreaOptions, G2Area> {
       this.configXAxis,
       this.configYAxis,
       this.configSlider,
-      this.configAnalyse,
-      this.configEmptyDataStrategy
-    )(chart, options)
+      this.configAnalyse
+    )(chart, options, {}, this)
   }
 
   constructor(name = 'area') {
@@ -253,7 +284,7 @@ export class StackArea extends Area {
   propertyInner = {
     ...this['propertyInner'],
     'label-selector': ['fontSize', 'color', 'labelFormatter'],
-    'tooltip-selector': ['fontSize', 'color', 'tooltipFormatter']
+    'tooltip-selector': ['fontSize', 'color', 'tooltipFormatter', 'show']
   }
   protected configLabel(chart: Chart, options: AreaOptions): AreaOptions {
     const customAttr = parseJson(chart.customAttr)
@@ -284,6 +315,12 @@ export class StackArea extends Area {
     return chart
   }
 
+  protected configColor(chart: Chart, options: AreaOptions): AreaOptions {
+    return this.configStackColor(chart, options)
+  }
+  public setupSeriesColor(chart: ChartObj, data?: any[]): ChartBasicStyle['seriesColor'] {
+    return setUpStackSeriesColor(chart, data)
+  }
   protected configTooltip(chart: Chart, options: AreaOptions): AreaOptions {
     const customAttr: DeepPartial<ChartAttr> = parseJson(chart.customAttr)
     const tooltipAttr = customAttr.tooltip

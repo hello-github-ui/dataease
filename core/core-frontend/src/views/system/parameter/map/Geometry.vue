@@ -3,7 +3,7 @@
     <el-aside class="geonetry-aside">
       <div class="geo-title">
         <span>{{ t('online_map.geometry') }}</span>
-        <span class="add-icon-span">
+        <span class="add-icon-span" @click="add()">
           <el-icon>
             <Icon name="icon_add_outlined"></Icon>
           </el-icon>
@@ -40,9 +40,23 @@
             <template #default="{ node, data }">
               <span class="custom-tree-node" :class="{ 'is-disabled': node.disabled || data.root }">
                 <span
+                  class="geo-name-span"
                   :title="data.name"
                   v-html="data.colorName && keyword ? data.colorName : data.name"
                 />
+                <span class="geo-operate-container">
+                  <el-tooltip
+                    v-if="data.custom"
+                    class="box-item"
+                    effect="dark"
+                    :content="t('common.delete')"
+                    placement="top"
+                  >
+                    <el-icon @click.stop="delHandler(data)" class="hover-icon">
+                      <Icon name="icon_delete-trash_outlined"></Icon>
+                    </el-icon>
+                  </el-tooltip>
+                </span>
               </span>
             </template>
           </el-tree>
@@ -67,7 +81,7 @@
           <div class="geo-area">
             <div class="area-label"><span>上级区域</span></div>
             <div class="area-content">
-              <span>{{ selectedData.parentName }}</span>
+              <span>{{ selectedData.parentName || '-' }}</span>
               <span v-if="selectedData.pid" class="area-secondary">{{
                 '(' + selectedData.pid + ')'
               }}</span>
@@ -83,6 +97,7 @@
       </div>
     </el-main>
   </el-container>
+  <geometry-edit ref="editor" @saved="loadTreeData(false)" />
 </template>
 
 <script lang="ts" setup>
@@ -93,21 +108,27 @@ import EmptyBackground from '@/components/empty-background/src/EmptyBackground.v
 import { getGeoJsonFile } from '@/views/chart/components/js/util'
 import { cloneDeep } from 'lodash-es'
 import { setColorName } from '@/utils/utils'
+import GeometryEdit from './GeometryEdit.vue'
+import { useCache } from '@/hooks/web/useCache'
+import { ElMessage, ElMessageBox } from 'element-plus-secondary'
+import request from '@/config/axios'
+const { wsCache } = useCache()
 const { t } = useI18n()
 const keyword = ref('')
 const treeData = ref([])
+const editor = ref()
 interface Tree {
   label: string
   children?: Tree[]
 }
 const areaTreeRef = ref(null)
-
+const loading = ref(false)
 const selectedData = ref(null)
 
 const handleNodeClick = async (data: Tree) => {
   selectedData.value = data
   const geoJson = cloneDeep(await getGeoJsonFile(data['id']))
-  selectedData.value['geoJson'] = geoJson
+  selectedData.value['geoJson'] = JSON.stringify(geoJson)
   const pid = data['pid']
   if (pid) {
     const parent = areaTreeRef.value.getNode(pid)
@@ -115,6 +136,29 @@ const handleNodeClick = async (data: Tree) => {
       selectedData.value.parentName = parent.data.name
     }
   }
+}
+const delHandler = data => {
+  ElMessageBox.confirm('确定删除此节点吗', {
+    confirmButtonType: 'danger',
+    type: 'warning',
+    confirmButtonText: t('common.delete'),
+    cancelButtonText: t('dataset.cancel'),
+    autofocus: false,
+    showClose: false
+  })
+    .then(() => {
+      const url = '/geometry/delete/' + data.id
+      request.post({ url }).then(() => {
+        if (selectedData.value?.id === data.id) {
+          selectedData.value = null
+        }
+        ElMessage.success(t('common.delete_success'))
+        loadTreeData(false)
+      })
+    })
+    .catch(() => {
+      loading.value = false
+    })
 }
 const filterResource = val => {
   areaTreeRef.value?.filter(val)
@@ -125,18 +169,29 @@ const filterResourceNode = (value: string, data) => {
   return data.name.toLocaleLowerCase().includes(value.toLocaleLowerCase())
 }
 
-const loadTreeData = () => {
+const loadTreeData = (cache?: boolean) => {
+  const key = 'de-area-tree'
+  const result = wsCache.get(key)
+  if (result && cache) {
+    treeData.value = result
+    return
+  }
   getWorldTree()
     .then(res => {
       const root = res.data
       treeData.value = [root]
+      wsCache.set(key, treeData.value)
     })
     .catch(e => {
       console.error(e)
     })
 }
 
-loadTreeData()
+const add = (pid?: string) => {
+  editor?.value.edit(pid)
+}
+
+loadTreeData(true)
 </script>
 
 <style lang="less" scoped>
@@ -158,8 +213,7 @@ loadTreeData()
         line-height: 24px;
       }
       .add-icon-span {
-        display: none;
-        color: #3370ff;
+        color: var(--ed-color-primary);
         height: 20px;
         width: 20px;
         i {
@@ -250,5 +304,21 @@ loadTreeData()
   box-sizing: content-box;
   padding-right: 4px;
   overflow: hidden;
+  justify-content: space-between;
+  .geo-name-span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .geo-operate-container {
+    display: none;
+  }
+
+  &:hover {
+    .geo-operate-container {
+      display: inline-flex;
+      padding-left: 4px;
+    }
+  }
 }
 </style>

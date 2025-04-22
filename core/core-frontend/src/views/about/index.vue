@@ -1,10 +1,17 @@
 <script lang="ts" setup>
 import aboutBg from '@/assets/img/about-bg.png'
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, h } from 'vue'
 import { useUserStoreWithOut } from '@/store/modules/user'
 import { F2CLicense } from './index'
-import { validateApi, buildVersionApi, updateInfoApi } from '@/api/about'
-import { ElMessage } from 'element-plus-secondary'
+import {
+  validateApi,
+  buildVersionApi,
+  updateInfoApi,
+  checkFreeApi,
+  syncFreeApi,
+  delFreeApi
+} from '@/api/about'
+import { ElMessage, ElMessageBox, Action } from 'element-plus-secondary'
 import { useI18n } from '@/hooks/web/useI18n'
 import { useEmitt } from '@/hooks/web/useEmitt'
 const dialogVisible = ref(false)
@@ -21,6 +28,7 @@ const license: F2CLicense = reactive({
   remark: '',
   isv: ''
 })
+const tipsSuffix = ref('')
 const build = ref('')
 const isAdmin = ref(false)
 const fileList = reactive([])
@@ -88,11 +96,14 @@ const validateHandler = (param, success) => {
   validateApi(param).then(success)
 }
 const getLicense = result => {
+  if (result.status === 'valid') {
+    tipsSuffix.value = result?.license?.edition === 'Embedded' ? '套' : '个账号'
+  }
   return {
     status: result.status,
     corporation: result.license ? result.license.corporation : '',
     expired: result.license ? result.license.expired : '',
-    count: result.license ? result.license.count : '',
+    count: result.license ? result.license.count : 0,
     version: result.license ? result.license.version : '',
     edition: result.license ? result.license.edition : '',
     serialNo: result.license ? result.license.serialNo : '',
@@ -109,8 +120,62 @@ const update = (licKey: string) => {
       ElMessage.success(t('about.update_success'))
       const info = getLicense(response.data)
       setLicense(info)
+      checkFree()
     } else {
       ElMessage.warning(response.data.message)
+    }
+  })
+}
+
+const autoSync = ref(true)
+const checkFree = () => {
+  checkFreeApi().then(res => {
+    if (res.data) {
+      if (autoSync.value) {
+        syncFree()
+        return
+      }
+      // do something
+      const title = '存在未同步的资源数据，请谨慎操作！'
+      const childrenDomList = [h('strong', null, title)]
+      ElMessageBox.confirm('', {
+        confirmButtonType: 'primary',
+        type: 'warning',
+        autofocus: false,
+        dangerouslyUseHTMLString: true,
+        message: h('div', { class: 'free-sync-tip-box' }, childrenDomList),
+        showClose: false,
+        cancelButtonText: '删除',
+        cancelButtonClass: 'free-cancel-bt',
+        showCancelButton: false,
+        preButtonType: 'danger',
+        preButtonText: '删除',
+        showPreButton: true,
+        confirmButtonText: '同步',
+        callback: (action: Action) => {
+          if (action === 'confirm') {
+            syncFree()
+          } else {
+            delFree
+          }
+        }
+      })
+    }
+  })
+}
+
+const delFree = () => {
+  delFreeApi().then(res => {
+    if (!res.code && !res.msg) {
+      ElMessage.success(t('common.delete_success'))
+    }
+  })
+}
+
+const syncFree = () => {
+  syncFreeApi().then(res => {
+    if (!res.code && !res.msg) {
+      ElMessage.success('同步成功')
     }
   })
 }
@@ -125,6 +190,7 @@ const update = (licKey: string) => {
     class="about-dialog"
   >
     <img width="792" height="180" :src="aboutBg" />
+    <div class="color-overlay"></div>
     <el-icon class="logo">
       <icon name="logo"></icon>
     </el-icon>
@@ -145,7 +211,9 @@ const update = (licKey: string) => {
       </div>
       <div class="item">
         <div class="label">{{ $t('about.auth_num') }}</div>
-        <div class="value">{{ license.count }}</div>
+        <div class="value">
+          {{ license.status === 'valid' ? `${license.count} ${tipsSuffix}` : '' }}
+        </div>
       </div>
       <div class="item">
         <div class="label">{{ $t('about.version') }}</div>
@@ -165,11 +233,11 @@ const update = (licKey: string) => {
       </div>
       <div class="item">
         <div class="label">{{ $t('about.serial_no') }}</div>
-        <div class="value">{{ license.serialNo }}</div>
+        <div class="value">{{ license.serialNo || '-' }}</div>
       </div>
       <div class="item">
         <div class="label">{{ $t('about.remark') }}</div>
-        <div class="value ellipsis">{{ license.remark }}</div>
+        <div class="value ellipsis">{{ license.remark || '-' }}</div>
       </div>
 
       <div v-if="isAdmin" style="margin-top: 24px" class="lic_rooter">
@@ -197,12 +265,21 @@ const update = (licKey: string) => {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
   }
-
+  .color-overlay {
+    position: absolute;
+    border-radius: 4px;
+    width: 792px;
+    height: 180px;
+    top: 72px;
+    background-color: #7394f0;
+    mix-blend-mode: multiply;
+  }
   .logo {
     font-size: 400px;
     position: absolute;
     top: -40px;
     left: 228px;
+    color: #fff;
   }
 
   .content {
@@ -214,7 +291,7 @@ const update = (licKey: string) => {
     margin-top: -7px;
 
     .item {
-      font-family: PingFang SC;
+      font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
       font-size: 16px;
       font-style: normal;
       font-weight: 400;

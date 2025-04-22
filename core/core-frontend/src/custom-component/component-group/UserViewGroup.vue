@@ -5,6 +5,7 @@ import { CHART_TYPE_CONFIGS } from '@/views/chart/components/editor/util/chart'
 import Icon from '@/components/icon-custom/src/Icon.vue'
 import { commonHandleDragEnd, commonHandleDragStart } from '@/utils/canvasUtils'
 import { ElScrollbar } from 'element-plus-secondary'
+import { XpackComponent } from '@/components/plugin'
 
 const props = defineProps({
   propValue: {
@@ -47,8 +48,8 @@ const anchorPosition = anchor => {
   scrollTo(element.offsetTop)
 }
 
-const newComponent = innerType => {
-  eventBus.emit('handleNew', { componentName: 'UserView', innerType: innerType })
+const newComponent = (innerType, staticMap) => {
+  eventBus.emit('handleNew', { componentName: 'UserView', innerType: innerType, staticMap })
 }
 
 const handleDragStart = e => {
@@ -62,6 +63,40 @@ const handleDragEnd = e => {
 const groupActiveChange = category => {
   state.curCategory = category
   anchorPosition('#' + category)
+}
+const loadPluginCategory = data => {
+  data.forEach(item => {
+    const { category, title, render, chartValue, chartTitle, icon, staticMap } = item
+    const node = {
+      render,
+      category,
+      icon,
+      value: chartValue,
+      title: chartTitle,
+      isPlugin: true,
+      staticMap
+    }
+    const stack = [...state.chartGroupList]
+    let findParent = false
+    while (stack?.length) {
+      const parent = stack.pop()
+      if (parent.category === category) {
+        const chart = parent.details.find(chart => chart.value === node.value)
+        if (!chart) {
+          parent.details.push(node)
+        }
+        findParent = true
+      }
+    }
+    if (!findParent) {
+      state.chartGroupList.push({
+        category,
+        title,
+        display: 'show',
+        details: [node]
+      })
+    }
+  })
 }
 </script>
 
@@ -97,12 +132,18 @@ const groupActiveChange = category => {
             :key="chartInfo.title"
           >
             <div
-              v-on:click="newComponent(chartInfo.value)"
+              v-on:click="newComponent(chartInfo.value, chartInfo['staticMap'])"
               class="item-top"
               draggable="true"
               :data-id="'UserView&' + chartInfo.value"
             >
               <Icon
+                class-name="item-top-icon"
+                v-if="chartInfo['isPlugin']"
+                :static-content="chartInfo.icon"
+              />
+              <Icon
+                v-else
                 class-name="item-top-icon"
                 :name="chartInfo.icon + (props.themes === 'dark' ? '-dark' : '')"
               />
@@ -115,6 +156,10 @@ const groupActiveChange = category => {
       </el-row>
     </el-scrollbar>
   </el-row>
+  <XpackComponent
+    jsname="L2NvbXBvbmVudC9wbHVnaW5zLWhhbmRsZXIvVmlld0NhdGVnb3J5SGFuZGxlcg=="
+    @load-plugin-category="loadPluginCategory"
+  />
 </template>
 
 <style lang="less" scoped>
@@ -132,7 +177,7 @@ const groupActiveChange = category => {
   :deep(.li-custom) {
     color: #646a73 !important;
     &.li-custom-active {
-      color: #3370ff !important;
+      color: var(--ed-color-primary) !important;
     }
     &:hover {
       background: rgba(31, 35, 41, 0.1) !important;
@@ -200,10 +245,10 @@ const groupActiveChange = category => {
 }
 
 .li-custom-active {
-  background: rgba(51, 112, 255, 0.1);
-  color: #3370ff !important;
+  background: var(--ed-color-primary-1a, rgba(51, 112, 255, 0.1));
+  color: var(--ed-color-primary) !important;
   .li-a {
-    color: #3370ff !important;
+    color: var(--ed-color-primary) !important;
   }
 }
 
@@ -223,7 +268,7 @@ const groupActiveChange = category => {
     align-items: center;
     justify-content: center;
     &:hover {
-      border: 1px solid #3370ff;
+      border: 1px solid var(--ed-color-primary);
     }
     .item-top-icon {
       width: 80px;

@@ -5,7 +5,12 @@ import {
 import { Bar, BarOptions } from '@antv/g2plot/esm/plots/bar'
 import { getPadding, setGradientColor } from '@/views/chart/components/js/panel/common/common_antv'
 import { cloneDeep } from 'lodash-es'
-import { flow, hexColorToRGBA, parseJson } from '@/views/chart/components/js/util'
+import {
+  flow,
+  hexColorToRGBA,
+  parseJson,
+  setUpStackSeriesColor
+} from '@/views/chart/components/js/util'
 import { valueFormatter } from '@/views/chart/components/js/formatter'
 import {
   BAR_AXIS_TYPE,
@@ -33,8 +38,24 @@ export class HorizontalBar extends G2PlotChartView<BarOptions, Bar> {
   properties = BAR_EDITOR_PROPERTY
   propertyInner = {
     ...BAR_EDITOR_PROPERTY_INNER,
+    'basic-style-selector': [...BAR_EDITOR_PROPERTY_INNER['basic-style-selector'], 'seriesColor'],
     'label-selector': ['hPosition', 'seriesLabelFormatter'],
-    'tooltip-selector': ['fontSize', 'color', 'backgroundColor', 'seriesTooltipFormatter']
+    'tooltip-selector': ['fontSize', 'color', 'backgroundColor', 'seriesTooltipFormatter', 'show'],
+    'x-axis-selector': [
+      ...BAR_EDITOR_PROPERTY_INNER['x-axis-selector'],
+      'axisLabelFormatter',
+      'axisValue'
+    ],
+    'y-axis-selector': [
+      'name',
+      'color',
+      'fontSize',
+      'axisLine',
+      'splitLine',
+      'axisForm',
+      'axisLabel',
+      'position'
+    ]
   }
   axis: AxisType[] = [...BAR_AXIS_TYPE]
   protected baseOptions: BarOptions = {
@@ -160,6 +181,20 @@ export class HorizontalBar extends G2PlotChartView<BarOptions, Bar> {
         color
       }
     }
+    if (basicStyle.radiusColumnBar === 'roundAngle') {
+      const barStyle = {
+        radius: [
+          basicStyle.columnBarRightAngleRadius,
+          basicStyle.columnBarRightAngleRadius,
+          basicStyle.columnBarRightAngleRadius,
+          basicStyle.columnBarRightAngleRadius
+        ]
+      }
+      options = {
+        ...options,
+        barStyle
+      }
+    }
     return options
   }
 
@@ -242,6 +277,8 @@ export class HorizontalBar extends G2PlotChartView<BarOptions, Bar> {
   protected setupOptions(chart: Chart, options: BarOptions): BarOptions {
     return flow(
       this.configTheme,
+      this.configEmptyDataStrategy,
+      this.configColor,
       this.configBasicStyle,
       this.configLabel,
       this.configTooltip,
@@ -249,9 +286,8 @@ export class HorizontalBar extends G2PlotChartView<BarOptions, Bar> {
       this.configXAxis,
       this.configYAxis,
       this.configSlider,
-      this.configAnalyseHorizontal,
-      this.configEmptyDataStrategy
-    )(chart, options)
+      this.configAnalyseHorizontal
+    )(chart, options, {}, this)
   }
 
   constructor(name = 'bar-horizontal') {
@@ -266,7 +302,7 @@ export class HorizontalStackBar extends HorizontalBar {
   propertyInner = {
     ...this['propertyInner'],
     'label-selector': ['color', 'fontSize', 'hPosition', 'labelFormatter'],
-    'tooltip-selector': ['fontSize', 'color', 'backgroundColor', 'tooltipFormatter']
+    'tooltip-selector': ['fontSize', 'color', 'backgroundColor', 'tooltipFormatter', 'show']
   }
   protected configLabel(chart: Chart, options: BarOptions): BarOptions {
     const baseOptions = super.configLabel(chart, options)
@@ -308,7 +344,12 @@ export class HorizontalStackBar extends HorizontalBar {
       tooltip
     }
   }
-
+  protected configColor(chart: Chart, options: BarOptions): BarOptions {
+    return this.configStackColor(chart, options)
+  }
+  public setupSeriesColor(chart: ChartObj, data?: any[]): ChartBasicStyle['seriesColor'] {
+    return setUpStackSeriesColor(chart, data)
+  }
   constructor(name = 'bar-stack-horizontal') {
     super(name)
     this.baseOptions = {
@@ -327,7 +368,7 @@ export class HorizontalPercentageStackBar extends HorizontalStackBar {
   propertyInner = {
     ...this['propertyInner'],
     'label-selector': ['color', 'fontSize', 'hPosition', 'reserveDecimalCount'],
-    'tooltip-selector': ['color', 'fontSize']
+    'tooltip-selector': ['color', 'fontSize', 'backgroundColor', 'show']
   }
   protected configLabel(chart: Chart, options: BarOptions): BarOptions {
     const baseOptions = super.configLabel(chart, options)
@@ -378,15 +419,16 @@ export class HorizontalPercentageStackBar extends HorizontalStackBar {
   protected setupOptions(chart: Chart, options: BarOptions): BarOptions {
     return flow(
       this.configTheme,
+      this.configEmptyDataStrategy,
+      this.configColor,
       this.configBasicStyle,
       this.configLabel,
       this.configTooltip,
       this.configLegend,
       this.configXAxis,
       this.configYAxis,
-      this.configSlider,
-      this.configEmptyDataStrategy
-    )(chart, options)
+      this.configSlider
+    )(chart, options, {}, this)
   }
 
   constructor() {

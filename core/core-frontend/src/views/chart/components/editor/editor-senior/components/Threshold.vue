@@ -61,13 +61,18 @@ const init = () => {
 const changeThreshold = () => {
   emit('onThresholdChange', state.thresholdForm)
 }
-const gaugeThresholdChange = () => {
+const changeSplitThreshold = (threshold: string) => {
   // check input
-  if (state.thresholdForm.gaugeThreshold) {
-    const arr = state.thresholdForm.gaugeThreshold.split(',')
+  if (threshold) {
+    const regex = /^(\d+)(,\d+)*$/
+    if (!regex.test(threshold)) {
+      ElMessage.error(t('chart.gauge_threshold_format_error'))
+      return
+    }
+    const arr = threshold.split(',')
     for (let i = 0; i < arr.length; i++) {
       const ele = arr[i]
-      if (parseFloat(ele).toString() === 'NaN' || parseFloat(ele) <= 0 || parseFloat(ele) >= 100) {
+      if (parseFloat(ele) <= 0 || parseFloat(ele) >= 100) {
         ElMessage.error(t('chart.gauge_threshold_format_error'))
         return
       }
@@ -91,12 +96,12 @@ const changeLabelThreshold = () => {
   // check line config
   for (let i = 0; i < state.thresholdArr.length; i++) {
     const ele = state.thresholdArr[i]
-    if (!ele.term || ele.term === '') {
+    if (ele.term === undefined || ele.term === '') {
       ElMessage.error(t('chart.exp_can_not_empty'))
       return
     }
     if (ele.term === 'between') {
-      if (!ele.min || !ele.max) {
+      if (ele.min === undefined || ele.max === undefined) {
         ElMessage.error(t('chart.value_can_not_empty'))
         return
       }
@@ -109,7 +114,7 @@ const changeLabelThreshold = () => {
         return
       }
     } else {
-      if (!ele.value) {
+      if (ele.value === undefined) {
         ElMessage.error(t('chart.value_can_not_empty'))
         return
       }
@@ -231,7 +236,12 @@ init()
   <div @keydown.stop @keyup.stop style="width: 100%; margin-bottom: 16px">
     <!--仪表盘-->
     <el-col v-show="showProperty('gaugeThreshold')">
-      <el-form ref="thresholdForm" :model="state.thresholdForm" label-position="top">
+      <el-form
+        :model="state.thresholdForm"
+        ref="thresholdForm"
+        label-position="top"
+        @submit.prevent
+      >
         <el-form-item
           :label="t('chart.threshold_range') + '(%)'"
           class="form-item"
@@ -246,13 +256,48 @@ init()
             style="width: 100px; margin: 0 10px"
             size="small"
             clearable
-            @change="gaugeThresholdChange"
+            @change="changeSplitThreshold"
           />
           <span>,100</span>
           <el-tooltip effect="dark" placement="bottom">
             <el-icon style="margin-left: 10px"><InfoFilled /></el-icon>
             <template #content>
-              阈值设置，决定仪表盘区间颜色，为空则不开启阈值，范围(0-100)，逐级递增
+              条件样式设置，决定仪表盘区间颜色，为空则不开启阈值，范围(0-100)，逐级递增
+              <br />
+              例如：输入 30,70；表示：分为3段，分别为[0,30],(30,70],(70,100]
+            </template>
+          </el-tooltip>
+        </el-form-item>
+      </el-form>
+    </el-col>
+    <el-col v-show="showProperty('liquidThreshold')">
+      <el-form
+        :model="state.thresholdForm"
+        ref="thresholdForm"
+        label-position="top"
+        @submit.prevent
+      >
+        <el-form-item
+          :label="t('chart.threshold_range') + '(%)'"
+          class="form-item"
+          label-width="auto"
+        >
+          <span>0,</span>
+          <el-input
+            :effect="themes"
+            :placeholder="t('chart.threshold_range')"
+            :disabled="!state.thresholdForm.enable"
+            v-model="state.thresholdForm.liquidThreshold"
+            style="width: 100px; margin: 0 10px"
+            size="small"
+            clearable
+            @change="changeSplitThreshold"
+          />
+          <span>,100</span>
+          <el-tooltip effect="dark" placement="bottom">
+            <el-icon style="margin-left: 10px"><InfoFilled /></el-icon>
+            <template #content>
+              条件样式设置，决定水波图颜色，为空则不开启阈值，范围(0-100)，逐级递增
               <br />
               例如：输入 30,70；表示：分为3段，分别为[0,30],(30,70],(70,100]
             </template>
@@ -306,7 +351,9 @@ init()
               }}</span>
             </el-col>
             <el-col :span="12">
-              <span v-if="!item.term.includes('null')" :title="item.value">{{ item.value }}</span>
+              <span v-if="!item.term.includes('null')" :title="item.value + ''">{{
+                item.value
+              }}</span>
               <span v-else>&nbsp;</span>
             </el-col>
             <el-col :span="6">
@@ -325,30 +372,54 @@ init()
     </el-col>
 
     <!--指标卡-->
-    <el-col v-if="props.chart.type && props.chart.type === 'text'">
+    <el-col v-if="props.chart.type && props.chart.type === 'indicator'">
       <el-col>
-        <el-button
-          :title="t('chart.edit')"
-          class="circle-button"
-          type="primary"
-          text
-          size="small"
-          style="width: 24px; margin-left: 4px"
-          @click="editLabelThreshold"
+        <div class="inner-container">
+          <span class="label" :class="'label-' + props.themes">条件样式设置</span>
+          <span class="right-btns">
+            <span
+              class="set-text-info"
+              :class="{ 'set-text-info-dark': themes === 'dark' }"
+              v-if="state.thresholdForm?.labelThreshold?.length > 0"
+            >
+              已设置
+            </span>
+            <el-button
+              :title="t('chart.edit')"
+              :class="'label-' + props.themes"
+              :style="{ width: '24px', marginLeft: '6px' }"
+              :disabled="!state.thresholdForm.enable"
+              class="circle-button"
+              text
+              size="small"
+              @click="editLabelThreshold"
+            >
+              <template #icon>
+                <el-icon size="14px">
+                  <Icon name="icon_edit_outlined" />
+                </el-icon>
+              </template>
+            </el-button>
+          </span>
+        </div>
+
+        <div
+          class="threshold-container"
+          :class="{ 'threshold-container-dark': themes === 'dark' }"
+          v-if="state.thresholdForm.labelThreshold.length > 0"
         >
-          <template #icon>
-            <el-icon size="14px">
-              <Icon name="icon_edit_outlined" />
-            </el-icon>
-          </template>
-        </el-button>
-        <el-col style="padding: 0 18px">
-          <el-row
+          <div class="field-style" :class="{ 'field-style-dark': themes === 'dark' }">
+            <span class="field-text" style="padding-left: 12px">
+              {{ t('chart.indicator_value') }}
+            </span>
+          </div>
+
+          <div
             v-for="(item, index) in state.thresholdForm.labelThreshold"
             :key="index"
             class="line-style"
           >
-            <el-col :span="6">
+            <div style="flex: 1">
               <span v-if="item.term === 'eq'" :title="t('chart.filter_eq')">{{
                 t('chart.filter_eq')
               }}</span>
@@ -370,25 +441,31 @@ init()
               <span v-else-if="item.term === 'between'" :title="t('chart.filter_between')">{{
                 t('chart.filter_between')
               }}</span>
-            </el-col>
-            <el-col :span="12">
-              <span v-if="item.term !== 'between'" :title="item.value">{{ item.value }}</span>
+            </div>
+            <div style="flex: 1; margin: 0 8px">
+              <span v-if="item.term !== 'between'" :title="item.value + ''">{{ item.value }}</span>
               <span v-if="item.term === 'between'">
                 {{ item.min }}&nbsp;≤{{ t('chart.drag_block_label_value') }}≤&nbsp;{{ item.max }}
               </span>
-            </el-col>
-            <el-col :span="6">
-              <span
-                :style="{
-                  width: '14px',
-                  height: '14px',
-                  backgroundColor: item.color,
-                  border: 'solid 1px #e1e4e8'
-                }"
-              />
-            </el-col>
-          </el-row>
-        </el-col>
+            </div>
+            <div
+              :title="t('chart.textColor')"
+              :style="{
+                backgroundColor: item.color
+              }"
+              class="color-div"
+              :class="{ 'color-div-dark': themes === 'dark' }"
+            ></div>
+            <div
+              :title="t('chart.backgroundColor')"
+              :style="{
+                backgroundColor: item.backgroundColor
+              }"
+              class="color-div"
+              :class="{ 'color-div-dark': themes === 'dark' }"
+            ></div>
+          </div>
+        </div>
       </el-col>
     </el-col>
 
@@ -396,7 +473,7 @@ init()
     <el-col v-show="showProperty('tableThreshold')">
       <el-col>
         <div class="inner-container">
-          <span class="label" :class="'label-' + props.themes">阈值设置</span>
+          <span class="label" :class="'label-' + props.themes">条件样式设置</span>
           <span class="right-btns">
             <span
               class="set-text-info"
@@ -438,8 +515,8 @@ init()
               <span>
                 <el-icon>
                   <Icon
-                    :className="`field-icon-${fieldType[fieldItem.field.deType.deType]}`"
-                    :name="`field_${fieldType[fieldItem.field.deType.deType]}`"
+                    :className="`field-icon-${fieldType[fieldItem.field.deType]}`"
+                    :name="`field_${fieldType[fieldItem.field.deType]}`"
                   />
                 </el-icon>
               </span>
@@ -496,7 +573,7 @@ init()
                     !item.term.includes('empty') &&
                     item.term !== 'between'
                   "
-                  :title="item.value"
+                  :title="item.value + ''"
                   >{{ item.value }}</span
                 >
                 <span
@@ -767,13 +844,13 @@ span {
   }
 }
 .label-dark {
-  font-family: PingFang SC;
+  font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
   font-style: normal;
   font-weight: 400;
   line-height: 20px;
   color: #a6a6a6 !important;
   &.ed-button {
-    color: #3370ff !important;
+    color: var(--ed-color-primary) !important;
   }
   &.is-disabled {
     color: #5f5f5f !important;

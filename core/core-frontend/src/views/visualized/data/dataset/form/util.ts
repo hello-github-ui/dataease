@@ -113,11 +113,60 @@ const getFieldName = (fields, name) => {
 const timeTypes = [
   'yyyy-MM-dd',
   'yyyy/MM/dd',
-  'yyyyMMdd',
   'yyyy-MM-dd HH:mm:ss',
   'yyyy/MM/dd HH:mm:ss',
-  'yyyyMMdd HH:mm:ss',
   'custom'
 ]
 
-export { timestampFormatDate, defaultValueScopeList, fieldOptions, guid, getFieldName, timeTypes }
+type NodeType = 'db' | 'sql'
+type UnionType = 'left' | 'right' | 'inner'
+interface UnionField {
+  currentField: Field
+  parentField: Field
+}
+interface Node {
+  tableName: string
+  type: NodeType
+  datasourceId: string
+  id: string
+  unionType: UnionType
+  unionFields: UnionField[]
+  info: string
+  sqlVariableDetails: string
+  currentDsFields: Field[]
+  children?: Node[]
+  confirm?: boolean
+  isShadow?: boolean
+  flag?: string
+}
+
+interface Field {
+  checked: boolean
+  deExtractType: number
+  deType: number
+  name: string
+  type: string
+  originName: string
+  id: string
+}
+
+interface DataSource {
+  id: string
+  name: string
+  children?: DataSource[]
+}
+
+export {
+  NodeType,
+  UnionType,
+  UnionField,
+  DataSource,
+  Node,
+  Field,
+  timestampFormatDate,
+  defaultValueScopeList,
+  fieldOptions,
+  guid,
+  getFieldName,
+  timeTypes
+}

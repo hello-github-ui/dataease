@@ -22,6 +22,10 @@ const props = defineProps({
     type: Boolean,
     default: true
   },
+  valueList: {
+    type: Array as PropType<Item[]>,
+    default: () => []
+  },
   request: {
     type: Object as PropType<ApiRequest>,
     default: () => ({
@@ -143,6 +147,7 @@ const emits = defineEmits(['changeId'])
           :show-desc="true"
           :suggestions="headerSuggestions"
           :items="apiRequest.headers"
+          :value-list="valueList"
         />
       </el-tab-pane>
 
@@ -213,7 +218,7 @@ const emits = defineEmits(['changeId'])
     min-height: 200px;
 
     :deep(.ed-tabs__item) {
-      font-family: PingFang SC;
+      font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
       font-size: 14px;
       font-style: normal;
       font-weight: 400;

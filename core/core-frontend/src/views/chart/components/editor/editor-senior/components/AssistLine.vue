@@ -19,6 +19,10 @@ const props = defineProps({
     type: Array,
     required: true
   },
+  quotaExtData: {
+    type: Array,
+    required: true
+  },
   themes: {
     type: String as PropType<EditorTheme>,
     default: 'dark'
@@ -30,6 +34,14 @@ const props = defineProps({
 
 const quotaFields = computed<Array<any>>(() => {
   return props.quotaData.filter(ele => ele.summary !== '' && ele.id !== '-1')
+})
+
+const quotaExtFields = computed<Array<any>>(() => {
+  return props.quotaExtData.filter(ele => ele.summary !== '' && ele.id !== '-1')
+})
+
+const useQuotaExt = computed<boolean>(() => {
+  return props.chart.type.includes('chart-mix')
 })
 
 const state = reactive({
@@ -100,7 +112,14 @@ const changeLine = () => {
 }
 
 function existField(line) {
-  return !!find(quotaFields.value, d => d.id === line.id)
+  if (useQuotaExt.value) {
+    return (
+      !!find(quotaFields.value, d => d.id === line.id) ||
+      !!find(quotaExtFields.value, d => d.id === line.id)
+    )
+  } else {
+    return !!find(quotaFields.value, d => d.id === line.id)
+  }
 }
 
 const init = () => {
@@ -186,7 +205,6 @@ onMounted(() => {
     <el-dialog
       v-if="state.editLineDialog"
       v-model="state.editLineDialog"
-      :title="t('chart.assist_line')"
       :visible="state.editLineDialog"
       width="1000px"
       class="dialog-css"
@@ -194,8 +212,23 @@ onMounted(() => {
       <assist-line-edit
         :line="state.assistLineCfg.assistLine"
         :quota-fields="quotaFields"
+        :quota-ext-fields="quotaExtFields"
+        :use-quota-ext="useQuotaExt"
         @onAssistLineChange="lineChange"
       />
+      <template #header>
+        <div class="assist-line-cfg-header">
+          <span class="ed-dialog__title">{{ t('chart.assist_line') }}</span>
+          <el-tooltip class="item" effect="dark" placement="top">
+            <template #content>
+              <span> {{ t('chart.assist_line_tip') }}</span>
+            </template>
+            <el-icon class="hint-icon" :class="{ 'hint-icon--dark': themes === 'dark' }">
+              <Icon name="icon_info_outlined" />
+            </el-icon>
+          </el-tooltip>
+        </div>
+      </template>
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="closeEditLine">{{ t('chart.cancel') }}</el-button>
@@ -249,6 +282,16 @@ onMounted(() => {
         color: #a6a6a6;
         background: rgba(235, 235, 235, 0.1);
       }
+    }
+  }
+  .assist-line-cfg-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    .ed-dialog__title {
+      margin-right: 4px;
+      font-size: 16px;
     }
   }
 }
@@ -318,13 +361,13 @@ span {
 }
 
 .label-dark {
-  font-family: PingFang SC;
+  font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
   font-style: normal;
   font-weight: 400;
   line-height: 20px;
   color: #a6a6a6 !important;
   &.ed-button {
-    color: #3370ff !important;
+    color: var(--ed-color-primary) !important;
   }
   &.is-disabled {
     color: #5f5f5f !important;

@@ -2,15 +2,15 @@
 import { reactive, ref, computed, watch, nextTick } from 'vue'
 import { ElIcon, ElMessage, ElMessageBox, ElMessageBoxOptions } from 'element-plus-secondary'
 import CreatDsGroup from './CreatDsGroup.vue'
-import { Icon } from '@/components/icon-custom'
 import type { DsType } from './DsTypeList.vue'
 import DsTypeList from './DsTypeList.vue'
 import { useI18n } from '@/hooks/web/useI18n'
 import EditorDetail from './EditorDetail.vue'
 import ExcelDetail from './ExcelDetail.vue'
-import { save, validate, latestUse, isShowFinishPage, checkRepeat } from '@/api/datasource'
+import { save, update, validate, latestUse, isShowFinishPage, checkRepeat } from '@/api/datasource'
 import { Base64 } from 'js-base64'
 import type { Param } from './ExcelDetail.vue'
+import type { Configuration, ApiConfiguration, SyncSetting } from './option'
 import { dsTypes, typeList, nameMap } from './option'
 import { useRouter } from 'vue-router'
 import { uuid } from 'vue-uuid'
@@ -18,6 +18,9 @@ import { useEmitt } from '@/hooks/web/useEmitt'
 import FinishPage from '../FinishPage.vue'
 import { cloneDeep } from 'lodash-es'
 import { useCache } from '@/hooks/web/useCache'
+import Icon from '@/components/icon-custom/src/Icon.vue'
+import { XpackComponent, PluginComponent } from '@/components/plugin'
+
 interface Node {
   name: string
   id: string
@@ -35,14 +38,23 @@ interface Form {
   type: string
   configuration?: Configuration
   apiConfiguration?: ApiConfiguration[]
+  paramsConfiguration?: ApiConfiguration[]
   syncSetting?: SyncSetting
+  isPlugin?: boolean
+  staticMap?: any
 }
 
 const { t } = useI18n()
 const creatDsFolder = ref()
 const router = useRouter()
 const { wsCache } = useCache()
-
+const dsLoading = ref(false)
+let isFormUpdate = false
+let isForm2Update = false
+let isUpdate = false
+const changeUpdate = val => {
+  isUpdate = val
+}
 const state = reactive({
   datasourceTree: []
 })
@@ -53,47 +65,9 @@ state.datasourceTree = typeList.map(ele => {
   }
 })
 
-export interface Configuration {
-  dataBase: string
-  connectionType: string
-  schema: string
-  extraParams: string
-  username: string
-  password: string
-  host: string
-  authMethod: string
-  port: string
-  initialPoolSize: string
-  minPoolSize: string
-  maxPoolSize: string
-  queryTimeout: string
-}
-
-export interface ApiConfiguration {
-  id: string
-  name: string
-  deTableName: string
-  method: string
-  url: string
-  status: string
-  useJsonPath: boolean
-  serialNumber: number
-}
-
-export interface SyncSetting {
-  id: string
-  updateType: string
-  syncRate: string
-  simpleCronValue: number
-  simpleCronType: string
-  startTime: number
-  endTime: number
-  endLimit: string
-  cron: string
-}
-
 const activeStep = ref(0)
 const detail = ref()
+const xpack = ref()
 const excel = ref()
 const latestUseTypes = ref([])
 const currentType = ref<DsType>('OLTP')
@@ -101,12 +75,17 @@ const filterText = ref('')
 const currentDsType = ref('')
 const emits = defineEmits(['refresh'])
 const { emitter } = useEmitt()
+const isPlugin = ref(false)
 const selectDsType = (type: string) => {
   currentDsType.value = type
   activeStep.value = 1
   activeApiStep.value = 1
-  detail.value.initForm(type)
   nextTick(() => {
+    detail?.value?.initForm(type) ||
+      xpack?.value?.invokeMethod({
+        methodName: 'initForm',
+        args: type
+      })
     if (!dsTree.value) return
     currentTypeList.value
       .map(ele => ele.dbList)
@@ -114,6 +93,7 @@ const selectDsType = (type: string) => {
       .some(ele => {
         if (ele.type === currentDsType.value) {
           dsTree.value.setCurrentNode(ele)
+          isPlugin.value = ele['isPlugin']
           return true
         }
         return false
@@ -124,6 +104,7 @@ const selectDsType = (type: string) => {
 const handleDsNodeClick = data => {
   if (!data.type) return
   selectDsType(data.type)
+  isPlugin.value = data['isPlugin']
 }
 const handleNodeClick = (data: Node) => {
   currentType.value = data.type
@@ -166,6 +147,38 @@ const getDatasourceTypes = () => {
   })
 }
 getDatasourceTypes()
+
+const pluginIndex = ref('')
+const pluginDs = ref([])
+const loadDsPlugin = data => {
+  pluginDs.value = data
+  data.forEach(item => {
+    const { name, category, type, icon, extraParams, staticMap } = item
+    const node = {
+      name,
+      catalog: category,
+      type,
+      icon,
+      extraParams,
+      isPlugin: true,
+      staticMap
+    }
+    const index = typeList.findIndex(ele => ele === node.catalog)
+    if (index !== -1) {
+      databaseList.value[index].push(node)
+    }
+  })
+}
+const getPluginStatic = type => {
+  const arr = pluginDs.value.filter(ele => {
+    return ele.type === type
+  })
+  return pluginIndex.value
+    ? pluginIndex.value
+    : arr && arr.length > 0
+    ? arr[0].staticMap?.index
+    : null
+}
 
 const getLatestUseTypes = () => {
   latestUse({}).then(res => {
@@ -211,7 +224,14 @@ const next = () => {
 }
 
 const complete = (params, successCb, finallyCb) => {
-  excel.value.saveExcelDs(params, successCb, finallyCb)
+  excel.value.saveExcelDs(
+    params,
+    () => {
+      pid.value = params.pid
+      successCb()
+    },
+    finallyCb
+  )
   return
 }
 
@@ -236,27 +256,47 @@ const backToDatasourceList = () => {
 }
 const continueCreating = () => {
   showFinishPage.value = false
-  init(null)
+  init(null, pid.value)
 }
 
-const handleShowFinishPage = ({ id, name }) => {
-  isShowFinishPage().then(res => {
-    if (editDs.value || !res.data) {
-      emits('refresh')
-      visible.value = false
-      return
-    } else {
-      showFinishPage.value = true
-      Object.assign(dsInfo, { id, name })
-    }
-  })
+const handleShowFinishPage = ({ id, name, pid }) => {
+  isShowFinishPage()
+    .then(res => {
+      if (editDs.value || !res.data) {
+        emits('refresh')
+        visible.value = false
+        return
+      } else {
+        showFinishPage.value = true
+        Object.assign(dsInfo, { id, name })
+      }
+    })
+    .finally(() => {
+      pid.value = pid
+    })
 }
 
 emitter.on('showFinishPage', handleShowFinishPage)
 
 const prev = () => {
+  if ((currentDsType.value === 'API' && activeApiStep.value === 1) || activeStep.value === 1) {
+    ElMessageBox.confirm('填写的信息将会清空，确定返回上一步吗？', {
+      confirmButtonType: 'primary',
+      type: 'warning',
+      autofocus: false,
+      showClose: false
+    }).then(() => {
+      prevConfirm()
+    })
+  } else {
+    prevConfirm()
+  }
+}
+
+const prevConfirm = () => {
   if (currentDsType.value === 'API' && activeApiStep.value === 2) {
-    activeApiStep.value = activeStep.value = 1
+    activeApiStep.value = 1
+    activeStep.value = 1
     return
   }
 
@@ -264,6 +304,23 @@ const prev = () => {
     currentDsType.value = ''
   }
   activeStep.value = activeStep.value - 1
+}
+
+const handleSubmit = param => {
+  const validateFrom = param.validate
+  if (param.eventName === 'saveDs') {
+    validateFrom(val => {
+      if (val) {
+        doSaveDs(param.args)
+      }
+    })
+  } else {
+    validateFrom(val => {
+      if (val) {
+        doValidateDs(param.args)
+      }
+    })
+  }
 }
 
 const validateDS = () => {
@@ -279,33 +336,52 @@ const validateDS = () => {
       ElMessage.error('需要添加数据表')
       return
     }
-    request.configuration = Base64.encode(JSON.stringify(request.apiConfiguration))
+    let apiItems = []
+    apiItems = apiItems.concat(request.apiConfiguration)
+    apiItems = apiItems.concat(request.paramsConfiguration)
+    request.configuration = Base64.encode(JSON.stringify(apiItems))
     request.syncSetting.startTime = new Date(request.syncSetting.startTime).getTime()
     request.syncSetting.endTime = new Date(request.syncSetting.endTime).getTime()
   } else {
     request.configuration = Base64.encode(JSON.stringify(request.configuration))
   }
-  const validateFrom = detail.value.submitForm()
-  validateFrom(val => {
-    if (val) {
-      validate(request).then(res => {
-        if (res.data.type === 'API') {
-          let error = 0
-          const status = JSON.parse(res.data.status) as Array<{ status: string }>
-          for (let i = 0; i < status.length; i++) {
-            if (status[i].status === 'Error') {
-              error++
-            }
-          }
-          if (error === 0) {
-            ElMessage.success(t('datasource.validate_success'))
-          } else {
-            ElMessage.error('校验失败')
-          }
-        } else {
-          ElMessage.success(t('datasource.validate_success'))
+  if (isPlugin.value) {
+    xpack?.value?.invokeMethod({
+      methodName: 'submitForm',
+      args: [{ eventName: 'validateDs', args: request }]
+    })
+  } else {
+    const validateFrom = detail?.value?.submitForm()
+    validateFrom(val => {
+      if (val) {
+        doValidateDs(request)
+      }
+    })
+  }
+}
+
+const doValidateDs = request => {
+  validate(request).then(res => {
+    if (res.data.type === 'API') {
+      let error = 0
+      const status = JSON.parse(res.data.status) as Array<{ status: string; name: string }>
+      for (let i = 0; i < status.length; i++) {
+        if (status[i].status === 'Error') {
+          error++
         }
-      })
+        for (let j = 0; j < form.apiConfiguration.length; j++) {
+          if (status[i].name === form.apiConfiguration[j].name) {
+            form.apiConfiguration[j].status = status[i].status
+          }
+        }
+      }
+      if (error === 0) {
+        ElMessage.success(t('datasource.validate_success'))
+      } else {
+        ElMessage.error('校验失败')
+      }
+    } else {
+      ElMessage.success(t('datasource.validate_success'))
     }
   })
 }
@@ -328,6 +404,7 @@ const typeTitle = computed(() => {
 })
 
 const saveDS = () => {
+  isUpdate = false
   const request = JSON.parse(JSON.stringify(form)) as unknown as Omit<
     Form,
     'configuration' | 'apiConfiguration'
@@ -372,50 +449,82 @@ const saveDS = () => {
         request.apiConfiguration[i].fields[j].value = []
       }
     }
-    request.configuration = Base64.encode(JSON.stringify(request.apiConfiguration))
+    let apiItems = []
+    apiItems = apiItems.concat(request.apiConfiguration)
+    apiItems = apiItems.concat(request.paramsConfiguration)
+    request.configuration = Base64.encode(JSON.stringify(apiItems))
     request.syncSetting.startTime = new Date(request.syncSetting.startTime).getTime()
     request.syncSetting.endTime = new Date(request.syncSetting.endTime).getTime()
   } else {
     request.configuration = Base64.encode(JSON.stringify(request.configuration))
   }
-  const validate = detail.value.submitForm()
-  validate(val => {
-    if (val) {
-      if (editDs.value) {
-        let options = {
-          confirmButtonType: 'danger',
-          type: 'warning',
-          autofocus: false,
-          showClose: false,
-          tip: ''
-        }
 
-        checkRepeat(request).then(res => {
-          if (res) {
-            ElMessageBox.confirm(t('datasource.has_same_ds'), options as ElMessageBoxOptions).then(
-              () => {
-                save(request).then(res => {
-                  if (res !== undefined) {
-                    handleShowFinishPage({ id: res.id, name: res.name })
-                    ElMessage.success('保存数据源成功')
-                  }
-                })
-              }
-            )
-          } else {
-            save(request).then(res => {
-              if (res !== undefined) {
-                handleShowFinishPage({ id: res.id, name: res.name })
-                ElMessage.success('保存数据源成功')
-              }
-            })
-          }
-        })
-      } else {
-        creatDsFolder.value.createInit('datasource', { id: pid.value, request }, '', form.name)
+  if (isPlugin.value) {
+    xpack?.value?.invokeMethod({
+      methodName: 'submitForm',
+      args: [{ eventName: 'saveDs', args: request }]
+    })
+  } else {
+    const validate = detail?.value?.submitForm()
+    request.apiConfiguration = ''
+    validate(val => {
+      if (val) {
+        doSaveDs(request)
       }
+    })
+  }
+}
+
+const doSaveDs = request => {
+  if (editDs.value && form.id) {
+    let options = {
+      confirmButtonType: 'danger',
+      type: 'warning',
+      autofocus: false,
+      showClose: false,
+      tip: ''
     }
-  })
+    checkRepeat(request).then(res => {
+      let method = request.id === '' ? save : update
+      if (res) {
+        ElMessageBox.confirm(t('datasource.has_same_ds'), options as ElMessageBoxOptions).then(
+          () => {
+            if (dsLoading.value === true) {
+              return
+            }
+            dsLoading.value = true
+            method(request)
+              .then(res => {
+                if (res !== undefined) {
+                  handleShowFinishPage({ id: res.id, name: res.name })
+                  ElMessage.success('保存数据源成功')
+                }
+              })
+              .finally(() => {
+                dsLoading.value = false
+              })
+          }
+        )
+      } else {
+        if (dsLoading.value === true) {
+          return
+        }
+        dsLoading.value = true
+        method(request)
+          .then(res => {
+            if (res !== undefined) {
+              handleShowFinishPage({ id: res.id, name: res.name })
+              ElMessage.success('保存数据源成功')
+            }
+          })
+          .finally(() => {
+            dsLoading.value = false
+          })
+      }
+    })
+  } else {
+    creatDsFolder.value.createInit('datasource', { id: pid.value, request }, '', form.name)
+  }
 }
 
 const defaultForm = {
@@ -423,7 +532,8 @@ const defaultForm = {
   name: '',
   description: '',
   type: 'API',
-  apiConfiguration: []
+  apiConfiguration: [],
+  paramsConfiguration: []
 }
 const form = reactive<Form>(cloneDeep(defaultForm))
 const defaultForm2 = {
@@ -438,7 +548,30 @@ const visible = ref(false)
 const editDs = ref(false)
 const pid = ref('0')
 
+watch(
+  () => form,
+  () => {
+    if (isFormUpdate) {
+      changeUpdate(true)
+    }
+  },
+  { deep: true }
+)
+
+watch(
+  () => form2,
+  () => {
+    if (isForm2Update) {
+      changeUpdate(true)
+    }
+  },
+  { deep: true }
+)
+
 const init = (nodeInfo: Form | Param, id?: string, res?: object) => {
+  isPlugin.value = nodeInfo?.isPlugin
+  pluginIndex.value = isPlugin.value ? nodeInfo?.staticMap?.index : null
+
   editDs.value = !!nodeInfo
   showFinishPage.value = false
 
@@ -447,6 +580,12 @@ const init = (nodeInfo: Form | Param, id?: string, res?: object) => {
       Object.assign(form2, cloneDeep(nodeInfo))
     } else {
       Object.assign(form, cloneDeep(nodeInfo))
+      if (form.hasOwnProperty('configuration') && form.configuration.urlType == undefined) {
+        form.configuration.urlType = 'hostName'
+      }
+      if (form.hasOwnProperty('configuration') && form.configuration.sshType == undefined) {
+        form.configuration.sshType = 'password'
+      }
     }
     pid.value = nodeInfo.pid || '0'
   } else {
@@ -458,6 +597,10 @@ const init = (nodeInfo: Form | Param, id?: string, res?: object) => {
   activeApiStep.value = activeStep.value
 
   visible.value = true
+  nextTick(() => {
+    isForm2Update = true
+    isFormUpdate = true
+  })
   if (!!nodeInfo) {
     nextTick(() => {
       currentDsType.value = nodeInfo.type
@@ -468,7 +611,13 @@ const init = (nodeInfo: Form | Param, id?: string, res?: object) => {
           excel.value.appendReplaceExcel(res)
         })
       }
-      detail.value.clearForm()
+      nextTick(() => {
+        detail?.value?.clearForm()
+        xpack?.value?.invokeMethod({
+          methodName: 'clearForm',
+          args: []
+        })
+      })
     })
   }
 }
@@ -478,7 +627,7 @@ const drawTitle = computed(() => {
   if (creator && id && currentDsType.value == 'Excel') {
     return editType === 1 ? '追加数据' : '替换数据'
   }
-  return editDs.value ? t('datasource.modify') : '创建数据源'
+  return editDs.value ? (!form.id ? '复制数据源' : t('datasource.modify')) : '创建数据源'
 })
 
 const beforeClose = () => {
@@ -486,10 +635,12 @@ const beforeClose = () => {
     emits('refresh')
     wsCache.set('ds-new-success', false)
   }
-  if (!showFinishPage.value && (editDs.value || activeStep.value !== 0)) {
-    ElMessageBox.confirm(t('chart.tips'), {
+  if (!showFinishPage.value && ((!editDs.value && activeStep.value !== 0) || isUpdate)) {
+    ElMessageBox.confirm('当前的更改尚未保存,确定退出吗?', {
+      confirmButtonText: t('dataset.confirm'),
+      cancelButtonText: t('common.cancel'),
+      showCancelButton: true,
       confirmButtonType: 'primary',
-      tip: '你填写的信息未保存，确认退出吗？',
       type: 'warning',
       autofocus: false,
       showClose: false
@@ -602,14 +753,15 @@ defineExpose({
           <template #default="{ node, data }">
             <span class="custom-tree-node flex-align-center">
               <el-icon v-if="!!data.catalog" class="icon-border" style="width: 18px; height: 18px">
-                <Icon :name="`${data.type}-ds`"></Icon>
+                <Icon v-if="data['isPlugin']" :static-content="data.icon"></Icon>
+                <Icon v-else :name="`${data.type}-ds`"></Icon>
               </el-icon>
               <span :title="node.label" class="label-tooltip">{{ node.label }}</span>
             </span>
           </template>
         </el-tree>
       </div>
-      <div class="ds-editor" :class="editDs && 'edit-ds'">
+      <div class="ds-editor" :class="editDs && 'edit-ds'" v-loading="dsLoading">
         <div v-show="activeStep !== 0 && !editDs" class="ds-type-title">
           {{ typeTitle }}
         </div>
@@ -626,15 +778,29 @@ defineExpose({
             :form="form"
             :editDs="editDs"
             :active-step="activeApiStep"
-            v-show="activeStep !== 0 && currentDsType && currentDsType !== 'Excel'"
+            v-if="
+              activeStep !== 0 && currentDsType && currentDsType !== 'Excel' && visible && !isPlugin
+            "
           ></editor-detail>
+          <plugin-component
+            :jsname="getPluginStatic(currentDsType)"
+            ref="xpack"
+            :form="form"
+            :editDs="editDs"
+            :active-step="activeApiStep"
+            @submitForm="handleSubmit"
+            v-if="
+              activeStep !== 0 && currentDsType && currentDsType !== 'Excel' && visible && isPlugin
+            "
+          >
+          </plugin-component>
           <template v-if="activeStep !== 0 && currentDsType == 'Excel'">
             <excel-detail :editDs="editDs" ref="excel" :param="form2"></excel-detail>
           </template>
         </div>
       </div>
-      <div class="editor-footer">
-        <el-button secondary @click="visible = false"> {{ t('common.cancel') }}</el-button>
+      <div class="editor-footer" v-loading="dsLoading">
+        <el-button secondary @click="beforeClose"> {{ t('common.cancel') }}</el-button>
         <el-button
           v-show="!(activeStep === 0 || (editDs && activeApiStep <= 1))"
           secondary
@@ -677,6 +843,11 @@ defineExpose({
         :name="dsInfo.name"
         v-if="showFinishPage"
       ></FinishPage>
+
+      <XpackComponent
+        jsname="L2NvbXBvbmVudC9wbHVnaW5zLWhhbmRsZXIvRHNDYXRlZ29yeUhhbmRsZXI="
+        @load-ds-plugin="loadDsPlugin"
+      />
     </div>
   </el-drawer>
   <creat-ds-group
@@ -732,7 +903,7 @@ defineExpose({
       background-color: transparent;
       .step-icon {
         .icon {
-          background: #3370ff;
+          background: var(--ed-color-primary);
         }
       }
     }
@@ -741,7 +912,7 @@ defineExpose({
       background-color: transparent;
       .step-icon {
         .icon {
-          border: 1px solid #3370ff;
+          border: 1px solid var(--ed-color-primary);
         }
       }
     }
@@ -801,7 +972,7 @@ defineExpose({
       .title {
         display: flex;
         justify-content: space-between;
-        font-family: PingFang SC;
+        font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
         font-size: 14px;
         font-weight: 500;
         color: var(--TextPrimary, #1f2329);
@@ -856,7 +1027,7 @@ defineExpose({
         width: 100%;
         padding: 16px 24px;
         color: #1f2329;
-        font-family: PingFang SC;
+        font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
         font-size: 16px;
         font-style: normal;
         font-weight: 500;

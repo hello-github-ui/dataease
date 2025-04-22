@@ -19,13 +19,14 @@ export class Liquid extends G2PlotChartView<LiquidOptions, G2Liquid> {
     'basic-style-selector',
     'label-selector',
     'misc-selector',
-    'title-selector'
+    'title-selector',
+    'threshold'
   ]
   propertyInner: EditorPropertyInner = {
     'background-overall-component': ['all'],
     'basic-style-selector': ['colors', 'alpha'],
     'label-selector': ['fontSize', 'color', 'labelFormatter'],
-    'misc-selector': ['liquidShape', 'liquidMaxType', 'liquidMaxField'],
+    'misc-selector': ['liquidShape', 'liquidSize', 'liquidMaxType', 'liquidMaxField'],
     'title-selector': [
       'title',
       'fontSize',
@@ -37,7 +38,8 @@ export class Liquid extends G2PlotChartView<LiquidOptions, G2Liquid> {
       'fontFamily',
       'letterSpace',
       'fontShadow'
-    ]
+    ],
+    threshold: ['liquidThreshold']
   }
   axis: AxisType[] = ['yAxis', 'filter']
   axisConfig: AxisConfig = {
@@ -50,14 +52,15 @@ export class Liquid extends G2PlotChartView<LiquidOptions, G2Liquid> {
 
   drawChart(drawOptions: G2PlotDrawOptions<G2Liquid>): G2Liquid {
     const { chart, container } = drawOptions
-    if (chart?.data) {
-      const initOptions: LiquidOptions = {
-        percent: 0
-      }
-      const options = this.setupOptions(chart, initOptions)
-      // 开始渲染
-      return new G2Liquid(container, options)
+    if (!chart.data?.series) {
+      return
     }
+    const initOptions: LiquidOptions = {
+      percent: 0
+    }
+    const options = this.setupOptions(chart, initOptions)
+    // 开始渲染
+    return new G2Liquid(container, options)
   }
 
   protected configTheme(chart: Chart, options: LiquidOptions): LiquidOptions {
@@ -112,6 +115,14 @@ export class Liquid extends G2PlotChartView<LiquidOptions, G2Liquid> {
 
   protected configLabel(chart: Chart, options: LiquidOptions): LiquidOptions {
     const customAttr = parseJson(chart.customAttr)
+    const originVal = options.percent
+    // 数值过大图表会异常，大于 1 无意义
+    if (originVal > 1) {
+      options = {
+        ...options,
+        percent: 1
+      }
+    }
     if (!customAttr.label?.show) {
       return {
         ...options,
@@ -130,17 +141,60 @@ export class Liquid extends G2PlotChartView<LiquidOptions, G2Liquid> {
             fontSize: label.fontSize.toString() + 'px',
             color: label.color
           },
-          formatter: function (v) {
-            const value = v.percent
-            return valueFormatter(value, labelFormatter)
+          formatter: () => {
+            return valueFormatter(originVal, labelFormatter)
           }
         }
       }
     }
   }
 
+  protected configThreshold(chart: Chart, options: LiquidOptions): LiquidOptions {
+    const senior = parseJson(chart.senior)
+    if (senior?.threshold?.enable) {
+      const { liquidThreshold } = senior?.threshold
+      if (liquidThreshold) {
+        const { paletteQualitative10: colors } = (options.theme as any).styleSheet
+        const liquidStyle = () => {
+          const thresholdArr = liquidThreshold.split(',')
+          let index = 0
+          thresholdArr.forEach((v, i) => {
+            if (options.percent > parseFloat(v) / 100) {
+              index = i + 1
+            }
+          })
+          return {
+            fill: colors[index % colors.length],
+            stroke: colors[index % colors.length]
+          }
+        }
+        return { ...options, liquidStyle }
+      }
+    }
+    return options
+  }
+
+  setupDefaultOptions(chart: ChartObj): ChartObj {
+    chart.customAttr.label = {
+      ...chart.customAttr.label,
+      fontSize: 12,
+      show: true,
+      labelFormatter: {
+        type: 'percent',
+        thousandSeparator: true,
+        decimalCount: 2
+      }
+    }
+    return chart
+  }
+
   protected setupOptions(chart: Chart, options: LiquidOptions): LiquidOptions {
-    return flow(this.configTheme, this.configMisc, this.configLabel)(chart, options)
+    return flow(
+      this.configTheme,
+      this.configMisc,
+      this.configLabel,
+      this.configThreshold
+    )(chart, options)
   }
   constructor() {
     super('liquid', DEFAULT_LIQUID_DATA)

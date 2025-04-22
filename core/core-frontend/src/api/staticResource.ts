@@ -7,6 +7,7 @@ export const uploadFile = (fileId: number | string, param) =>
   request.post({
     url: '/staticResource/upload/' + fileId,
     headersType: 'multipart/form-data',
+    loading: true,
     data: param
   })
 
@@ -32,7 +33,7 @@ export function uploadFileResult(file, callback) {
   const fileUrl = staticResourcePath + newFileName
   const param = new FormData()
   param.append('file', file)
-  uploadFile(fileId, param).then(() => {
+  return uploadFile(fileId, param).then(() => {
     callback(fileUrl)
   })
 }
@@ -40,8 +41,6 @@ export function uploadFileResult(file, callback) {
 export function findResourceAsBase64(params) {
   return request.post({
     url: '/staticResource/findResourceAsBase64',
-    method: 'post',
-    data: params,
-    loading: false
+    data: params
   })
 }

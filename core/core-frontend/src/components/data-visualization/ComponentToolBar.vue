@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { storeToRefs } from 'pinia'
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
 import { changeSizeWithScale } from '@/utils/changeComponentsSizeWithScale'
 import { useEmitt } from '@/hooks/web/useEmitt'
 const dvMainStore = dvMainStoreWithOut()
-const { canvasStyleData } = storeToRefs(dvMainStore)
+const { canvasStyleData, editMode } = storeToRefs(dvMainStore)
 const snapshotStore = snapshotStoreWithOut()
 const scale = ref(60)
 
@@ -41,55 +41,88 @@ const reposition = () => {
 // 记录瞬时wheel值 防止放大操作和滚动操作冲突
 let lastWheelNum = 0
 
-const handleMouseWheel = e => {
-  let dvMain = document.getElementById('dv-main-center')
-  let dvMainLeftSlide = document.getElementById('dv-main-left-sidebar')
-  let areaLeftWidth = dvMainLeftSlide.clientWidth
-  let areaRight = dvMain.clientWidth + areaLeftWidth
-  if (areaLeftWidth < e.clientX && e.clientX < areaRight) {
-    const delta = e.wheelDelta ? e.wheelDelta : -e.detail
-    if ((lastWheelNum === 240 && delta === 240) || delta > 240) {
-      //放大
-      scaleIncrease(3)
-    } else if ((lastWheelNum === -240 && delta === -240) || delta < -240) {
-      // 缩小
-      scaleDecrease(3)
+// 检查当前页面是否有弹框
+const checkDialog = () => {
+  let haveDialog = false
+  document.querySelectorAll('.ed-overlay').forEach(element => {
+    if (window.getComputedStyle(element).getPropertyValue('display') != 'none') {
+      haveDialog = true
     }
+  })
+  document.querySelectorAll('.ed-popover').forEach(element => {
+    if (window.getComputedStyle(element).getPropertyValue('display') != 'none') {
+      haveDialog = true
+    }
+  })
+  // 富文本单框
+  if (document.querySelector('.tox-dialog-wrap')) {
+    haveDialog = true
+  }
 
-    if (delta >= 240 || delta <= -240) {
+  return haveDialog
+}
+
+const handleMouseWheel = e => {
+  if (
+    editMode.value === 'preview' ||
+    checkDialog() ||
+    (Math.abs(e.deltaX) !== 0 && Math.abs(e.deltaY) !== 0)
+  ) {
+    return
+  }
+  if (e.ctrlKey) {
+    if (e.deltaY > 0) {
+      //向内 缩小
+      scaleDecrease(3)
       e.stopPropagation()
       e.preventDefault()
     }
-    lastWheelNum = delta
+    if (e.deltaY < 0) {
+      //向外 放大
+      scaleIncrease(3)
+      e.stopPropagation()
+      e.preventDefault()
+    }
   }
 }
 
 onMounted(() => {
-  window.addEventListener('mousewheel', handleMouseWheel, { passive: false })
+  window.addEventListener('wheel', handleMouseWheel, { passive: false })
   setTimeout(() => {
     scale.value = canvasStyleData.value.scale
+    nextTick(() => {
+      useEmitt().emitter.emit('initScroll')
+    })
   }, 1000)
+  useEmitt({
+    name: 'canvasScrollRestore',
+    callback: function () {
+      // 用于全屏后还原编辑状态大小
+      changeSizeWithScale(scale.value)
+    }
+  })
 })
 
 onUnmounted(() => {
-  window.removeEventListener('mousewheel', handleMouseWheel)
+  window.removeEventListener('wheel', handleMouseWheel)
 })
 </script>
 <template>
   <el-row class="custom-main">
     <div class="scale-area">
-      <el-input
-        type="number"
-        size="small"
-        effect="dark"
+      <el-input-number
+        @keydown.stop
+        @keyup.stop
         v-model="scale"
+        effect="dark"
         :min="10"
         :max="200"
-        :controls="false"
+        size="small"
+        controls-position="right"
+        @change="handleScaleChange()"
         class="scale-input-number"
-      >
-        <template #suffix> % </template>
-      </el-input>
+      />
+
       <el-icon @click="scaleDecrease(1)" class="hover-icon-custom" style="margin-right: 12px">
         <Icon name="dv-min"></Icon
       ></el-icon>
@@ -105,15 +138,17 @@ onUnmounted(() => {
       <el-icon @click="scaleIncrease(1)" class="hover-icon-custom">
         <Icon name="dv-max"></Icon
       ></el-icon>
-      <el-divider direction="vertical" class="custom-divider" />
-      <el-icon @click="reposition" class="hover-icon-custom" style="margin-right: 12px">
-        <Icon name="dv-reposition"></Icon
-      ></el-icon>
+      <el-divider direction="vertical" class="custom-divider_scale" />
+      <el-tooltip effect="ndark" content="定位到中心点" placement="top">
+        <el-icon @click="reposition" class="hover-icon-custom" style="margin-right: 12px">
+          <Icon name="dv-reposition"></Icon
+        ></el-icon>
+      </el-tooltip>
     </div>
   </el-row>
 </template>
 
-<style lang="less">
+<style scoped lang="less">
 .custom-main {
   display: flex;
   width: 100%;
@@ -122,24 +157,38 @@ onUnmounted(() => {
   background-color: @side-area-background;
   border-top: 1px solid @side-outline-border-color;
   color: #fff;
+  z-index: 2;
   transition: 0.5s;
   .scale-area {
     display: flex;
     align-items: center;
   }
 }
+:deep(.ed-input--dark .ed-input__wrapper),
+:deep(.ed-input-number--dark:not(.is-disabled) .ed-input-number__decrease:not(.is-disabled)),
+:deep(.ed-input-number--dark:not(.is-disabled) .ed-input-number__increase:not(.is-disabled)) {
+  background-color: #1a1a1a;
+}
+
+.custom-divider_scale {
+  height: 18px;
+  border-color: #ffffff26;
+}
 
 .scale-input-number {
-  height: 28px;
-  width: 60px !important;
+  height: 24px;
+  line-height: 24px;
+  width: 80px;
   margin-right: 16px;
-  input {
-    -webkit-appearance: none;
-    -moz-appearance: textfield;
 
-    &::-webkit-inner-spin-button,
-    &::-webkit-outer-spin-button {
-      -webkit-appearance: none;
+  :deep(.ed-input__wrapper) {
+    position: relative;
+    padding: 0 38px 0 8px;
+    &::after {
+      position: absolute;
+      content: '%';
+      right: 35px;
+      top: 1px;
     }
   }
 }

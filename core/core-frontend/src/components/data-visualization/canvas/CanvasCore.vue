@@ -15,7 +15,7 @@ import MarkLine from './MarkLine.vue'
 import Area from './Area.vue'
 import eventBus from '@/utils/eventBus'
 import { changeStyleWithScale } from '@/utils/translate'
-import { ref, onMounted, computed, toRefs, nextTick, onBeforeUnmount } from 'vue'
+import { ref, onMounted, computed, toRefs, nextTick, onBeforeUnmount, watch } from 'vue'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { composeStoreWithOut } from '@/store/modules/data-visualization/compose'
 import { contextmenuStoreWithOut } from '@/store/modules/data-visualization/contextmenu'
@@ -23,7 +23,16 @@ import { storeToRefs } from 'pinia'
 import findComponent from '@/utils/components'
 import _ from 'lodash'
 import DragShadow from '@/components/data-visualization/canvas/DragShadow.vue'
-import { canvasSave, findDragComponent, isMainCanvas, isSameCanvas } from '@/utils/canvasUtils'
+import {
+  canvasSave,
+  componentPreSort,
+  findDragComponent,
+  findNewComponent,
+  isDashboard,
+  isGroupCanvas,
+  isMainCanvas,
+  isSameCanvas
+} from '@/utils/canvasUtils'
 import { guid } from '@/views/visualized/data/dataset/form/util'
 import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
 import UserViewEnlarge from '@/components/visualization/UserViewEnlarge.vue'
@@ -33,13 +42,18 @@ import { adaptCurThemeCommonStyle } from '@/utils/canvasStyle'
 import LinkageSet from '@/components/visualization/LinkageSet.vue'
 import PointShadow from '@/components/data-visualization/canvas/PointShadow.vue'
 import DragInfo from '@/components/visualization/common/DragInfo.vue'
+import { activeWatermark } from '@/components/watermark/watermark'
+import { personInfoApi } from '@/api/user'
+import PopArea from '@/custom-component/pop-area/Component.vue'
+
 const snapshotStore = snapshotStoreWithOut()
 const dvMainStore = dvMainStoreWithOut()
 const composeStore = composeStoreWithOut()
 const contextmenuStore = contextmenuStoreWithOut()
 
-const { curComponent, dvInfo, editMode, tabMoveOutComponentId } = storeToRefs(dvMainStore)
-const { editorMap } = storeToRefs(composeStore)
+const { curComponent, dvInfo, editMode, tabMoveOutComponentId, canvasState } =
+  storeToRefs(dvMainStore)
+const { editorMap, areaData } = storeToRefs(composeStore)
 const emits = defineEmits(['scrollCanvasToTop'])
 const props = defineProps({
   isEdit: {
@@ -53,6 +67,11 @@ const props = defineProps({
   componentData: {
     type: Array,
     required: true
+  },
+  popComponentData: {
+    type: Array,
+    required: false,
+    default: () => []
   },
   canvasViewInfo: {
     type: Object,
@@ -137,8 +156,19 @@ const props = defineProps({
     default() {
       return {}
     }
+  },
+  scale: {
+    type: Number,
+    required: false,
+    default: 1
+  },
+  canvasActive: {
+    type: Boolean,
+    required: false,
+    default: true
   }
 })
+const userInfo = ref(null)
 
 const {
   baseWidth,
@@ -170,11 +200,76 @@ const start = ref({
 const width = ref(0)
 const height = ref(0)
 const isShowArea = ref(false)
-const svgFilterAttrs = ['width', 'height', 'top', 'left', 'rotate']
+const svgFilterAttrs = ['width', 'height', 'top', 'left', 'rotate', 'backgroundColor']
+const commonFilterAttrs = ['width', 'height', 'top', 'left', 'rotate']
 const userViewEnlargeRef = ref(null)
 const linkJumpRef = ref(null)
 const linkageRef = ref(null)
 const mainDomId = ref('editor-' + canvasId.value)
+
+watch(
+  () => dvInfo.value,
+  () => {
+    initWatermark()
+  },
+  { deep: true }
+)
+
+watch(
+  () => canvasStyleData.value,
+  () => {
+    nextTick(() => {
+      initWatermark()
+    })
+  },
+  { deep: true }
+)
+
+watch(
+  () => areaData.value.components.length,
+  (val, oldVal) => {
+    groupAreaClickChange()
+  }
+)
+
+const initWatermark = (waterDomId = 'editor-canvas-main') => {
+  try {
+    if (
+      dvInfo.value.watermarkInfo &&
+      dvInfo.value.watermarkInfo.settingContent &&
+      isMainCanvas(canvasId.value)
+    ) {
+      const scale = dashboardActive.value ? 1 : curScale.value
+      if (userInfo.value && userInfo.value.model !== 'lose') {
+        activeWatermark(
+          dvInfo.value.watermarkInfo.settingContent,
+          userInfo.value,
+          waterDomId,
+          canvasId.value,
+          dvInfo.value.selfWatermarkStatus,
+          scale
+        )
+      } else {
+        const method = personInfoApi
+        method().then(res => {
+          userInfo.value = res.data
+          if (userInfo.value && userInfo.value.model !== 'lose') {
+            activeWatermark(
+              dvInfo.value.watermarkInfo.settingContent,
+              userInfo.value,
+              waterDomId,
+              canvasId.value,
+              dvInfo.value.selfWatermarkStatus,
+              scale
+            )
+          }
+        })
+      }
+    }
+  } catch (e) {
+    console.warn('Watermarks are not supported!')
+  }
+}
 
 const dragInfoShow = computed(() => {
   return (
@@ -191,7 +286,19 @@ const curComponentId = computed(() => {
 const { emitter } = useEmitt()
 
 const curScale = computed(() => {
-  return canvasStyleData.value.scale
+  if (dashboardActive.value) {
+    return (canvasStyleData.value.scale * 1.2) / 100
+  } else {
+    return canvasStyleData.value.scale / 100
+  }
+})
+
+const curBaseScale = computed(() => {
+  if (dashboardActive.value) {
+    return (dvMainStore.canvasStyleData.scale * 1.2) / 100
+  } else {
+    return dvMainStore.canvasStyleData.scale / 100
+  }
 })
 
 const pointShadowShow = computed(() => {
@@ -311,8 +418,8 @@ const hideArea = () => {
 
 const createGroup = () => {
   // 获取选中区域的组件数据
-  const areaData = getSelectArea()
-  if (areaData.length <= 1) {
+  const areaDataLocal = getSelectArea()
+  if (areaDataLocal.length <= 1) {
     hideArea()
     return
   }
@@ -323,7 +430,7 @@ const createGroup = () => {
     left = Infinity
   let right = -Infinity,
     bottom = -Infinity
-  areaData.forEach(component => {
+  areaDataLocal.forEach(component => {
     let style = { left: 0, top: 0, right: 0, bottom: 0 }
     if (component.component == 'Group') {
       component.propValue.forEach(item => {
@@ -353,19 +460,22 @@ const createGroup = () => {
   width.value = right - left
   height.value = bottom - top
 
+  const areaDataStyle = {
+    left,
+    top,
+    width: width.value,
+    height: height.value
+  }
+
   // 设置选中区域位移大小信息和区域内的组件数据
   composeStore.setAreaData({
-    style: {
-      left,
-      top,
-      width: width.value,
-      height: height.value
-    },
-    components: areaData
+    style: areaDataStyle,
+    components: areaDataLocal
   })
   // 如果有组件被group选中 取消当前画布选中的组件
-  if (areaData.length > 0) {
+  if (areaDataLocal.length > 0) {
     dvMainStore.setCurComponent({ component: null, index: null })
+    isShowArea.value = false
   }
 }
 
@@ -408,7 +518,7 @@ const handleContextMenu = e => {
     target = target.parentNode
   }
 
-  while (!target.className.includes('editor')) {
+  while (!target.className.includes('editor-main')) {
     left += target.offsetLeft
     top += target.offsetTop
     target = target.parentNode
@@ -416,11 +526,23 @@ const handleContextMenu = e => {
 
   // 组件处于编辑状态的时候 如富文本 不弹出右键菜单
   if (!curComponent.value || (curComponent.value && !curComponent.value.editing)) {
+    if (['VQuery'].includes(curComponent.value.component)) {
+      left = left * curBaseScale.value + 150
+      top = top * curBaseScale.value + curComponent.value.style.top * (1 - curBaseScale.value)
+    }
     contextmenuStore.showContextMenu({ top, left, position: 'canvasCore' })
+    const iconDom = document.getElementById('close-button')
+    if (iconDom) {
+      iconDom.click()
+    }
   }
 }
 
 const getComponentStyle = style => {
+  return getStyle(style, commonFilterAttrs)
+}
+
+const getSvgComponentStyle = style => {
   return getStyle(style, svgFilterAttrs)
 }
 
@@ -459,17 +581,18 @@ const getTextareaHeight = (element, text) => {
 }
 
 const editStyle = computed(() => {
-  if (dashboardActive.value) {
+  if (dashboardActive.value || isGroupCanvas(canvasId.value)) {
     return {
       width: '100%',
       height: '100%'
     }
   } else {
-    return {
+    const result = {
       ...getCanvasStyle(canvasStyleData.value),
-      width: changeStyleWithScale(canvasStyleData.value['width']) + 'px',
-      height: changeStyleWithScale(canvasStyleData.value['height']) + 'px'
+      width: changeStyleWithScale(canvasStyleData.value.width) + 'px',
+      height: changeStyleWithScale(canvasStyleData.value.height) + 'px'
     }
+    return result
   }
 })
 
@@ -521,6 +644,50 @@ function resetPositionBox() {
       })
     }
     positionBox.value.push(row)
+  }
+}
+
+/**
+ * 查找位置盒子
+ */
+function findPositionX(item) {
+  const width = item.sizeX
+  let resultX = 1
+  let checkPointYIndex = -1 // -1 没有占用任何Y方向画布
+  // 组件宽度
+  let pb = positionBox.value
+  if (width <= 0) return
+  // 查找组件最高位置索引 component 规则 y最新为1
+  componentData.value.forEach(component => {
+    const componentYIndex = component.y + component.sizeY - 2
+    if (checkPointYIndex < componentYIndex) {
+      checkPointYIndex = componentYIndex
+    }
+  })
+
+  if (checkPointYIndex < 0) {
+    return 1
+  } else {
+    // 获取最后一列X方向数组
+    const pbX = pb[checkPointYIndex]
+    // 从X i位置索引开始检查 ；
+    // 检查宽度为组件宽度width 检查索引终点为checkEndIndex = i + width - 1 ；
+    // 退出检查条件为索引终点checkEndIndex 越界 pbX终点索引；
+    for (let i = 0, checkEndIndex = width - 1; checkEndIndex < pbX.length; i++, checkEndIndex++) {
+      let adaptorCount = 0
+      // 定位最后一列占位位置
+      for (let k = 0; k < width; k++) {
+        // pbX[i + k].el === false 表示当前矩阵点位未被占用，当连续未被占用的矩阵点位宽度为width时 表示改起始点位i可用
+        if (!pbX[i + k].el) {
+          adaptorCount++
+        }
+      }
+      if (adaptorCount === width) {
+        resultX = i + 1
+        break
+      }
+    }
+    return resultX
   }
 }
 
@@ -714,6 +881,7 @@ function removeItem(index) {
       })
     }
     componentData.value.splice(index, 1)
+    dvMainStore.removeLinkageInfo(item['id'])
     if (!!checkedFields.length) {
       Array.from(new Set(checkedFields)).forEach(ele => {
         emitter.emit(`query-data-${ele}`)
@@ -908,11 +1076,14 @@ const clearInfoBox = e => {
 const cellInit = () => {
   // 此处向下取整 保留1位小数,why: 矩阵模式计算 x,y时 会使用 style.left/cellWidth style.top/cellWidth
   // 当初始状态细微的差距(主要是减少)都会导致 x，y 减少一个矩阵大小造成偏移,
-  cellWidth.value = Math.floor((baseWidth.value + baseMarginLeft.value) * 10) / 10
-  cellHeight.value = Math.floor((baseHeight.value + baseMarginTop.value) * 10) / 10
+  cellWidth.value = Math.floor((baseWidth.value + baseMarginLeft.value) * 1000) / 1000
+  cellHeight.value = Math.floor((baseHeight.value + baseMarginTop.value) * 1000) / 1000
 }
 
 const canvasSizeInit = () => {
+  if (isMainCanvas(canvasId.value)) {
+    initWatermark()
+  }
   cellInit()
   reCalcCellWidth()
 }
@@ -929,7 +1100,10 @@ const canvasInit = () => {
 
   reCalcCellWidth()
   resetPositionBox()
-
+  // 根据高度排序
+  if (isDashboard()) {
+    componentPreSort(componentData.value)
+  }
   let i = 0
   let timeId = setInterval(function () {
     if (i >= componentData.value.length) {
@@ -1191,11 +1365,71 @@ const linkageSetOpen = item => {
   })
 }
 
+const contextMenuShow = computed(() => {
+  if (curComponent.value) {
+    return curComponent.value.canvasId === canvasId.value
+  } else {
+    return isMainCanvas(canvasId.value)
+  }
+})
+
 const markLineShow = computed(() => isMainCanvas(canvasId.value))
+
+// 批量设置
+
+const dataVBatchOptAdaptor = () => {
+  dvMainStore.setBatchOptStatus(true)
+  areaData.value.components.forEach(component => {
+    dvMainStore.addCurBatchComponent(component)
+  })
+}
+
+// 点击事件导致选择区域变更
+const groupAreaClickChange = async () => {
+  let groupAreaCom
+  const groupAreaHis = dvMainStore.componentData.filter(ele => ele.component === 'GroupArea')
+  if (groupAreaHis && groupAreaHis.length > 0) {
+    groupAreaCom = groupAreaHis[0]
+  }
+  if (areaData.value.components.length === 0) {
+    dvMainStore.setBatchOptStatus(false)
+  }
+  // 显示Group视括组件
+  if (areaData.value.components.length > 1) {
+    dataVBatchOptAdaptor()
+    // 重新计算边界
+    composeStore.calcComposeArea()
+    if (groupAreaHis.length === 0) {
+      // 如果不存在 新建视括组件
+      groupAreaCom = findNewComponent('GroupArea', 'GroupArea')
+      dvMainStore.addComponent({ component: groupAreaCom, index: undefined })
+    }
+    groupAreaCom.style.left = areaData.value.style.left
+    groupAreaCom.style.top = areaData.value.style.top
+    groupAreaCom.style.width = areaData.value.style.width
+    groupAreaCom.style.height = areaData.value.style.height
+    dvMainStore.setClickComponentStatus(true)
+    dvMainStore.setCurComponent({
+      component: groupAreaCom,
+      index: dvMainStore.componentData.length - 1
+    })
+  } else if (groupAreaCom) {
+    groupAreaHis.forEach(ele => {
+      dvMainStore.deleteComponentById(ele.id)
+    })
+  }
+}
+
+// v-if 使用 内容不渲染 默认参数不起用
+const popAreaAvailable = computed(
+  () => canvasStyleData.value?.popupAvailable && isMainCanvas(canvasId.value)
+)
 
 onMounted(() => {
   if (isMainCanvas(canvasId.value)) {
     initSnapshotTimer()
+    initWatermark()
+    dvMainStore.setEditMode('edit')
   }
   // 获取编辑器元素
   composeStore.getEditor(canvasId.value)
@@ -1232,7 +1466,8 @@ defineExpose({
   handleDragOver,
   getMoveItem,
   handleMouseUp,
-  handleMouseDown
+  handleMouseDown,
+  findPositionX
 })
 </script>
 
@@ -1241,7 +1476,7 @@ defineExpose({
     :id="mainDomId"
     ref="container"
     class="editor"
-    :class="{ edit: isEdit }"
+    :class="{ edit: isEdit, 'dashboard-editor': dashboardActive }"
     :style="editStyle"
     @contextmenu="handleContextMenu"
   >
@@ -1252,9 +1487,21 @@ defineExpose({
       :component-data="componentData"
       :canvas-id="canvasId"
     ></canvas-opt-bar>
+    <!-- 弹框区域 -->
+    <PopArea
+      v-if="popAreaAvailable"
+      :dv-info="dvInfo"
+      :canvas-id="canvasId"
+      :canvas-style-data="canvasStyleData"
+      :canvasViewInfo="canvasViewInfo"
+      :pop-component-data="popComponentData"
+      :scale="curBaseScale"
+      :canvas-state="canvasState"
+      :show-position="'popEdit'"
+    ></PopArea>
     <!-- 网格线 -->
     <drag-shadow
-      v-if="infoBox && infoBox.moveItem"
+      v-if="infoBox && infoBox.moveItem && editMode !== 'preview'"
       :base-height="baseHeight"
       :base-width="baseWidth"
       :cur-gap="curGap"
@@ -1269,6 +1516,7 @@ defineExpose({
       v-for="(item, index) in componentData"
       v-show="item.isShow"
       :canvas-id="canvasId"
+      :scale="curScale"
       :key="item.id"
       :default-style="item.style"
       :style="getShapeItemShowStyle(item)"
@@ -1276,6 +1524,7 @@ defineExpose({
       :index="index"
       :class="{ lock: item.isLock && editMode === 'edit' }"
       :base-cell-info="baseCellInfo"
+      :canvas-active="canvasActive"
       @onStartResize="onStartResize($event, item, index)"
       @onStartMove="onStartMove($event, item, index)"
       @onMouseUp="onMouseUp($event, item, index)"
@@ -1285,15 +1534,14 @@ defineExpose({
       @linkJumpSetOpen="linkJumpSetOpen(item)"
       @linkageSetOpen="linkageSetOpen(item)"
     >
-      <!--如果是视图 则动态获取预存的chart-view数据-->
       <component
         :is="findComponent(item.component)"
-        v-if="item.component === 'UserView'"
+        v-if="item.component === 'UserView' || item['isPlugin']"
         class="component"
         :id="'component' + item.id"
         :active="item.id === curComponentId"
         :dv-type="dvInfo.type"
-        :scale="curScale"
+        :scale="curBaseScale"
         :style="getComponentStyle(item.style)"
         :prop-value="item.propValue"
         :is-edit="true"
@@ -1302,12 +1550,30 @@ defineExpose({
         :request="item.request"
         @input="handleInput"
         :dv-info="dvInfo"
+        :canvas-active="canvasActive"
       />
-
+      <component
+        v-else-if="item.component.includes('Svg')"
+        :is="findComponent(item.component)"
+        :id="'component' + item.id"
+        :scale="curBaseScale"
+        class="component"
+        :is-edit="true"
+        :style="getSvgComponentStyle(item.style)"
+        :prop-value="item.propValue"
+        :element="item"
+        :request="item.request"
+        :canvas-style-data="canvasStyleData"
+        :canvas-view-info="canvasViewInfo"
+        :dv-info="dvInfo"
+        :active="item.id === curComponentId"
+        :canvas-active="canvasActive"
+      />
       <component
         v-else
         :is="findComponent(item.component)"
         :id="'component' + item.id"
+        :scale="curBaseScale"
         class="component"
         :is-edit="true"
         :style="getComponentStyle(item.style)"
@@ -1317,10 +1583,12 @@ defineExpose({
         :canvas-style-data="canvasStyleData"
         :canvas-view-info="canvasViewInfo"
         :dv-info="dvInfo"
+        :active="item.id === curComponentId"
+        :canvas-active="canvasActive"
       />
     </Shape>
     <!-- 右击菜单 -->
-    <ContextMenu show-position="canvasCore" />
+    <ContextMenu v-if="contextMenuShow" show-position="canvasCore" />
     <!-- 标线 -->
     <MarkLine v-if="markLineShow" />
     <!-- 选中区域 -->
@@ -1332,6 +1600,9 @@ defineExpose({
 </template>
 
 <style lang="less" scoped>
+.dashboard-editor {
+  min-height: 100%;
+}
 .editor {
   position: relative;
   margin: auto;

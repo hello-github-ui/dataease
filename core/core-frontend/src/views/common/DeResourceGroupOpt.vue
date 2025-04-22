@@ -13,6 +13,7 @@ import {
   saveCanvas
 } from '@/api/visualization/dataVisualization'
 import { ElMessage } from 'element-plus-secondary'
+import { cutTargetTree } from '@/utils/utils'
 const props = defineProps({
   curCanvasType: {
     type: String,
@@ -154,6 +155,9 @@ const optInit = (type, data: BusiTreeNode, exec, parentSelect = false) => {
       state.tData[0].name = curCanvasType.value === 'dataV' ? '数据大屏' : '仪表板'
     }
     tData = [...state.tData]
+    if ('move' === exec) {
+      cutTargetTree(state.tData, data.id)
+    }
     if (['newLeaf', 'newFolder'].includes(exec)) {
       resourceForm.pid = data.id as string
       pid.value = data.id
@@ -276,7 +280,9 @@ const saveResource = () => {
             ElMessage.success('保存成功')
             if (cmd.value === 'copy') {
               const baseUrl =
-                curCanvasType.value === 'dataV' ? '#/dvCanvas?dvId=' : '#/dashboard?resourceId='
+                curCanvasType.value === 'dataV'
+                  ? '#/dvCanvas?opt=copy&dvId='
+                  : '#/dashboard?opt=copy&resourceId='
               window.open(baseUrl + data.data, '_blank')
             }
           })
@@ -407,7 +413,7 @@ const emits = defineEmits(['finish'])
       margin-bottom: 8px;
     }
     span {
-      font-family: PingFang SC;
+      font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
       font-size: 14px;
       font-weight: 400;
       line-height: 22px;

@@ -5,7 +5,7 @@
   <parent>
     <artifactId>core</artifactId>
     <groupId>io.dataease</groupId>
-    <version>2.0.0</version>
+    <version>${dataease.version}</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -24,17 +24,19 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-clean-plugin</artifactId>
-        <version>3.2.0</version>
         <configuration>
           <filesets>
+            <!--<fileset>
+              <directory>dist</directory>
+            </fileset>-->
             <fileset>
-              <directory>node_modules</directory>
+                <directory>node_modules</directory>
             </fileset>
             <fileset>
-              <directory>./</directory>
-              <includes>
-                <include>*-lock.json</include>
-              </includes>
+                <directory>./</directory>
+                <includes>
+                    <include>*-lock.json</include>
+                </includes>
             </fileset>
           </filesets>
         </configuration>
@@ -44,6 +46,7 @@
         <artifactId>frontend-maven-plugin</artifactId>
         <version>${frontend-maven-plugin.version}</version>
         <executions>
+          <!--首次打包需要放开-->
           <execution>
             <id>install node and npm</id>
             <goals>
@@ -54,8 +57,8 @@
               <npmVersion>8.5.5</npmVersion>
             </configuration>
           </execution>
-
-          <execution>
+          <!--前端组件有更新需要放开-->
+           <execution>
             <id>npm install</id>
             <goals>
               <goal>npm</goal>
@@ -71,7 +74,7 @@
               <goal>npm</goal>
             </goals>
             <configuration>
-              <arguments>run build:base</arguments>
+              <arguments>run build:distributed</arguments>
             </configuration>
           </execution>
         </executions>

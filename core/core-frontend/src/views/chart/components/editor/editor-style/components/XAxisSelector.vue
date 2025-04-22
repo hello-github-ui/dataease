@@ -52,6 +52,26 @@ const fontSizeList = computed(() => {
   return arr
 })
 
+const splitLineStyle = [
+  { label: t('chart.line_type_solid'), value: 'solid' },
+  { label: t('chart.line_type_dashed'), value: 'dashed' },
+  { label: t('chart.line_type_dotted'), value: 'dotted' }
+]
+
+const isBarRangeTime = computed<boolean>(() => {
+  if (props.chart.type === 'bar-range') {
+    const tempYAxis = props.chart.yAxis[0]
+    const tempYAxisExt = props.chart.yAxisExt[0]
+    if (
+      (tempYAxis && tempYAxis.groupType === 'd') ||
+      (tempYAxisExt && tempYAxisExt.groupType === 'd')
+    ) {
+      return true
+    }
+  }
+  return false
+})
+
 const changeAxisStyle = prop => {
   if (
     state.axisForm.axisValue.splitCount &&
@@ -80,6 +100,14 @@ const init = () => {
 
 const showProperty = prop => props.propertyInner?.includes(prop)
 
+const isBidirectionalBar = computed(() => {
+  return props.chart.type === 'bidirectional-bar'
+})
+
+const isHorizontalLayout = computed(() => {
+  return props.chart.customAttr.basicStyle.layout === 'horizontal'
+})
+
 onMounted(() => {
   init()
 })
@@ -104,8 +132,20 @@ onMounted(() => {
         size="small"
         @change="changeAxisStyle('position')"
       >
-        <el-radio :effect="props.themes" label="top">{{ t('chart.text_pos_top') }}</el-radio>
-        <el-radio :effect="props.themes" label="bottom">{{ t('chart.text_pos_bottom') }}</el-radio>
+        <div v-if="isBidirectionalBar">
+          <el-radio :effect="props.themes" label="top">{{
+            isHorizontalLayout ? t('chart.text_pos_left') : t('chart.text_pos_top')
+          }}</el-radio>
+          <el-radio :effect="props.themes" label="bottom">{{
+            t('chart.text_pos_center')
+          }}</el-radio>
+        </div>
+        <div v-else>
+          <el-radio :effect="props.themes" label="top">{{ t('chart.text_pos_top') }}</el-radio>
+          <el-radio :effect="props.themes" label="bottom">{{
+            t('chart.text_pos_bottom')
+          }}</el-radio>
+        </div>
       </el-radio-group>
     </el-form-item>
     <el-form-item
@@ -123,15 +163,12 @@ onMounted(() => {
       />
     </el-form-item>
 
-    <label class="custom-form-item-label" :class="'custom-form-item-label--' + themes"
-      >{{ t('chart.name') }}{{ t('chart.text') }}</label
-    >
     <div style="display: flex">
       <el-form-item
         class="form-item"
         :class="'form-item-' + themes"
         v-if="showProperty('color')"
-        style="padding-right: 4px"
+        :label="t('chart.chart_style')"
       >
         <el-color-picker
           v-model="state.axisForm.color"
@@ -148,6 +185,7 @@ onMounted(() => {
         v-if="showProperty('fontSize')"
         style="padding-left: 4px"
       >
+        <template #label>&nbsp;</template>
         <el-tooltip content="字号" :effect="toolTip" placement="top">
           <el-select
             style="width: 108px"
@@ -288,10 +326,26 @@ onMounted(() => {
             is-custom
           />
         </el-form-item>
+        <el-form-item class="form-item" :class="'form-item-' + themes" style="padding: 0 4px">
+          <el-select
+            :disabled="!state.axisForm.splitLine.show"
+            style="width: 62px"
+            :effect="props.themes"
+            v-model="state.axisForm.splitLine.lineStyle.style"
+            @change="changeAxisStyle('splitLine.lineStyle.style')"
+          >
+            <el-option
+              v-for="option in splitLineStyle"
+              :key="option.value"
+              :value="option.value"
+              :label="option.label"
+            ></el-option>
+          </el-select>
+        </el-form-item>
         <el-form-item class="form-item" :class="'form-item-' + themes" style="padding-left: 4px">
           <el-input-number
             :disabled="!state.axisForm.splitLine.show"
-            style="width: 108px"
+            style="width: 70px"
             :effect="props.themes"
             v-model="state.axisForm.splitLine.lineStyle.width"
             :min="1"
@@ -374,7 +428,7 @@ onMounted(() => {
         />
       </el-form-item>
 
-      <template v-if="showProperty('axisLabelFormatter')">
+      <template v-if="showProperty('axisLabelFormatter') && !isBarRangeTime">
         <el-form-item
           class="form-item"
           :class="'form-item-' + themes"

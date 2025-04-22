@@ -14,7 +14,8 @@ const props = defineProps({
       type: propTypes.string,
       field: propTypes.string,
       option: propTypes.array,
-      title: propTypes.string
+      title: propTypes.string,
+      property: propTypes.shape({})
     })
   ),
   title: propTypes.string
@@ -106,6 +107,7 @@ defineExpose({
         v-if="component.type === 'tree-select'"
         :option-list="component.option"
         :title="component.title"
+        :property="component.property"
         @filter-change="v => filterChange(v, component.field, 'in')"
       />
       <drawer-filter
@@ -113,6 +115,7 @@ defineExpose({
         v-if="component.type === 'select'"
         :option-list="component.option"
         :title="component.title"
+        :property="component.property"
         @filter-change="v => filterChange(v, component.field, 'in')"
       />
       <drawer-enum-filter
@@ -126,12 +129,13 @@ defineExpose({
         :ref="el => (myRefs[index] = el)"
         v-if="component.type === 'time'"
         :title="component.title"
-        @filter-change="v => filterChange(v, component.field, 'eq')"
+        :property="component.property"
+        @filter-change="v => filterChange(v, component.field, component.operator)"
       />
     </div>
 
     <template #footer>
-      <el-button @click="reset">{{ t('commons.reset') }}</el-button>
+      <el-button secondary @click="reset">{{ t('commons.reset') }}</el-button>
       <el-button @click="trigger" type="primary">{{ t('common.sure') }}</el-button>
     </template>
   </el-drawer>
@@ -144,8 +148,8 @@ defineExpose({
     padding: 16px 24px 80px !important;
   }
   .ed-drawer__footer {
-    padding-top: 10px !important;
-    padding-right: 24px !important;
+    padding: 16px 24px;
+    height: 64px;
   }
 }
 </style>

@@ -1,14 +1,21 @@
 <script lang="ts" setup>
 import { useI18n } from '@/hooks/web/useI18n'
-import { ref, shallowRef, computed } from 'vue'
+import { ref, shallowRef, computed, reactive, watch } from 'vue'
 
-import imgtest from '@/assets/img/dataease-10000Star.jpg'
 import { usePermissionStoreWithOut } from '@/store/modules/permission'
 import { useRequestStoreWithOut } from '@/store/modules/request'
 import { interactiveStoreWithOut } from '@/store/modules/interactive'
 import ShortcutTable from './ShortcutTable.vue'
 import { useUserStoreWithOut } from '@/store/modules/user'
 import { useRouter } from 'vue-router'
+import { searchMarketRecommend } from '@/api/templateMarket'
+import TemplateBranchItem from '@/views/workbranch/TemplateBranchItem.vue'
+import { ElMessage } from 'element-plus-secondary'
+import { useCache } from '@/hooks/web/useCache'
+import DeResourceCreateOptV2 from '@/views/common/DeResourceCreateOptV2.vue'
+import { Base64 } from 'js-base64'
+import { useEmbedded } from '@/store/modules/embedded'
+import { useAppStoreWithOut } from '@/store/modules/app'
 const userStore = useUserStoreWithOut()
 const interactiveStore = interactiveStoreWithOut()
 const permissionStore = usePermissionStoreWithOut()
@@ -16,27 +23,33 @@ const requestStore = useRequestStoreWithOut()
 const { t } = useI18n()
 const busiDataMap = computed(() => interactiveStore.getData)
 const busiCountCardList = ref([])
-
-const showTemplate = ref(false)
-
+const { wsCache } = useCache()
+const { push } = useRouter()
 const router = useRouter()
+const resourceCreateOpt = ref(null)
+const embeddedStore = useEmbedded()
+const appStore = useAppStoreWithOut()
 
 const quickCreationList = shallowRef([
   {
     icon: 'icon_dashboard_outlined',
-    name: 'panel'
+    name: 'panel',
+    color: '#3370ff'
   },
   {
     icon: 'icon_operation-analysis_outlined',
-    name: 'screen'
+    name: 'screen',
+    color: '#00d6b9'
   },
   {
     icon: 'icon_app_outlined',
-    name: 'dataset'
+    name: 'dataset',
+    color: '#16c0ff'
   },
   {
     icon: 'icon_database_outlined',
-    name: 'datasource'
+    name: 'datasource',
+    color: '#7f3bf6'
   }
 ])
 
@@ -45,11 +58,97 @@ const handleExpandFold = () => {
   expandFold.value = expandFold.value === 'expand' ? 'fold' : 'expand'
 }
 
-const tabBtnList = ['推荐仪表板', t('auth.screen'), '应用模版']
-const activeTabBtn = ref('推荐仪表板')
+const createAuth = computed(() => {
+  return {
+    PANEL: havePanelAuth.value,
+    SCREEN: haveScreenAuth.value
+  }
+})
+
+const havePanelAuth = computed(() => {
+  return quickCreationList.value[0]['menuAuth'] && quickCreationList.value[0]['anyManage']
+})
+
+const haveScreenAuth = computed(() => {
+  return quickCreationList.value[1]['menuAuth'] && quickCreationList.value[1]['anyManage']
+})
+
+const activeTabChange = value => {
+  activeTabBtn.value = value
+}
+
+const tabBtnList = [
+  {
+    name: '推荐仪表板',
+    value: 'PANEL'
+  },
+  {
+    name: t('auth.screen'),
+    value: 'SCREEN'
+  }
+]
+const activeTabBtn = ref('PANEL')
 const typeList = quickCreationList.value.map(ele => ele.name)
 typeList.unshift('all_types')
 
+const state = reactive({
+  templateType: 'PANEL',
+  baseUrl: null,
+  marketTemplatePreviewShowList: [],
+  hasResult: false,
+  networkStatus: true,
+  loading: false,
+  dvCreateForm: {
+    resourceName: null,
+    templateId: null,
+    name: null,
+    pid: null,
+    nodeType: 'panel',
+    templateUrl: null,
+    newFrom: 'new_market_template',
+    panelType: 'self',
+    panelStyle: {},
+    panelData: '[]'
+  }
+})
+
+watch(
+  () => activeTabBtn.value,
+  () => {
+    initTemplateShow()
+  }
+)
+
+const initMarketTemplate = async () => {
+  await searchMarketRecommend()
+    .then(rsp => {
+      state.baseUrl = rsp.data.baseUrl
+      state.marketTemplatePreviewShowList = rsp.data.contents
+      state.hasResult = true
+      initTemplateShow()
+    })
+    .catch(() => {
+      state.networkStatus = false
+    })
+}
+
+const initTemplateShow = () => {
+  state.hasResult = false
+  state.marketTemplatePreviewShowList.forEach(template => {
+    template.showFlag = templateShowCur(template)
+    if (template.showFlag) {
+      state.hasResult = true
+    }
+  })
+}
+
+const templateShowCur = templateItem => {
+  let templateTypeMarch = false
+  if (activeTabBtn.value === templateItem.templateType) {
+    templateTypeMarch = true
+  }
+  return templateTypeMarch
+}
 const fillCardInfo = () => {
   for (const key in busiDataMap.value) {
     if (key !== '3') {
@@ -99,7 +198,83 @@ const createDatasource = () => {
   const baseUrl = '#/data/datasource?opt=create'
   window.open(baseUrl, '_blank')
 }
+
+const templatePreview = previewId => {
+  wsCache.set(`template-preview-id`, previewId)
+  toTemplateMarket()
+}
+
+const templateApply = template => {
+  state.dvCreateForm.name = template.title
+  state.dvCreateForm.nodeType = template.templateType
+  if (template.source === 'market') {
+    state.dvCreateForm.newFrom = 'new_market_template'
+    state.dvCreateForm.templateUrl = template.metas.theme_repo
+    state.dvCreateForm.resourceName = template.id
+  } else {
+    state.dvCreateForm.newFrom = 'new_inner_template'
+    state.dvCreateForm.templateId = template.id
+  }
+  apply()
+}
+const isDataEaseBi = computed(() => appStore.getIsDataEaseBi)
+
+const apply = () => {
+  if (state.dvCreateForm.newFrom === 'new_market_template' && !state.dvCreateForm.templateUrl) {
+    ElMessage.warning('未获取模板下载链接请联系模板市场官方')
+    return false
+  }
+  const templateTemplate = {
+    newFrom: state.dvCreateForm.newFrom,
+    templateUrl: state.dvCreateForm.templateUrl,
+    resourceName: state.dvCreateForm.resourceName,
+    templateId: state.dvCreateForm.templateId
+  }
+  const baseUrl =
+    (['dataV', 'SCREEN'].includes(state.dvCreateForm.nodeType)
+      ? '#/dvCanvas?opt=create&createType=template'
+      : '#/dashboard?opt=create&createType=template') +
+    '&templateParams=' +
+    encodeURIComponent(Base64.encode(JSON.stringify(templateTemplate)))
+  let newWindow = null
+  let embeddedBaseUrl = ''
+  if (isDataEaseBi.value) {
+    embeddedBaseUrl = embeddedStore.baseUrl
+  }
+  if (state.pid) {
+    newWindow = window.open(embeddedBaseUrl + baseUrl + `&pid=${state.pid}`, '_blank')
+  } else {
+    newWindow = window.open(embeddedBaseUrl + baseUrl, '_blank')
+  }
+  initOpenHandler(newWindow)
+}
+const openHandler = ref(null)
+const initOpenHandler = newWindow => {
+  if (openHandler?.value) {
+    const pm = {
+      methodName: 'initOpenHandler',
+      args: newWindow
+    }
+    openHandler.value.invokeMethod(pm)
+  }
+}
+
+const toTemplateMarket = () => {
+  push('/template-market/index')
+}
+
+const toTemplateMarketAdd = () => {
+  if (havePanelAuth.value || haveScreenAuth.value) {
+    const params = {
+      curPosition: 'branchCreate',
+      templateType: 'all'
+    }
+    resourceCreateOpt.value.optInit(params)
+  }
+}
+
 fillCardInfo()
+initMarketTemplate()
 </script>
 
 <template>
@@ -150,22 +325,43 @@ fillCardInfo()
             >
               <div class="empty-tooltip-container" />
             </el-tooltip>
-            <el-icon class="main-color">
+            <el-icon class="main-color" :style="{ backgroundColor: ele.color }">
               <Icon :name="ele.icon" />
             </el-icon>
             <span class="name">
               {{ t(`auth.${ele.name}`) }}
             </span>
           </div>
+          <div
+            class="item item-quick"
+            :class="{
+              'quick-create-disabled': !(havePanelAuth || haveScreenAuth)
+            }"
+            @click="toTemplateMarketAdd"
+          >
+            <el-tooltip
+              v-if="!(havePanelAuth || haveScreenAuth)"
+              class="box-item"
+              effect="dark"
+              content="缺少创建权限"
+              placement="top"
+            >
+              <div class="empty-tooltip-container-template" />
+            </el-tooltip>
+            <el-icon class="main-color-quick template-create">
+              <Icon name="icon_template_colorful" />
+            </el-icon>
+            <span class="name">使用模板新建</span>
+          </div>
         </div>
       </div>
     </div>
     <div class="template-market-dashboard">
-      <div v-if="showTemplate" class="template-market">
+      <div class="template-market">
         <div class="label">
-          模版市场
+          模板中心
           <div class="expand-all">
-            <button class="all flex-center">查看全部</button>
+            <button class="all flex-center" @click="toTemplateMarket">查看全部</button>
             <el-divider direction="vertical" />
             <button @click="handleExpandFold" class="expand flex-center">
               {{ t(`visualization.${expandFold}`) }}
@@ -175,41 +371,43 @@ fillCardInfo()
         <template v-if="expandFold === 'fold'">
           <div class="tab-btn">
             <div
-              @click="activeTabBtn = ele"
               v-for="ele in tabBtnList"
-              :key="ele"
-              :class="activeTabBtn === ele && 'active'"
+              :key="ele.value"
+              :class="activeTabBtn === ele.value && 'active'"
+              @click="activeTabChange(ele.value)"
               class="main-btn"
             >
-              {{ ele }}
+              {{ ele.name }}
             </div>
           </div>
-          <div class="template-list">
-            <div class="template">
-              <div class="photo">
-                <img :src="imgtest" alt="" />
-              </div>
-              <div class="apply">
-                <span title="电子银行业务分析" class="name ellipsis"> 电子银行业务分析 </span>
-                <el-button class="flex-center" secondary>{{ t('dataset.preview') }}</el-button>
-                <el-button class="flex-center" type="primary">{{ t('commons.apply') }}</el-button>
-              </div>
-            </div>
-            <div class="template">
-              <div class="photo">
-                <img :src="imgtest" alt="" />
-              </div>
-              <div class="apply">
-                <span title="电子银行业务分析" class="name ellipsis"> 电子银行业务分析 </span>
-                <el-button class="flex-center" secondary>{{ t('dataset.preview') }}</el-button>
-                <el-button class="flex-center" type="primary">{{ t('commons.apply') }}</el-button>
-              </div>
-            </div>
+          <div class="template-list" v-show="state.networkStatus && state.hasResult">
+            <template-branch-item
+              v-for="(template, index) in state.marketTemplatePreviewShowList"
+              v-show="template['showFlag']"
+              :key="index"
+              :template="template"
+              :base-url="state.baseUrl"
+              :create-auth="createAuth"
+              @templateApply="templateApply"
+              @templatePreview="templatePreview"
+            >
+            </template-branch-item>
           </div>
+          <el-row v-show="state.networkStatus && !state.hasResult" class="template-empty">
+            <div style="text-align: center">
+              <Icon name="no_result" class="no-result"></Icon>
+              <br />
+              <span class="no-result-tips">没有找到相关模板</span>
+            </div>
+          </el-row>
+          <el-row v-show="!state.networkStatus" class="template-empty">
+            {{ t('visualization.market_network_tips') }}
+          </el-row>
         </template>
       </div>
       <shortcut-table :expand="expandFold === 'expand'" />
     </div>
+    <de-resource-create-opt-v2 ref="resourceCreateOpt"></de-resource-create-opt-v2>
   </div>
 </template>
 
@@ -232,7 +430,7 @@ fillCardInfo()
   .info-quick-creation {
     width: 360px;
     .main-color {
-      background: #3370ff;
+      background: var(--ed-color-primary);
       width: 32px;
       height: 32px;
     }
@@ -263,7 +461,7 @@ fillCardInfo()
         .name-role {
           margin-bottom: 4px;
           color: #1f2329;
-          font-family: PingFang SC;
+          font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
           font-style: normal;
           .name {
             font-size: 16px;
@@ -279,7 +477,7 @@ fillCardInfo()
             padding: 0 6px;
             align-items: center;
             font-size: 12px;
-            color: #2b5fd9;
+            color: var(--ed-color-primary-dark-2, #2b5fd9);
             border-radius: 2px;
           }
         }
@@ -293,7 +491,7 @@ fillCardInfo()
       }
 
       .item {
-        font-family: PingFang SC;
+        font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
         font-style: normal;
         display: flex;
         flex-direction: column;
@@ -330,7 +528,7 @@ fillCardInfo()
       .label {
         color: #1f2329;
         font-feature-settings: 'clig' off, 'liga' off;
-        font-family: PingFang SC;
+        font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
         font-size: 16px;
         font-style: normal;
         font-weight: 500;
@@ -364,11 +562,19 @@ fillCardInfo()
 
           .name {
             color: #1f2329;
-            font-family: PingFang SC;
+            font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
             font-size: 14px;
             font-style: normal;
             font-weight: 400;
             line-height: 22px;
+          }
+        }
+
+        .item-quick {
+          width: 100%;
+          .main-color-quick {
+            font-size: 32px;
+            margin-right: 12px;
           }
         }
         .quick-create-disabled {
@@ -389,23 +595,32 @@ fillCardInfo()
             height: 52px;
             margin-left: -16px;
           }
+          .empty-tooltip-container-template {
+            width: 300px;
+            position: absolute;
+            height: 52px;
+            margin-left: -16px;
+          }
+          .template-create {
+            opacity: 0.3;
+          }
         }
       }
     }
   }
 
   .template-market-dashboard {
-    width: calc(100% - 384px);
+    width: calc(100% - 376px);
     height: 100%;
 
     .template-market {
-      padding: 24px;
+      padding: 24px 24px 0;
       background: #fff;
       border-radius: 4px;
       .label {
         color: #1f2329;
         font-feature-settings: 'clig' off, 'liga' off;
-        font-family: PingFang SC;
+        font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
         font-size: 16px;
         font-style: normal;
         font-weight: 500;
@@ -419,6 +634,10 @@ fillCardInfo()
           font-weight: 400;
           line-height: 22px;
           border-radius: 4px;
+
+          button {
+            cursor: pointer;
+          }
 
           .flex-center {
             padding: 0 4px;
@@ -450,7 +669,7 @@ fillCardInfo()
           display: inline-flex;
           align-items: center;
           padding: 0 8px;
-          font-family: PingFang SC;
+          font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
           font-size: 12px;
           font-style: normal;
           font-weight: 400;
@@ -460,12 +679,12 @@ fillCardInfo()
           }
 
           &:hover {
-            color: #2b5fd9;
+            color: var(--ed-color-primary-dark-2, #2b5fd9);
           }
 
           &.active {
-            color: #2b5fd9;
-            background: rgba(51, 112, 255, 0.2);
+            color: var(--ed-color-primary-dark-2, #2b5fd9);
+            background: var(--ed-color-primary-33, rgba(51, 112, 255, 0.2));
           }
         }
       }
@@ -473,78 +692,27 @@ fillCardInfo()
       .template-list {
         display: flex;
         margin-left: -16px;
-        .template {
-          border: 1px solid #d9d9d9;
-          border-radius: 4px;
-          display: flex;
-          flex-wrap: wrap;
-          width: 181px;
-          height: 141px;
-          margin-left: 16px;
-          position: relative;
-
-          .photo {
-            padding: 4px;
-            padding-bottom: 0;
-            height: 101px;
-            img {
-              width: 100%;
-              height: 100%;
-              border-top-left-radius: 4px;
-              border-top-right-radius: 4px;
-            }
-          }
-
-          .apply {
-            padding: 8px 12px;
-            background: #fff;
-            border-top: 1px solid #d9d9d9;
-            position: absolute;
-            width: 100%;
-            left: 0;
-            bottom: 0;
-            height: 39px;
-            display: flex;
-            flex-wrap: wrap;
-            border-bottom-left-radius: 4px;
-            border-bottom-right-radius: 4px;
-            justify-content: space-between;
-
-            .ed-button {
-              min-width: 73px;
-              height: 28px;
-              display: none;
-              font-size: 12px;
-              line-height: 20px;
-              padding: 0;
-              margin-top: 8px;
-              & + .ed-button {
-                margin-left: 8px;
-              }
-            }
-            .name {
-              color: #1f2329;
-              font-family: PingFang SC;
-              font-size: 14px;
-              font-style: normal;
-              font-weight: 500;
-              line-height: 22px;
-              width: 100%;
-            }
-          }
-
-          &:hover {
-            box-shadow: 0px 6px 24px 0px rgba(31, 35, 41, 0.08);
-            .apply {
-              height: 73px;
-            }
-            .ed-button {
-              display: block;
-            }
-          }
-        }
+        overflow-x: auto;
+        padding-bottom: 24px;
       }
     }
   }
+}
+
+.template-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(239, 240, 241, 1);
+  color: rgba(100, 106, 115, 1);
+  min-height: 60px;
+}
+.no-result {
+  width: 74px;
+  height: 74px;
+}
+.no-result-tips {
+  font-size: 14px;
+  color: rgba(100, 106, 115, 1);
 }
 </style>

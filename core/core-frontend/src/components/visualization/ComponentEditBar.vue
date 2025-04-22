@@ -1,6 +1,7 @@
 <template>
   <div
     class="bar-main"
+    v-if="!mobileInPc"
     :class="[
       showEditPosition,
       {
@@ -9,6 +10,16 @@
     ]"
     @mousedown="fieldsAreaDown"
   >
+    <el-tooltip
+      effect="dark"
+      placement="top"
+      :content="'排序'"
+      v-if="element.component === 'DeTabs' && showPosition === 'canvas'"
+    >
+      <el-icon class="bar-base-icon" @click="tabSort">
+        <Sort />
+      </el-icon>
+    </el-tooltip>
     <template v-if="element.component === 'VQuery' && showPosition === 'canvas'">
       <span title="添加查询条件">
         <el-icon class="bar-base-icon" @click="addQueryCriteria">
@@ -104,6 +115,15 @@
                 <template #dropdown>
                   <el-dropdown-menu style="width: 120px">
                     <el-dropdown-item @click="exportAsExcel">Excel</el-dropdown-item>
+                    <el-dropdown-item
+                      v-if="element.innerType === 'table-pivot'"
+                      :disabled="!enableFormattedExport"
+                      @click="exportAsFormattedExcel"
+                    >
+                      <span :title="enableFormattedExport ? '' : '树形模式暂不支持导出'"
+                        >Excel(带格式)</span
+                      >
+                    </el-dropdown-item>
                     <el-dropdown-item @click="exportAsImage">图片</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
@@ -116,11 +136,10 @@
         </el-dropdown-menu>
       </template>
     </el-dropdown>
-
     <el-dropdown
       trigger="click"
       placement="right-start"
-      v-if="element.innerType !== 'rich-text' && barShowCheck('previewDownload')"
+      v-if="element.innerType !== 'rich-text' && barShowCheck('previewDownload') && authShow"
     >
       <el-icon @click="downloadClick" class="bar-base-icon">
         <el-tooltip :content="t('chart.export')" effect="dark" placement="bottom">
@@ -130,6 +149,13 @@
       <template #dropdown>
         <el-dropdown-menu style="width: 118px">
           <el-dropdown-item @click="exportAsExcel">Excel</el-dropdown-item>
+          <el-dropdown-item
+            v-if="element.innerType === 'table-pivot'"
+            :disabled="!enableFormattedExport"
+            @click="exportAsFormattedExcel"
+          >
+            <span :title="enableFormattedExport ? '' : '树形模式暂不支持导出'">Excel(带格式)</span>
+          </el-dropdown-item>
           <el-dropdown-item @click="exportAsImage">图片</el-dropdown-item>
         </el-dropdown-menu>
       </template>
@@ -141,11 +167,12 @@
       </template>
       <fields-list :fields="state.curFields" :element="element" />
     </el-popover>
+    <custom-tabs-sort ref="customTabsSortRef" :element="element"></custom-tabs-sort>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeUnmount, onMounted, reactive, toRefs, watch } from 'vue'
+import { computed, h, onBeforeUnmount, onMounted, reactive, ref, toRefs, watch } from 'vue'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { storeToRefs } from 'pinia'
 import { useI18n } from '@/hooks/web/useI18n'
@@ -155,10 +182,15 @@ import { useEmitt } from '@/hooks/web/useEmitt'
 import { copyStoreWithOut } from '@/store/modules/data-visualization/copy'
 import { exportExcelDownload } from '@/views/chart/components/js/util'
 import FieldsList from '@/custom-component/rich-text/FieldsList.vue'
-import { ElTooltip } from 'element-plus-secondary'
+import { RefreshLeft } from '@element-plus/icons-vue'
+import { ElMessage, ElTooltip, ElButton } from 'element-plus-secondary'
+import CustomTabsSort from '@/custom-component/de-tabs/CustomTabsSort.vue'
+import { exportPivotExcel } from '@/views/chart/components/js/panel/common/common_table'
 const dvMainStore = dvMainStoreWithOut()
 const snapshotStore = snapshotStoreWithOut()
 const copyStore = copyStoreWithOut()
+const customTabsSortRef = ref(null)
+const authShow = computed(() => !dvInfo.value.weight || dvInfo.value.weight > 3)
 const emits = defineEmits([
   'userViewEnlargeOpen',
   'closePreview',
@@ -249,8 +281,15 @@ const props = defineProps({
 })
 
 const { element, index, showPosition, canvasId } = toRefs(props)
-const { batchOptStatus, pcMatrixCount, curComponent, componentData, canvasViewInfo } =
-  storeToRefs(dvMainStore)
+const {
+  batchOptStatus,
+  pcMatrixCount,
+  curComponent,
+  componentData,
+  canvasViewInfo,
+  mobileInPc,
+  dvInfo
+} = storeToRefs(dvMainStore)
 
 const state = reactive({
   systemOS: 'Mac',
@@ -270,6 +309,10 @@ const state = reactive({
   viewXArray: [],
   batchOptCheckModel: false
 })
+
+const tabSort = () => {
+  customTabsSortRef.value.sortInit()
+}
 
 const downloadClick = () => {
   dvMainStore.setCurComponent({ component: element.value, index: index.value })
@@ -311,12 +354,58 @@ const showBarTooltipPosition = computed(() => {
   }
 })
 
+const openMessageLoading = cb => {
+  const iconClass = `el-icon-loading`
+  const customClass = `de-message-loading de-message-export`
+  ElMessage({
+    message: h('p', null, [
+      '后台导出中,可前往',
+      h(
+        ElButton,
+        {
+          text: true,
+          size: 'small',
+          class: 'btn-text',
+          onClick: () => {
+            cb()
+          }
+        },
+        t('data_export.export_center')
+      ),
+      '查看进度，进行下载'
+    ]),
+    iconClass,
+    icon: h(RefreshLeft),
+    showClose: true,
+    customClass
+  })
+}
+
+const callbackExport = () => {
+  useEmitt().emitter.emit('data-export-center', { activeName: 'IN_PROGRESS' })
+}
+const exportAsFormattedExcel = () => {
+  const s2Instance = dvMainStore.getViewInstanceInfo(element.value.id)
+  if (!s2Instance) {
+    return
+  }
+  const chart = dvMainStore.getViewDetails(element.value.id)
+  exportPivotExcel(s2Instance, chart)
+}
+
+const enableFormattedExport = computed(() => {
+  const chart = dvMainStore.getViewDetails(element.value.id) as ChartObj
+  const mode = chart?.customAttr?.basicStyle?.tableLayoutMode
+  return mode === 'grid'
+})
 const exportAsExcel = () => {
   const viewDataInfo = dvMainStore.getViewDataDetails(element.value.id)
   const chartExtRequest = dvMainStore.getLastViewRequestInfo(element.value.id)
   const viewInfo = dvMainStore.getViewDetails(element.value.id)
   const chart = { ...viewInfo, chartExtRequest, data: viewDataInfo }
-  exportExcelDownload(chart)
+  exportExcelDownload(chart, () => {
+    openMessageLoading(callbackExport)
+  })
 }
 const exportAsImage = () => {
   // do export
@@ -363,8 +452,10 @@ const multiplexingCheck = val => {
 // 批量操作-Begin
 
 const batchOptCheckOut = () => {
-  state.batchOptCheckModel = !state.batchOptCheckModel
-  batchOptChange(state.batchOptCheckModel)
+  if (showPosition.value === 'batchOpt') {
+    state.batchOptCheckModel = !state.batchOptCheckModel
+    batchOptChange(state.batchOptCheckModel)
+  }
 }
 
 const batchOptChange = val => {
@@ -419,6 +510,7 @@ const existLinkage = computed(() => {
 // 清除相同sourceViewId 的 联动条件
 const clearLinkage = () => {
   dvMainStore.clearViewLinkage(element.value.id)
+  useEmitt().emitter.emit('clearPanelLinkage', { viewId: element.value.id })
 }
 
 // 富文本-Begin
@@ -487,7 +579,7 @@ watch(
   font-size: 16px !important;
 }
 .bar-main-background {
-  background-color: var(--primary, #3370ff);
+  background-color: var(--ed-color-primary, #3370ff);
 }
 
 .bar-main-right {

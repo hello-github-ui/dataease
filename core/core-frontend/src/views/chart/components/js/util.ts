@@ -1,14 +1,24 @@
-import { isNumber } from 'lodash-es'
+import { isEmpty, isNumber } from 'lodash-es'
 import { DEFAULT_TITLE_STYLE } from '../editor/util/chart'
 import { equalsAny, includesAny } from '../editor/util/StringUtils'
 import { FeatureCollection } from '@antv/l7plot/dist/esm/plots/choropleth/types'
 import { useMapStoreWithOut } from '@/store/modules/map'
 import { getGeoJson } from '@/api/map'
-import { toRaw } from 'vue'
+import { computed, toRaw } from 'vue'
 import { Options } from '@antv/g2plot/esm'
 import { PickOptions } from '@antv/g2plot/esm/core/plot'
 import { innerExportDetails } from '@/api/chart'
+import { ElMessage } from 'element-plus-secondary'
+import { useI18n } from '@/hooks/web/useI18n'
+import { useLinkStoreWithOut } from '@/store/modules/link'
+import { useAppStoreWithOut } from '@/store/modules/app'
+import { valueFormatter } from '@/views/chart/components/js/formatter'
+import { deepCopy } from '@/utils/utils'
 
+const appStore = useAppStoreWithOut()
+const isDataEaseBi = computed(() => appStore.getIsDataEaseBi)
+
+const { t } = useI18n()
 // 同时支持将hex和rgb，转换成rgba
 export function hexColorToRGBA(hex, alpha) {
   let rgb = [] // 定义rgb数组
@@ -39,7 +49,7 @@ export function hexColorToRGBA(hex, alpha) {
 
 export function digToHex(dig) {
   let prefix = ''
-  const num = parseInt(dig * 2.55)
+  const num = parseInt((dig * 2.55).toString())
   if (num < 16) {
     prefix = '0'
   }
@@ -165,17 +175,6 @@ export function getColors(chart, colors, reset) {
   } else {
     if (chart.data) {
       const data = chart.data.data
-      // data 的维度值，需要根据自定义顺序排序
-      // let customSortData
-      // if (Object.prototype.toString.call(chart.customSort) === '[object Array]') {
-      //   customSortData = JSON.parse(JSON.stringify(chart.customSort))
-      // } else {
-      //   customSortData = JSON.parse(chart.customSort)
-      // }
-      // if (customSortData && customSortData.length > 0) {
-      //   data = customSort(customSortData, data)
-      // }
-
       for (let i = 0; i < data.length; i++) {
         const s = data[i]
         seriesColors.push({
@@ -193,7 +192,7 @@ export function getColors(chart, colors, reset) {
     if (Object.prototype.toString.call(chart.customAttr) === '[object Object]') {
       sc = JSON.parse(JSON.stringify(chart.customAttr)).color.seriesColors
     } else {
-      sc = JSON.parse(chart.customAttr).color.seriesColors
+      sc = JSON.parse(chart.customAttr)['color'].seriesColors
     }
     if (sc && sc.length > 0) {
       seriesColors = customColor(sc, seriesColors)
@@ -226,7 +225,7 @@ export function antVCustomColor(chart) {
 }
 
 export function getRemark(chart) {
-  const remark = {}
+  const remark = {} as any
   if (chart.customStyle) {
     const customStyle = JSON.parse(JSON.stringify(chart.customStyle))
     if (customStyle.text) {
@@ -241,16 +240,23 @@ export function getRemark(chart) {
   return remark
 }
 
-export const quotaViews = ['label', 'richTextView', 'text', 'gauge', 'liquid']
+export const quotaViews = ['label', 'richTextView', 'indicator', 'gauge', 'liquid']
 
 export function handleEmptyDataStrategy<O extends PickOptions>(chart: Chart, options: O): O {
   const { data } = options as unknown as Options
+  const isChartMix = chart.type.includes('chart-mix')
   if (!data?.length) {
     return options
   }
   const strategy = parseJson(chart.senior).functionCfg.emptyDataStrategy
   if (strategy === 'ignoreData') {
-    handleIgnoreData(data)
+    if (isChartMix) {
+      for (let i = 0; i < data.length; i++) {
+        handleIgnoreData(data[i] as Record<string, any>[])
+      }
+    } else {
+      handleIgnoreData(data)
+    }
     return options
   }
   const { yAxis, xAxisExt, extStack } = chart
@@ -259,7 +265,13 @@ export function handleEmptyDataStrategy<O extends PickOptions>(chart: Chart, opt
     case 'breakLine': {
       if (multiDimension) {
         // 多维度保持空
-        handleBreakLineMultiDimension(data)
+        if (isChartMix) {
+          for (let i = 0; i < data.length; i++) {
+            handleBreakLineMultiDimension(data[i] as Record<string, any>[])
+          }
+        } else {
+          handleBreakLineMultiDimension(data)
+        }
       }
       return {
         ...options,
@@ -269,10 +281,22 @@ export function handleEmptyDataStrategy<O extends PickOptions>(chart: Chart, opt
     case 'setZero': {
       if (multiDimension) {
         // 多维度置0
-        handleSetZeroMultiDimension(data)
+        if (isChartMix) {
+          for (let i = 0; i < data.length; i++) {
+            handleSetZeroMultiDimension(data[i] as Record<string, any>[])
+          }
+        } else {
+          handleSetZeroMultiDimension(data)
+        }
       } else {
         // 单维度置0
-        handleSetZeroSingleDimension(data)
+        if (isChartMix) {
+          for (let i = 0; i < data.length; i++) {
+            handleSetZeroSingleDimension(data[i] as Record<string, any>[])
+          }
+        } else {
+          handleSetZeroSingleDimension(data)
+        }
       }
       break
     }
@@ -396,12 +420,16 @@ export function parseJson<T>(str: T | JSONString<T>): T {
   return JSON.parse(str) as T
 }
 
-type FlowFunction<P, R> = (param: P, result: R, extra?: any[]) => R
+type FlowFunction<P, R> = (param: P, result: R, context?: Record<string, any>, thisArg?: any) => R
 
 export function flow<P, R>(...flows: FlowFunction<P, R>[]): FlowFunction<P, R> {
-  return (param: P, result: R, extra?: any[]) => {
+  return (param: P, result: R, context?: Record<string, any>, thisArg?: any) => {
     return flows.reduce((result: R, flow: FlowFunction<P, R>) => {
-      return flow(param, result, extra)
+      if (thisArg) {
+        return flow.call(thisArg, param, result, context)
+      } else {
+        return flow(param, result, context)
+      }
     }, result)
   }
 }
@@ -421,26 +449,23 @@ export const getGeoJsonFile = async (areaId: string): Promise<FeatureCollection>
   const mapStore = useMapStoreWithOut()
   let geoJson = mapStore.mapCache[areaId]
   if (!geoJson) {
-    const country = areaId.slice(0, 3)
-    geoJson = await getGeoJson(country, areaId).then(result => {
-      return result.data
-    })
+    const res = await getGeoJson(areaId)
+    geoJson = res.data
     mapStore.setMap({ id: areaId, geoJson })
   }
   return toRaw(geoJson)
 }
 
-export const exportExcelDownload = chart => {
-  const fields = JSON.parse(JSON.stringify(chart.data.fields))
-  const tableRow = JSON.parse(JSON.stringify(chart.data.tableRow))
+const getExcelDownloadRequest = data => {
+  const fields = JSON.parse(JSON.stringify(data.fields))
+  const tableRow = JSON.parse(JSON.stringify(data.tableRow))
   const excelHeader = fields.map(item => item.chartShowName ?? item.name)
   const excelTypes = fields.map(item => item.deType)
   const excelHeaderKeys = fields.map(item => item.dataeaseName)
   let excelData = tableRow.map(item => excelHeaderKeys.map(i => item[i]))
-  const excelName = chart.title
   let detailFields = []
-  if (chart.data.detailFields?.length) {
-    detailFields = chart.data.detailFields.map(item => {
+  if (data.detailFields?.length) {
+    detailFields = data.detailFields.map(item => {
       return {
         name: item.name,
         deType: item.deType,
@@ -460,30 +485,497 @@ export const exportExcelDownload = chart => {
       })
     })
   }
-  const request = {
-    proxy: null,
-    viewId: chart.id,
-    viewName: excelName,
+  return {
     header: excelHeader,
     details: excelData,
     excelTypes: excelTypes,
     excelHeaderKeys: excelHeaderKeys,
-    viewInfo: chart,
-    detailFields
+    detailFields: detailFields
   }
-  const method = innerExportDetails
-  method(request)
+}
+
+export const exportExcelDownload = (chart, callBack?) => {
+  const excelName = chart.title
+  let request: any = {
+    proxy: null,
+    viewId: chart.id,
+    viewInfo: chart,
+    viewName: excelName
+  }
+  if (chart.type.includes('chart-mix')) {
+    const req1 = getExcelDownloadRequest(chart.data.left)
+    const req2 = getExcelDownloadRequest(chart.data.right)
+    request = {
+      ...request,
+      multiInfo: [req1, req2]
+    }
+  } else {
+    const req = getExcelDownloadRequest(chart.data)
+    request = {
+      ...request,
+      ...req
+    }
+  }
+
+  const linkStore = useLinkStoreWithOut()
+
+  if (isDataEaseBi.value || appStore.getIsIframe) {
+    request.dataEaseBi = true
+  }
+  innerExportDetails(request)
     .then(res => {
-      const blob = new Blob([res.data], { type: 'application/vnd.ms-excel' })
-      const link = document.createElement('a')
-      link.style.display = 'none'
-      link.href = URL.createObjectURL(blob)
-      link.download = excelName + '.xlsx' // 下载的文件名
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+      if (linkStore.getLinkToken || isDataEaseBi.value || appStore.getIsIframe) {
+        const blob = new Blob([res.data], { type: 'application/vnd.ms-excel' })
+        const link = document.createElement('a')
+        link.style.display = 'none'
+        link.href = URL.createObjectURL(blob)
+        link.download = excelName + '.xlsx' // 下载的文件名
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      } else {
+        callBack && callBack(res)
+      }
     })
     .catch(() => {
       console.error('Excel download error')
+      callBack('error')
     })
+}
+
+export const copyString = (content: string, notify = false) => {
+  const clipboard = navigator.clipboard || {
+    writeText: data => {
+      return new Promise(resolve => {
+        const inputDom = document.createElement('input')
+        inputDom.setAttribute('style', 'z-index: -1;position: fixed;opacity: 0;')
+        inputDom.setAttribute('type', 'text')
+        inputDom.setAttribute('value', data)
+        document.body.appendChild(inputDom)
+        inputDom.select()
+        document.execCommand('copy')
+        inputDom.remove()
+        resolve()
+      })
+    }
+  }
+  clipboard.writeText(content).then(() => {
+    if (notify) {
+      ElMessage.success(t('commons.copy_success'))
+    }
+  })
+}
+
+/**
+ * 计算动态区间和颜色
+ * @param minValue
+ * @param maxValue
+ * @param intervals
+ * @param colors
+ */
+export const getDynamicColorScale = (
+  minValue: number,
+  maxValue: number,
+  intervals: number,
+  colors: string[]
+) => {
+  const step = (maxValue - minValue) / intervals
+
+  const colorScale = []
+  for (let i = 0; i < intervals; i++) {
+    colorScale.push({
+      value: [minValue + i * step, minValue + (i + 1) * step],
+      color: colors[i],
+      label: `${(minValue + i * step).toFixed(2)} - ${(minValue + (i + 1) * step).toFixed(2)}`
+    })
+  }
+
+  return colorScale
+}
+/**
+ * 过滤掉不在区间的数据
+ * @param data
+ * @param maxValue
+ * @param minValue
+ */
+export const filterChartDataByRange = (data: any[], maxValue: number, minValue: number) => {
+  return data.filter(
+    item =>
+      item.value === null ||
+      item.value === undefined ||
+      (item.value >= minValue && item.value <= maxValue)
+  )
+}
+
+/**
+ * 获取地图默认最大最小值根据数据
+ * @param data
+ * @param maxValue
+ * @param minValue
+ * @param callback
+ */
+export const setMapChartDefaultMaxAndMinValueByData = (
+  data: any[],
+  maxValue: number,
+  minValue: number,
+  callback: (max: number, min: number) => void
+) => {
+  if (minValue === 0 && maxValue === 0) {
+    const maxResult = data.reduce((max, current) => {
+      return current.value > max ? current.value : max
+    }, Number.MIN_SAFE_INTEGER)
+    const minResult = data.reduce((min, current) => {
+      return current.value < min ? current.value : min
+    }, Number.MAX_SAFE_INTEGER)
+    callback(maxResult, minResult)
+  }
+}
+
+export const stepsColor = (start, end, steps, gamma) => {
+  let i
+  let j
+  let ms
+  let me
+  const output = []
+  const so = []
+  gamma = gamma || 1
+  const normalize = function (channel) {
+    return Math.pow(channel / 255, gamma)
+  }
+  start = parseColor(start).map(normalize)
+  end = parseColor(end).map(normalize)
+  for (i = 0; i < steps; i++) {
+    ms = steps - 1 === 0 ? 0 : i / (steps - 1)
+    me = 1 - ms
+    for (j = 0; j < 3; j++) {
+      so[j] = pad(Math.round(Math.pow(start[j] * me + end[j] * ms, 1 / gamma) * 255).toString(16))
+    }
+    output.push('#' + so.join(''))
+  }
+  function parseColor(hexStr) {
+    return hexStr.length === 4
+      ? hexStr
+          .substr(1)
+          .split('')
+          .map(function (s) {
+            return 0x11 * parseInt(s, 16)
+          })
+      : [hexStr.substr(1, 2), hexStr.substr(3, 2), hexStr.substr(5, 2)].map(function (s) {
+          return parseInt(s, 16)
+        })
+  }
+  function pad(s) {
+    return s.length === 1 ? '0' + s : s
+  }
+  return output
+}
+
+export const getMapColorCases = colorCases => {
+  const cloneColorCases = JSON.parse(JSON.stringify(colorCases))
+  return cloneColorCases.map(colorItem => {
+    const curColors = colorItem.colors
+    const len = curColors.length
+    const start = curColors[0]
+    const end = curColors[len - 1]
+    const itemResult = {
+      name: colorItem.name,
+      value: colorItem.value + '_split_gradient',
+      baseColors: [start, end],
+      colors: stepsColor(start, end, 9, 1)
+    }
+    return itemResult
+  })
+}
+
+export function getColor(chart: Chart) {
+  const basicStyle = parseJson(chart.customAttr).basicStyle
+  const { seriesColor } = basicStyle
+  if (seriesColor?.length) {
+    const { yAxis } = chart
+    const seriesMap = seriesColor.reduce((p, n) => {
+      p[n.id] = n
+      return p
+    }, {})
+    yAxis?.forEach((axis, index) => {
+      const curAxisColor = seriesMap[axis.id]
+      if (curAxisColor) {
+        if (index + 1 > basicStyle.colors.length) {
+          basicStyle.colors.push(curAxisColor.color)
+        } else {
+          basicStyle.colors[index] = curAxisColor.color
+        }
+      }
+    })
+    const color = basicStyle.colors.map(c => hexColorToRGBA(c, basicStyle.alpha))
+    return color
+  }
+}
+
+export function setupSeriesColor(chart: ChartObj, data?: any[]): ChartBasicStyle['seriesColor'] {
+  const result: ChartBasicStyle['seriesColor'] = []
+  const seriesSet = new Set<string>()
+  const colors = chart.customAttr.basicStyle.colors
+  const yAxis = chart.yAxis
+  yAxis?.forEach(axis => {
+    if (seriesSet.has(axis.id)) {
+      return
+    }
+    seriesSet.add(axis.id)
+    result.push({
+      id: axis.id,
+      name: axis.chartShowName ?? axis.name,
+      color: colors[(seriesSet.size - 1) % colors.length]
+    })
+  })
+  return result
+}
+
+export function getGroupColor<O extends PickOptions = Options>(chart: Chart, options: O) {
+  const { basicStyle } = parseJson(chart.customAttr)
+  const { seriesColor } = basicStyle
+  if (!seriesColor?.length) {
+    return
+  }
+  const seriesMap = seriesColor.reduce((p, n) => {
+    p[n.id] = n
+    return p
+  }, {})
+  const { yAxis, xAxisExt } = chart
+  const { data } = options as unknown as Options
+  if (xAxisExt?.length) {
+    const seriesSet = new Set()
+    data?.forEach(d => d.category !== null && seriesSet.add(d.category))
+    const tmp = [...seriesSet]
+    tmp.forEach((c, i) => {
+      const curAxisColor = seriesMap[c as string]
+      if (curAxisColor) {
+        if (i + 1 > basicStyle.colors.length) {
+          basicStyle.colors.push(curAxisColor.color)
+        } else {
+          basicStyle.colors[i] = curAxisColor.color
+        }
+      }
+    })
+  } else {
+    yAxis?.forEach((axis, index) => {
+      const curAxisColor = seriesMap[axis.id]
+      if (curAxisColor) {
+        if (index + 1 > basicStyle.colors.length) {
+          basicStyle.colors.push(curAxisColor.color)
+        } else {
+          basicStyle.colors[index] = curAxisColor.color
+        }
+      }
+    })
+  }
+  const color = basicStyle.colors.map(c => hexColorToRGBA(c, basicStyle.alpha))
+  return color
+}
+
+export function setUpGroupSeriesColor(
+  chart: ChartObj,
+  data?: any[]
+): ChartBasicStyle['seriesColor'] {
+  const result: ChartBasicStyle['seriesColor'] = []
+  const seriesSet = new Set<string>()
+  const colors = chart.customAttr.basicStyle.colors
+  const { yAxis, xAxisExt } = chart
+  if (xAxisExt?.length) {
+    data?.forEach(d => {
+      if (d.value === null || d.category === null || seriesSet.has(d.category)) {
+        return
+      }
+      seriesSet.add(d.category)
+      result.push({
+        id: d.category,
+        name: d.category,
+        color: colors[(seriesSet.size - 1) % colors.length]
+      })
+    })
+  } else {
+    yAxis?.forEach(axis => {
+      if (seriesSet.has(axis.id)) {
+        return
+      }
+      seriesSet.add(axis.id)
+      result.push({
+        id: axis.id,
+        name: axis.chartShowName ?? axis.name,
+        color: colors[(seriesSet.size - 1) % colors.length]
+      })
+    })
+  }
+  return result
+}
+
+export function getStackColor<O extends PickOptions = Options>(chart: Chart, options: O) {
+  const { basicStyle } = parseJson(chart.customAttr)
+  const { seriesColor } = basicStyle
+  if (!seriesColor?.length) {
+    return
+  }
+  const seriesMap = seriesColor.reduce((p, n) => {
+    p[n.id] = n
+    return p
+  }, {})
+  const { yAxis, extStack } = chart
+  const { data } = options as unknown as Options
+  if (extStack?.length) {
+    const seriesSet = new Set()
+    data?.forEach(d => d.category !== null && seriesSet.add(d.category))
+    const tmp = [...seriesSet]
+    tmp.forEach((c, i) => {
+      const curAxisColor = seriesMap[c as string]
+      if (curAxisColor) {
+        if (i + 1 > basicStyle.colors.length) {
+          basicStyle.colors.push(curAxisColor.color)
+        } else {
+          basicStyle.colors[i] = curAxisColor.color
+        }
+      }
+    })
+  } else {
+    yAxis?.forEach((axis, index) => {
+      const curAxisColor = seriesMap[axis.id]
+      if (curAxisColor) {
+        if (index + 1 > basicStyle.colors.length) {
+          basicStyle.colors.push(curAxisColor.color)
+        } else {
+          basicStyle.colors[index] = curAxisColor.color
+        }
+      }
+    })
+  }
+  const color = basicStyle.colors.map(c => hexColorToRGBA(c, basicStyle.alpha))
+  return color
+}
+
+export function setUpStackSeriesColor(
+  chart: ChartObj,
+  data?: any[]
+): ChartBasicStyle['seriesColor'] {
+  const result: ChartBasicStyle['seriesColor'] = []
+  const seriesSet = new Set<string>()
+  const colors = chart.customAttr.basicStyle.colors
+  const { yAxis, extStack } = chart
+  if (extStack?.length) {
+    data?.forEach(d => {
+      if (d.value === null || d.category === null || seriesSet.has(d.category)) {
+        return
+      }
+      seriesSet.add(d.category)
+      result.push({
+        id: d.category,
+        name: d.category,
+        color: colors[(seriesSet.size - 1) % colors.length]
+      })
+    })
+  } else {
+    yAxis?.forEach(axis => {
+      if (seriesSet.has(axis.id)) {
+        return
+      }
+      seriesSet.add(axis.id)
+      result.push({
+        id: axis.id,
+        name: axis.chartShowName ?? axis.name,
+        color: colors[(seriesSet.size - 1) % colors.length]
+      })
+    })
+  }
+  return result
+}
+
+export function getSingleDimensionColor<O extends PickOptions = Options>(chart: Chart, options: O) {
+  const { basicStyle } = parseJson(chart.customAttr)
+  const { seriesColor } = basicStyle
+  if (!seriesColor?.length) {
+    return
+  }
+  const seriesMap = seriesColor.reduce((p, n) => {
+    p[n.id] = n
+    return p
+  }, {})
+  const { xAxis, yAxis } = chart
+  const { data } = options as unknown as Options
+  if (xAxis?.length && yAxis?.length) {
+    const seriesSet = new Set()
+    data?.forEach(d => d.field !== null && seriesSet.add(d.field))
+    const tmp = [...seriesSet]
+    tmp.forEach((c, i) => {
+      const curAxisColor = seriesMap[c as string]
+      if (curAxisColor) {
+        if (i + 1 > basicStyle.colors.length) {
+          basicStyle.colors.push(curAxisColor.color)
+        } else {
+          basicStyle.colors[i] = curAxisColor.color
+        }
+      }
+    })
+  }
+  const color = basicStyle.colors.map(c => hexColorToRGBA(c, basicStyle.alpha))
+  return color
+}
+
+export function setUpSingleDimensionSeriesColor(
+  chart: ChartObj,
+  data?: any[]
+): ChartBasicStyle['seriesColor'] {
+  const result: ChartBasicStyle['seriesColor'] = []
+  const seriesSet = new Set<string>()
+  const colors = chart.customAttr.basicStyle.colors
+  const { xAxis, yAxis } = chart
+  if (!(xAxis?.length && yAxis?.length)) {
+    return result
+  }
+  data?.forEach(item => {
+    if (seriesSet.has(item.field)) {
+      return
+    }
+    seriesSet.add(item.field)
+    result.push({
+      id: item.field,
+      name: item.field,
+      color: colors[(seriesSet.size - 1) % colors.length]
+    })
+  })
+  return result
+}
+
+export function isAlphaColor(color: string): boolean {
+  if (!color?.trim()) {
+    return false
+  }
+  if (color.startsWith('#')) {
+    return color.length === 9
+  }
+  if (color.startsWith('rgb')) {
+    return color.split(',').length === 4
+  }
+  return false
+}
+
+export function convertToAlphaColor(color: string, alpha: number): string {
+  if (!color?.trim()) {
+    return 'rgba(255,255,255,1)'
+  }
+  if (color.startsWith('#')) {
+    let colorStr = color.trim().substring(1)
+    if (colorStr.length === 3) {
+      const tmp = colorStr.split('')
+      colorStr = `${tmp[0]}${tmp[0]}${tmp[1]}${tmp[1]}${tmp[2]}${tmp[2]}`
+    }
+    if (colorStr.length !== 6) {
+      return '#FFFFFFFF'
+    }
+    const alphaHex = parseInt((alpha * 2.55).toFixed(0))
+      .toString(16)
+      .toUpperCase()
+    return `#${colorStr}${alphaHex}`
+  }
+  if (color.startsWith('rgb')) {
+    const rgb = color.match(/\d+/g)
+    return `rgba(${rgb.join(',')},${alpha / 100})`
+  }
+  return 'rgba(255,255,255,1)'
 }

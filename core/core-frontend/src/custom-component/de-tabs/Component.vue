@@ -1,72 +1,79 @@
 <template>
-  <div style="width: 100%; height: 100%" :class="headClass" ref="tabComponentRef">
+  <div
+    v-if="state.tabShow"
+    style="width: 100%; height: 100%"
+    :class="headClass"
+    class="custom-tabs-head"
+    ref="tabComponentRef"
+  >
     <de-custom-tab
       v-model="editableTabsValue"
       @tab-add="addTab"
-      :addable="isEdit"
+      :addable="isEditMode"
       :font-color="fontColor"
       :active-color="activeColor"
       :border-color="noBorderColor"
       :border-active-color="borderActiveColor"
     >
-      <el-tab-pane
-        class="el-tab-pane-custom"
-        :lazy="true"
-        :key="tabItem.name"
-        v-for="(tabItem, index) in element.propValue"
-        :label="tabItem.title"
-        :name="tabItem.name"
-      >
-        <template #label>
-          <span :style="titleStyle(tabItem.name)">{{ tabItem.title }}</span>
-          <el-dropdown
-            v-if="dropdownShow"
-            style="line-height: 4 !important"
-            trigger="click"
-            @command="handleCommand"
-          >
-            <span class="el-dropdown-link">
-              <el-icon v-if="isEdit"><ArrowDown /></el-icon>
-            </span>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item :command="beforeHandleCommand('editTitle', tabItem)">
-                  编辑标题
-                </el-dropdown-item>
+      <template :key="tabItem.name" v-for="(tabItem, index) in element.propValue">
+        <el-tab-pane
+          class="el-tab-pane-custom"
+          :lazy="isEditMode"
+          :label="tabItem.title"
+          :name="tabItem.name"
+        >
+          <template #label>
+            <span :style="titleStyle(tabItem.name)">{{ tabItem.title }}</span>
+            <el-dropdown
+              v-if="isEditMode"
+              style="line-height: 4 !important"
+              trigger="click"
+              @command="handleCommand"
+            >
+              <span class="el-dropdown-link">
+                <el-icon v-if="isEdit"><ArrowDown /></el-icon>
+              </span>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item :command="beforeHandleCommand('editTitle', tabItem)">
+                    编辑标题
+                  </el-dropdown-item>
 
-                <el-dropdown-item
-                  v-if="element.propValue.length > 1"
-                  :command="beforeHandleCommand('deleteCur', tabItem)"
-                >
-                  删除
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </template>
-        <de-canvas
-          v-if="isEdit"
-          :ref="'tabCanvas_' + index"
-          :component-data="tabItem.componentData"
-          :canvas-style-data="canvasStyleData"
-          :canvas-view-info="canvasViewInfo"
-          :canvas-id="element.id + '--' + tabItem.name"
-          :class="moveActive ? 'canvas-move-in' : ''"
-          :canvas-active="editableTabsValue === tabItem.name"
-        ></de-canvas>
-        <de-preview
-          v-else
-          :ref="'dashboardPreview'"
-          :dv-info="dvInfo"
-          :cur-gap="curPreviewGap"
-          :component-data="tabItem.componentData"
-          :canvas-style-data="canvasStyleData"
-          :canvas-view-info="canvasViewInfo"
-          :canvas-id="element.id + '--' + tabItem.name"
-          :preview-active="editableTabsValue === tabItem.name"
-          :show-position="showPosition"
-        ></de-preview>
-      </el-tab-pane>
+                  <el-dropdown-item
+                    v-if="element.propValue.length > 1"
+                    :command="beforeHandleCommand('deleteCur', tabItem)"
+                  >
+                    删除
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </template>
+          <de-canvas
+            v-if="isEdit && !mobileInPc"
+            :ref="'tabCanvas_' + index"
+            :component-data="tabItem.componentData"
+            :canvas-style-data="canvasStyleData"
+            :canvas-view-info="canvasViewInfo"
+            :canvas-id="element.id + '--' + tabItem.name"
+            :class="moveActive ? 'canvas-move-in' : ''"
+            :canvas-active="editableTabsValue === tabItem.name"
+          ></de-canvas>
+          <de-preview
+            v-else
+            :ref="'dashboardPreview'"
+            :dv-info="dvInfo"
+            :cur-gap="curPreviewGap"
+            :component-data="tabItem.componentData"
+            :canvas-style-data="canvasStyleData"
+            :canvas-view-info="canvasViewInfo"
+            :canvas-id="element.id + '--' + tabItem.name"
+            :preview-active="editableTabsValue === tabItem.name"
+            :show-position="showPosition"
+            :outer-scale="scale"
+          ></de-preview>
+        </el-tab-pane>
+      </template>
     </de-custom-tab>
     <el-dialog
       title="编辑标题"
@@ -79,7 +86,7 @@
     >
       <el-input
         v-model="state.textarea"
-        maxlength="10"
+        maxlength="50"
         :placeholder="$t('dataset.input_content')"
       />
       <template #footer>
@@ -97,6 +104,7 @@ import {
   computed,
   getCurrentInstance,
   nextTick,
+  onBeforeMount,
   onMounted,
   reactive,
   ref,
@@ -112,8 +120,9 @@ import { canvasChangeAdaptor, findComponentIndexById } from '@/utils/canvasUtils
 import DeCustomTab from '@/custom-component/de-tabs/DeCustomTab.vue'
 import DePreview from '@/components/data-visualization/canvas/DePreview.vue'
 import { useEmitt } from '@/hooks/web/useEmitt'
+import { getPanelAllLinkageInfo } from '@/api/visualization/linkage'
 const dvMainStore = dvMainStoreWithOut()
-const { tabMoveInActiveId, bashMatrixInfo } = storeToRefs(dvMainStore)
+const { tabMoveInActiveId, bashMatrixInfo, editMode, mobileInPc } = storeToRefs(dvMainStore)
 const tabComponentRef = ref(null)
 
 const props = defineProps({
@@ -145,15 +154,22 @@ const props = defineProps({
     type: String,
     required: false,
     default: 'canvas'
+  },
+  scale: {
+    type: Number,
+    required: false,
+    default: 1
   }
 })
-const { element, isEdit, showPosition, canvasStyleData, canvasViewInfo, dvInfo } = toRefs(props)
+const { element, isEdit, showPosition, canvasStyleData, canvasViewInfo, dvInfo, scale } =
+  toRefs(props)
 
 const state = reactive({
   activeTabName: '',
   curItem: {},
   textarea: '',
-  dialogVisible: false
+  dialogVisible: false,
+  tabShow: true
 })
 const tabsAreaScroll = ref(false)
 const editableTabsValue = ref(null)
@@ -161,6 +177,8 @@ const editableTabsValue = ref(null)
 // 无边框
 const noBorderColor = ref('none')
 let currentInstance
+
+const isEditMode = computed(() => editMode.value === 'edit' && isEdit.value && !mobileInPc.value)
 
 const calcTabLength = () => {
   setTimeout(() => {
@@ -214,6 +232,10 @@ function deleteCur(param) {
       const activeIndex =
         (len - 1 + element.value.propValue.length) % element.value.propValue.length
       editableTabsValue.value = element.value.propValue[activeIndex].name
+      state.tabShow = false
+      nextTick(() => {
+        state.tabShow = true
+      })
     }
   }
 }
@@ -236,6 +258,15 @@ function handleCommand(command) {
   }
 }
 
+const reloadLinkage = () => {
+  // 刷新联动信息
+  if (dvInfo.value.id) {
+    getPanelAllLinkageInfo(dvInfo.value.id).then(rsp => {
+      dvMainStore.setNowPanelTrackInfo(rsp.data)
+    })
+  }
+}
+
 const componentMoveIn = component => {
   element.value.propValue.forEach((tabItem, index) => {
     if (editableTabsValue.value === tabItem.name) {
@@ -246,18 +277,22 @@ const componentMoveIn = component => {
       dvMainStore.setCurComponent({ component: null, index: null })
       component.canvasId = element.value.id + '--' + tabItem.name
       const refInstance = currentInstance.refs['tabCanvas_' + index][0]
-      const matrixBase = refInstance.getBaseMatrixSize() //矩阵基础大小
-      canvasChangeAdaptor(component, matrixBase)
-      tabItem.componentData.push(component)
-      nextTick(() => {
-        component.x = 1
-        component.y = 1
-        component.style.left = 0
-        component.style.top = 0
-        refInstance.addItemBox(component) //在适当的时候初始化布局组件
-      })
+      if (refInstance) {
+        const matrixBase = refInstance.getBaseMatrixSize() //矩阵基础大小
+        canvasChangeAdaptor(component, matrixBase)
+        tabItem.componentData.push(component)
+        nextTick(() => {
+          component.x = 1
+          component.y = 1
+          component.style.left = 0
+          component.style.top = 0
+          refInstance.addItemBox(component) //在适当的时候初始化布局组件
+        })
+      }
     }
   })
+
+  reloadLinkage()
 }
 
 const componentMoveOut = component => {
@@ -267,14 +302,11 @@ const componentMoveOut = component => {
   dvMainStore.setCurComponent({ component: null, index: null })
   // 主画布中添加
   eventBus.emit('moveOutFromTab-canvas-main', component)
+  reloadLinkage()
 }
 
 const moveActive = computed(() => {
   return tabMoveInActiveId.value && tabMoveInActiveId.value === element.value.id
-})
-
-const dropdownShow = computed(() => {
-  return isEdit.value
 })
 
 const headClass = computed(() => {
@@ -288,11 +320,11 @@ const headClass = computed(() => {
 const titleStyle = itemName => {
   if (editableTabsValue.value === itemName) {
     return {
-      fontSize: (element.value.style.activeFontSize || 18) + 'px'
+      fontSize: (element.value.style.activeFontSize || 18) * scale.value + 'px'
     }
   } else {
     return {
-      fontSize: (element.value.style.fontSize || 16) + 'px'
+      fontSize: (element.value.style.fontSize || 16) * scale.value + 'px'
     }
   }
 }
@@ -362,6 +394,13 @@ const activeCanvasId = computed(() => {
   return element.value.id + '--' + editableTabsValue.value
 })
 
+const reShow = () => {
+  state.tabShow = false
+  nextTick(() => {
+    state.tabShow = true
+  })
+}
+
 onMounted(() => {
   if (element.value.propValue.length > 0) {
     editableTabsValue.value = element.value.propValue[0].name
@@ -369,7 +408,14 @@ onMounted(() => {
   calcTabLength()
   eventBus.on('onTabMoveIn-' + element.value.id, componentMoveIn)
   eventBus.on('onTabMoveOut-' + element.value.id, componentMoveOut)
+  eventBus.on('onTabSortChange-' + element.value.id, reShow)
   currentInstance = getCurrentInstance()
+})
+
+onBeforeMount(() => {
+  eventBus.off('onTabMoveIn-' + element.value.id, componentMoveIn)
+  eventBus.off('onTabMoveOut-' + element.value.id, componentMoveOut)
+  eventBus.off('onTabSortChange-' + element.value.id, reShow)
 })
 </script>
 <style lang="less" scoped>

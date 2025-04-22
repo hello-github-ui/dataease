@@ -2,29 +2,10 @@
 import { ref, reactive } from 'vue'
 import UnionFieldList from './UnionFieldList.vue'
 import UnionItemEdit from './UnionItemEdit.vue'
-import type { Field } from './UnionFieldList.vue'
+import type { Field, NodeType, UnionType, Node } from './util'
 import { getTableField } from '@/api/dataset'
 import { cloneDeep } from 'lodash-es'
-interface UnionField {
-  currentField: Field
-  parentField: Field
-}
 
-type NodeType = 'db' | 'sql'
-type UnionType = 'left' | 'right' | 'inner'
-
-export interface Node {
-  tableName: string
-  type: NodeType
-  datasourceId: string
-  id: string
-  unionType: UnionType
-  unionFields: UnionField[]
-  info: string
-  sqlVariableDetails: string
-  currentDsFields: Field[]
-  children?: Node[]
-}
 const changeParentFields = val => {
   parent.currentDsFields = val
 }
@@ -51,7 +32,10 @@ const defaultNode = {
   unionType: 'left' as UnionType,
   unionFields: [],
   currentDsFields: [],
-  sqlVariableDetails: null
+  sqlVariableDetails: null,
+  confirm: false,
+  isShadow: false,
+  flag: ''
 }
 const parentField = ref<Field[]>([])
 const nodeField = ref<Field[]>([])
@@ -73,6 +57,12 @@ const clearState = () => {
 }
 
 const initState = () => {
+  node.confirm = false
+  node.isShadow = false
+  node.flag = ''
+  parent.confirm = false
+  parent.isShadow = false
+  parent.flag = ''
   Object.assign(node, cloneDeep(props.editArr[0]))
   Object.assign(parent, cloneDeep(props.editArr[1]))
   getFields()
@@ -159,7 +149,7 @@ defineExpose({
   width: 50%;
 
   & > p {
-    font-family: PingFang SC;
+    font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
     font-size: 14px;
     font-weight: 500;
     margin: 0;

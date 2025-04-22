@@ -1,5 +1,5 @@
 /**
- * 视图设置
+ * 图表设置
  */
 declare interface ChartAttr {
   /**
@@ -34,6 +34,18 @@ declare interface ChartAttr {
    * 地图设置
    */
   map: MapCfg
+  /**
+   * 象限设置
+   */
+  quadrant: QuadrantAttr
+  /**
+   * 指标值
+   */
+  indicator: ChartIndicatorStyle
+  /**
+   * 指标名称
+   */
+  indicatorName: ChartIndicatorNameStyle
 }
 /**
  * 基础样式设置
@@ -54,23 +66,56 @@ declare interface ChartBasicStyle {
   /**
    * 表格列宽模式: 自适应和自定义
    */
-  tableColumnMode: 'adapt' | 'custom'
+  tableColumnMode: 'adapt' | 'custom' | 'field' | 'dialog'
   /**
    * 表格列宽
    */
   tableColumnWidth: number
   /**
+   * 表格字段列宽
+   */
+  tableFieldWidth: {
+    /**
+     * 字段ID
+     */
+    fieldId: string
+    /**
+     * 字段名称
+     */
+    name?: string
+    /**
+     * 字段宽度占比
+     */
+    width: number
+  }[]
+  /**
    * 表格分页模式
    */
   tablePageMode: 'page' | 'pull'
+  /**
+   * 表格分页器风格
+   */
+  tablePageStyle: 'simple' | 'general'
   /**
    * 表格分页大小
    */
   tablePageSize: number
   /**
+   * 表格展示形式,平铺和树形
+   */
+  tableLayoutMode: 'grid' | 'tree'
+  /**
    * 仪表盘样式
    */
   gaugeStyle: string
+  /**
+   * 仪表盘刻度显示
+   */
+  gaugeAxisLine: boolean
+  /**
+   * 仪表盘百分比刻度
+   */
+  gaugePercentLabel: boolean
   /**
    * 配色方案
    */
@@ -79,6 +124,23 @@ declare interface ChartBasicStyle {
    * 配色
    */
   colors: string[]
+  /**
+   * 多序列颜色
+   */
+  seriesColor: {
+    /**
+     * 序列识别id，多指标就是轴id，分组或者堆叠就是类别值
+     */
+    id: string
+    /**
+     * 显示名称
+     */
+    name: string
+    /**
+     * 序列颜色
+     */
+    color: string
+  }[]
   /**
    * 渐变
    */
@@ -108,6 +170,14 @@ declare interface ChartBasicStyle {
    */
   barWidth: number
   /**
+   * 柱子形状：直角｜圆角
+   */
+  radiusColumnBar?: 'rightAngle' | 'roundAngle'
+  /**
+   * 圆角柱倒角
+   */
+  columnBarRightAngleRadius: number
+  /**
    * 柱间距
    */
   barGap: number
@@ -135,14 +205,18 @@ declare interface ChartBasicStyle {
    * 地图主题风格
    */
   mapStyle: string
+  heatMapType?: string
+  heatMapIntensity?: number
+  heatMapRadius?: number
   /**
    * 地图边线颜色
    */
   areaBorderColor: string
   /**
+   * @deprecated
    * 悬浮工具栏
    */
-  suspension: boolean
+  suspension?: boolean
   /**
    * 地图底色
    */
@@ -171,6 +245,42 @@ declare interface ChartBasicStyle {
    * 环形图/玫瑰图外径占比
    */
   radius: number
+  /**
+   * 是否显示地图缩放按钮
+   */
+  showZoom: boolean
+  /**
+   * 地图缩放按钮颜色
+   */
+  zoomButtonColor: string
+  /**
+   * 地图缩放按钮背景颜色
+   */
+  zoomBackground: string
+  /**
+   * 是否合并数据为其他
+   */
+  calcTopN: boolean
+  /**
+   * 只展示 TopN 项，其他合并为一项
+   */
+  topN: number
+  /**
+   * 其他项的标签
+   */
+  topNLabel: string
+  /**
+   * 对称柱状图方向
+   */
+  layout?: 'horizontal' | 'vertical'
+  /**
+   * 汇总表显示总计
+   */
+  showSummary: boolean
+  /**
+   * 汇总表总计标签
+   */
+  summaryLabel: string
 }
 /**
  * 表头属性
@@ -204,6 +314,40 @@ declare interface ChartTableHeaderAttr {
    * 序号表头名称
    */
   indexLabel: string
+  /**
+   * 表头排序开关
+   */
+  tableHeaderSort: boolean
+  /**
+   * @deprecated since version 2.7.0 由提示统一控制
+   * 行头鼠标悬浮提示开关
+   */
+  showRowTooltip: boolean
+  /**
+   * @deprecated since version 2.7.0 由提示统一控制
+   * 列头鼠标悬浮提示开关
+   */
+  showColTooltip: boolean
+  /**
+   * 表头显示开关
+   */
+  showTableHeader: boolean
+  /**
+   * 表头横边框线
+   */
+  showHorizonBorder: boolean
+  /**
+   * 表头纵边框线
+   */
+  showVerticalBorder: boolean
+  /**
+   * 斜体
+   */
+  isItalic: boolean
+  /**
+   * 加粗
+   */
+  isBolder: boolean
 }
 /**
  * 单元格属性
@@ -229,6 +373,35 @@ declare interface ChartTableCellAttr {
    * 单元格行高
    */
   tableItemHeight: number
+  /**
+   * 是否开启斑马纹
+   */
+  enableTableCrossBG: boolean
+  /**
+   * 斑马纹单数行颜色
+   */
+  tableItemSubBgColor: string
+  /**
+   * @deprecated since version 2.7.0 由提示统一控制
+   * 鼠标悬浮提示
+   */
+  showTooltip: boolean
+  /**
+   * 单元格横边框线
+   */
+  showHorizonBorder: boolean
+  /**
+   * 单元格纵边框线
+   */
+  showVerticalBorder: boolean
+  /**
+   * 斜体
+   */
+  isItalic: boolean
+  /**
+   * 加粗
+   */
+  isBolder: boolean
 }
 
 /**
@@ -275,7 +448,7 @@ declare interface TotalConfig {
   /**
    * 小计维度
    */
-  subTotalsDimensions: []
+  subTotalsDimensions: string[]
   /**
    * 总计汇总设置
    */
@@ -297,11 +470,21 @@ declare interface TotalConfig {
  * 汇总聚合方式
  */
 declare interface CalcTotals {
-  aggregation: string
+  aggregation: 'MIN' | 'MAX' | 'AVG' | 'SUM'
+  cfg: CalcTotalCfg[]
+  calcFunc?: (...args) => any
 }
 
 /**
- * 视图杂项设置
+ * 汇总聚合配置
+ */
+declare interface CalcTotalCfg {
+  dataeaseName: string
+  aggregation: 'MIN' | 'MAX' | 'AVG' | 'SUM' | ''
+}
+
+/**
+ * 图表杂项设置
  */
 declare interface ChartMiscAttr {
   /**
@@ -379,30 +562,6 @@ declare interface ChartMiscAttr {
    */
   mapPitch: number
   /**
-   * 地图线条类型
-   */
-  mapLineType: string
-  /**
-   * 地图线条宽度
-   */
-  mapLineWidth: number
-  /**
-   * 流向地图动画间隔
-   */
-  mapLineAnimateDuration: number
-  /**
-   * 地图线条渐变
-   */
-  mapLineGradient: boolean
-  /**
-   * 地图线条渐变起始颜色
-   */
-  mapLineSourceColor: string
-  /**
-   * 地图线条渐变结束颜色
-   */
-  mapLineTargetColor: string
-  /**
    * 指标/文本卡值字体
    */
   valueFontFamily: string
@@ -474,6 +633,78 @@ declare interface ChartMiscAttr {
    * 指标/文本卡垂直位置
    */
   vPosition: 'top' | 'center' | 'bottom'
+  /**
+   * 词云图字体大小区间
+   */
+  wordSizeRange: [number, number]
+  /**
+   * 词云图文字间距
+   */
+  wordSpacing: number
+  /**
+   * 自动图例
+   */
+  mapAutoLegend: boolean
+  /**
+   * 图例最大值
+   */
+  mapLegendMax: number
+  /**
+   * 图例最小值
+   */
+  mapLegendMin: number
+  /**
+   * 显示图例个数
+   */
+  mapLegendNumber: number
+  /**
+   * 流向地图配置
+   */
+  flowMapConfig: {
+    lineConfig: {
+      /**
+       * 地图线条类型
+       */
+      mapLineType: string
+      /**
+       * 地图线条宽度
+       */
+      mapLineWidth: number
+      /**
+       * 流向地图动画
+       */
+      mapLineAnimate?: boolean
+      /**
+       * 流向地图动画间隔
+       */
+      mapLineAnimateDuration: number
+      /**
+       * 地图线条渐变
+       */
+      mapLineGradient: boolean
+      /**
+       * 地图线条渐变起始颜色
+       */
+      mapLineSourceColor: string
+      /**
+       * 地图线条渐变结束颜色
+       */
+      mapLineTargetColor: string
+      alpha: number
+    }
+    pointConfig: {
+      text: {
+        color: string
+        fontSize: number
+      }
+      point: {
+        color: string
+        size: number
+        animate: boolean
+        speed: number
+      }
+    }
+  }
 }
 /**
  * 动态极值配置
@@ -497,6 +728,10 @@ declare interface ChartLabelAttr {
    * 显隐
    */
   show: boolean
+  /**
+   * 收缩下的显示标签
+   */
+  childrenShow?: boolean
   /**
    * 位置
    */
@@ -522,7 +757,7 @@ declare interface ChartLabelAttr {
   /**
    * 标签格式化设置
    */
-  labelFormatter: BaseFormatter
+  labelFormatter: Partial<BaseFormatter>
   /**
    * 标签保留小数位数
    */
@@ -559,6 +794,25 @@ declare interface ChartLabelAttr {
    * 多系列标签设置
    */
   seriesLabelFormatter: SeriesFormatter[]
+
+  /**
+   * 显示字段，通过字段名称显示对应的值
+   * @example
+   * ['name', 'value']
+   */
+  showFields?: string[]
+
+  /**
+   * 自定义显示内容
+   */
+  customContent?: string
+
+  showGap?: boolean
+
+  /**
+   * 显示极值
+   */
+  showExtremum?: boolean
 }
 /**
  * 提示设置
@@ -590,6 +844,20 @@ declare interface ChartTooltipAttr {
    * 多系列提示设置
    */
   seriesTooltipFormatter: SeriesFormatter[]
+
+  showGap?: boolean
+
+  /**
+   * 显示字段，通过字段名称显示对应的值
+   * @example
+   * ['name', 'value']
+   */
+  showFields?: string[]
+
+  /**
+   * 自定义显示内容
+   */
+  customContent?: string
 }
 
 /**
@@ -604,4 +872,188 @@ declare interface MapCfg {
    * 区域id
    */
   id: string
+}
+
+/**
+ * 象限属性
+ */
+declare interface QuadrantAttr {
+  xBaseline?: number
+  yBaseline?: number
+  lineStyle: QuadrantLineStyle
+  regionStyle: QuadrantCommonStyle[]
+  labels: QuadrantLabelConf[]
+}
+
+/**
+ * 象限图label配置
+ */
+declare interface QuadrantLabelConf {
+  content: string
+  style: QuadrantCommonStyle
+}
+
+/**
+ * 象限公共样式
+ */
+declare interface QuadrantCommonStyle {
+  /**
+   * 颜色
+   */
+  fill: string
+  /**
+   * 透明度
+   */
+  fillOpacity: number
+
+  /**
+   * 字体大小
+   */
+  fontSize?: number
+}
+
+/**
+ * 象限分割线样式
+ */
+declare interface QuadrantLineStyle {
+  /**
+   * 颜色
+   */
+  stroke: string
+  /**
+   * 宽度
+   */
+  lineWidth: number
+  /**
+   * 透明度
+   */
+  opacity: number
+}
+
+/**
+ * 指标卡值样式
+ */
+declare interface ChartIndicatorStyle {
+  /**
+   * 是否显示
+   */
+  show: boolean
+  /**
+   * 字体大小
+   */
+  fontSize: number
+  /**
+   * 字体颜色
+   */
+  color: string
+  /**
+   * 背景颜色
+   */
+  backgroundColor: string
+  /**
+   * 水平位置
+   */
+  hPosition: 'left' | 'center' | 'right'
+  /**
+   * 垂直位置
+   */
+  vPosition: 'top' | 'center' | 'bottom'
+  /**
+   * 是否斜体
+   */
+  isItalic: boolean
+  /**
+   * 是否加粗
+   */
+  isBolder: boolean
+  /**
+   * 字体类型
+   */
+  fontFamily: string
+  /**
+   * 字间距
+   */
+  letterSpace: number
+  /**
+   * 是否显示字体阴影
+   */
+  fontShadow: boolean
+  /**
+   * 是否显示后缀
+   */
+  suffixEnable: boolean
+  /**
+   * 后缀内容
+   */
+  suffix: string
+  /**
+   * 后缀字体大小
+   */
+  suffixFontSize: number
+  /**
+   * 后缀字体颜色
+   */
+  suffixColor: string
+  /**
+   * 后缀是否斜体
+   */
+  suffixIsItalic: boolean
+  /**
+   * 后缀是否加粗
+   */
+  suffixIsBolder: boolean
+  /**
+   * 后缀字体类型
+   */
+  suffixFontFamily: string
+  /**
+   * 后缀字间距
+   */
+  suffixLetterSpace: number
+  /**
+   * 后置是否显示阴影
+   */
+  suffixFontShadow: boolean
+}
+
+/**
+ * 指标卡名称样式
+ */
+declare interface ChartIndicatorNameStyle {
+  /**
+   * 是否显示
+   */
+  show: boolean
+  /**
+   * 字体大小
+   */
+  fontSize: number
+  /**
+   * 字体颜色
+   */
+  color: string
+  /**
+   * 是否斜体
+   */
+  isItalic: boolean
+  /**
+   * 是否加粗
+   */
+  isBolder: boolean
+  /**
+   * 字体类型
+   */
+  fontFamily: string
+  /**
+   * 字间距
+   */
+  letterSpace: number
+  /**
+   * 是否显示字体阴影
+   */
+  fontShadow: boolean
+  /**
+   * 指标/名称间距
+   */
+  nameValueSpacing: number
 }

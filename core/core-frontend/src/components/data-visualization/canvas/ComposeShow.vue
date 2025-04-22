@@ -37,7 +37,7 @@ const handleMouseDown = e => {
     return
   }
   const index = areaData.value.components.findIndex(component => component === props.element)
-  if (index != -1) {
+  if (index != -1 && props.element.component !== 'GroupArea') {
     areaData.value.components.splice(index, 1)
     e.stopPropagation()
   }
@@ -55,6 +55,6 @@ const handleMouseDown = e => {
 }
 
 .shadow-border {
-  border: 1px solid #3370ff;
+  border: 1px solid var(--ed-color-primary);
 }
 </style>

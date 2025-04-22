@@ -2,20 +2,20 @@
   <div
     class="rich-main-class"
     :class="{ 'edit-model': canEdit }"
-    :style="autoStyle"
     @keydown.stop
     @keyup.stop
     @dblclick="setEdit"
+    @click="onClick"
   >
     <chart-error v-if="isError" :err-msg="errMsg" />
     <Editor
       v-if="editShow && !isError"
-      :id="tinymceId"
       v-model="myValue"
       class="custom-text-content"
+      :style="wrapperStyle"
+      :id="tinymceId"
       :init="init"
       :disabled="!canEdit || disabled"
-      @onClick="onClick"
     />
     <div
       class="rich-placeholder"
@@ -28,6 +28,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDataEaseBi } from '@/utils/url'
 import tinymce from 'tinymce/tinymce' // tinymce默认hidden，不引入不显示
 import Editor from '@tinymce/tinymce-vue' // 编辑器引入
 import 'tinymce/themes/silver/theme' // 编辑器主题
@@ -46,6 +47,8 @@ import 'tinymce/plugins/contextmenu' // contextmenu
 import 'tinymce/plugins/directionality'
 import 'tinymce/plugins/nonbreaking'
 import 'tinymce/plugins/pagebreak'
+import '@npkg/tinymce-plugins/letterspacing'
+import './plugins' //自定义插件
 import { computed, nextTick, reactive, ref, toRefs, watch, onMounted, PropType } from 'vue'
 import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
 import eventBus from '@/utils/eventBus'
@@ -55,9 +58,11 @@ import { storeToRefs } from 'pinia'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import ChartError from '@/views/chart/components/views/components/ChartError.vue'
 import { useEmitt } from '@/hooks/web/useEmitt'
+import { valueFormatter } from '@/views/chart/components/js/formatter'
+import { parseJson } from '@/views/chart/components/js/util'
+import { mappingColor } from '@/views/chart/components/js/panel/common/common_table'
 const snapshotStore = snapshotStoreWithOut()
 const errMsg = ref('')
-const curFields = ref([])
 const dvMainStore = dvMainStoreWithOut()
 const { canvasViewInfo } = storeToRefs(dvMainStore)
 const isError = ref(false)
@@ -96,14 +101,18 @@ const props = defineProps({
   }
 })
 
-const { scale, element, editMode, active, disabled, showPosition } = toRefs(props)
+const { element, editMode, active, disabled, showPosition } = toRefs(props)
 
 const state = reactive({
   data: null,
-  totalItems: 0
+  viewDataInfo: null,
+  totalItems: 0,
+  firstRender: true,
+  previewFirstRender: true
 })
 const dataRowSelect = ref({})
 const dataRowNameSelect = ref({})
+const dataRowNameSelectSource = ref({})
 const dataRowFiledName = ref([])
 const initReady = ref(false)
 const editShow = ref(true)
@@ -114,41 +123,32 @@ const myValue = ref('')
 const init = ref({
   selector: '#' + tinymceId,
   toolbar_items_size: 'small',
-  language_url: '/tinymce-dataease-private/langs/zh_CN.js', // 汉化路径是自定义的，一般放在public或static里面
+  language_url: formatDataEaseBi('./tinymce-dataease-private/langs/zh_CN.js'), // 汉化路径是自定义的，一般放在public或static里面
   language: 'zh_CN',
-  skin_url: '/tinymce-dataease-private/skins/ui/oxide', // 皮肤
-  content_css: '/tinymce-dataease-private/skins/content/default/content.css',
+  skin_url: formatDataEaseBi('./tinymce-dataease-private/skins/ui/oxide'), // 皮肤
+  content_css: formatDataEaseBi('./tinymce-dataease-private/skins/content/default/content.css'),
   plugins:
-    'advlist autolink link image lists charmap  media wordcount table contextmenu directionality pagebreak', // 插件
+    'vertical-content advlist autolink link image lists charmap  media wordcount table contextmenu directionality pagebreak letterspacing', // 插件
   // 工具栏
   toolbar:
-    'undo redo |fontselect fontsizeselect |forecolor backcolor bold italic |underline strikethrough link| formatselect |' +
-    'alignleft aligncenter alignright | bullist numlist |' +
-    ' blockquote subscript superscript removeformat | table image media | fullscreen ' +
-    '| bdmap indent2em lineheight formatpainter axupimgs',
+    'undo redo | fontselect fontsizeselect |forecolor backcolor bold italic letterspacing |underline strikethrough link lineheight| formatselect |' +
+    'top-align center-align bottom-align | alignleft aligncenter alignright | bullist numlist |' +
+    ' blockquote subscript superscript removeformat | table image ',
   toolbar_location: '/',
   font_formats:
-    '微软雅黑=Microsoft YaHei;宋体=SimSun;黑体=SimHei;仿宋=FangSong;华文黑体=STHeiti;华文楷体=STKaiti;华文宋体=STSong;华文仿宋=STFangsong;Andale Mono=andale mono,times;Arial=arial,helvetica,sans-serif;Arial Black=arial black,avant garde;Book Antiqua=book antiqua,palatino;Comic Sans MS=comic sans ms,sans-serif;Courier New=courier new,courier;Georgia=georgia,palatino;Helvetica=helvetica;Impact=impact,chicago;Symbol=symbol;Tahoma=tahoma,arial,helvetica,sans-serif;Terminal=terminal,monaco;Times New Roman=times new roman,times;Trebuchet MS=trebuchet ms,geneva;Verdana=verdana,geneva;Webdings=webdings;Wingdings=wingdings',
-  fontsize_formats: '12px 14px 16px 18px 20px 22px 24px 28px 32px 36px 48px 56px 72px', // 字体大小
+    '阿里巴巴普惠体=阿里巴巴普惠体 3.0 55 Regular L3;微软雅黑=Microsoft YaHei;宋体=SimSun;黑体=SimHei;仿宋=FangSong;华文黑体=STHeiti;华文楷体=STKaiti;华文宋体=STSong;华文仿宋=STFangsong;Andale Mono=andale mono,times;Arial=arial,helvetica,sans-serif;Arial Black=arial black,avant garde;Book Antiqua=book antiqua,palatino;Comic Sans MS=comic sans ms,sans-serif;Courier New=courier new,courier;Georgia=georgia,palatino;Helvetica=helvetica;Impact=impact,chicago;Symbol=symbol;Tahoma=tahoma,arial,helvetica,sans-serif;Terminal=terminal,monaco;Times New Roman=times new roman,times;Trebuchet MS=trebuchet ms,geneva;Verdana=verdana,geneva;Webdings=webdings;Wingdings=wingdings',
+  fontsize_formats: '12px 14px 16px 18px 20px 22px 24px 28px 32px 36px 42px 48px 56px 72px', // 字体大小
   menubar: false,
   placeholder: '',
   outer_placeholder: '双击输入文字',
   inline: true, // 开启内联模式
-  branding: false
+  branding: false,
+  icons: 'vertical-content',
+  vertical_align: element.value.propValue.verticalAlign
 })
 
 const editStatus = computed(() => {
   return editMode.value === 'edit'
-})
-
-const autoStyle = computed(() => {
-  return {
-    height: 100 / scale.value + '%!important',
-    width: 100 / scale.value + '%!important',
-    left: 50 * (1 - 1 / scale.value) + '%', // 放大余量 除以 2
-    top: 50 * (1 - 1 / scale.value) + '%',
-    transform: 'scale(' + scale.value + ')'
-  }
 })
 
 watch(
@@ -157,7 +157,7 @@ watch(
     if (!val) {
       const ed = tinymce.editors[tinymceId]
       if (canEdit.value) {
-        element.value.propValue.textValue = ed.getContent()
+        element.value.propValue.textValue = ed?.getContent()
       }
       element.value['editing'] = false
       canEdit.value = false
@@ -173,13 +173,35 @@ watch(
   () => {
     if (canEdit.value) {
       const ed = tinymce.editors[tinymceId]
-      element.value.propValue.textValue = ed.getContent()
+      element.value.propValue.textValue = ed?.getContent()
     }
-    if (initReady.value) {
-      snapshotStore.recordSnapshotCache()
+    if (initReady.value && canEdit.value) {
+      snapshotStore.recordSnapshotCache('renderChart', element.value.id)
     }
   }
 )
+const ALIGN_MAP = {
+  'top-align': {},
+  'center-align': {
+    margin: 'auto'
+  },
+  'bottom-align': {
+    'margin-top': 'auto'
+  }
+}
+const wrapperStyle = computed(() => {
+  const align = element.value.propValue.verticalAlign
+  if (!align) {
+    return {}
+  }
+  return ALIGN_MAP[align]
+})
+useEmitt({
+  name: 'vertical-change-' + tinymceId,
+  callback: align => {
+    element.value.propValue.verticalAlign = align
+  }
+})
 
 const viewInit = () => {
   useEmitt({
@@ -194,34 +216,36 @@ const viewInit = () => {
 const initCurFieldsChange = () => {
   if (!canEdit.value) {
     myValue.value = assignment(element.value.propValue.textValue)
+    const ed = tinymce.editors[tinymceId]
+    ed.setContent(myValue.value)
   }
 }
 
 const assignment = content => {
   const on = content.match(/\[(.+?)\]/g)
   if (on) {
+    const thresholdStyleInfo = conditionAdaptor(state.viewDataInfo)
     on.forEach(itm => {
       if (dataRowFiledName.value.includes(itm)) {
         const ele = itm.slice(1, -1)
+        let value = dataRowNameSelect.value[ele] !== undefined ? dataRowNameSelect.value[ele] : null
+        let targetValue = !!value ? value : '-'
+        if (thresholdStyleInfo && thresholdStyleInfo[ele]) {
+          const thresholdStyle = thresholdStyleInfo[ele]
+          targetValue = `<span style="color:${thresholdStyle.color};background-color: ${thresholdStyle.backgroundColor}">${targetValue}</span>`
+        }
         if (initReady.value) {
-          content = content.replace(
-            itm,
-            dataRowNameSelect.value[ele] !== undefined
-              ? dataRowNameSelect.value[ele]
-              : '[未获取字段值]'
-          )
+          content = content.replace(itm, targetValue)
         } else {
-          content = content.replace(
-            itm,
-            dataRowNameSelect.value[ele] !== undefined
-              ? dataRowNameSelect.value[ele]
-              : '[获取中...]'
-          )
+          content = content.replace(itm, !!value ? targetValue : '[获取中...]')
         }
       }
     })
   }
   content = content.replace('class="base-selected"', '')
+  //De 本地跳转失效问题
+  content = content.replace(/href="#\//g, 'href="/#/')
+  content = content.replace(/href=\\"#\//g, 'href=\\"/#/')
   resetSelect()
   return content
 }
@@ -242,8 +266,10 @@ const fieldSelect = field => {
   snapshotStore.resetStyleChangeTimes()
 }
 const onClick = () => {
-  const node = tinymce.activeEditor.selection.getNode()
-  resetSelect(node)
+  if (canEdit.value) {
+    const node = tinymce.activeEditor.selection.getNode()
+    resetSelect(node)
+  }
 }
 const resetSelect = (node?) => {
   const edInner = tinymce.get(tinymceId)
@@ -282,8 +308,16 @@ const showPlaceHolder = computed<boolean>(() => {
   )
 })
 
+const editActive = computed<boolean>(() => {
+  if (element.value.canvasId.includes('Group') && !active.value) {
+    return false
+  } else {
+    return true
+  }
+})
+
 const setEdit = () => {
-  if (computedCanEdit.value) {
+  if (computedCanEdit.value && editActive.value) {
     canEdit.value = true
     element.value['editing'] = true
     myValue.value = element.value.propValue.textValue
@@ -296,12 +330,41 @@ const reShow = () => {
   editShow.value = false
   nextTick(() => {
     editShow.value = true
+    editCursor()
   })
+}
+
+const editCursor = () => {
+  setTimeout(() => {
+    const myDiv = document.getElementById(tinymceId)
+    // 让光标聚焦到文本末尾
+    const range = document.createRange()
+    const sel = window.getSelection()
+    if (myDiv.childNodes) {
+      range.setStart(myDiv.childNodes[myDiv.childNodes.length - 1], 1)
+      range.collapse(false)
+      sel.removeAllRanges()
+      sel.addRange(range)
+    }
+    // 对于一些浏览器，可能需要设置光标到最后的另一种方式
+    if (myDiv.focus) {
+      myDiv.focus()
+    }
+    tinymce.init({
+      selector: tinymceId,
+      plugins: 'table',
+      setup: function (editor) {
+        editor.on('init', function () {
+          console.log('====init====')
+        })
+      }
+    })
+  }, 100)
 }
 
 const calcData = (view: Chart, callback) => {
   isError.value = false
-  if (view.tableId) {
+  if (view.tableId || view['dataFrom'] === 'template') {
     const v = JSON.parse(JSON.stringify(view))
     getData(v)
       .then(res => {
@@ -310,9 +373,12 @@ const calcData = (view: Chart, callback) => {
           errMsg.value = res.msg
         } else {
           state.data = res?.data
+          state.viewDataInfo = res
           state.totalItems = res?.totalItems
           const curViewInfo = canvasViewInfo.value[element.value.id]
           curViewInfo['curFields'] = res.data.fields
+          dvMainStore.setViewDataDetails(element.value.id, state.data)
+          initReady.value = true
           initCurFields(res)
         }
         callback?.()
@@ -335,10 +401,10 @@ const calcData = (view: Chart, callback) => {
 }
 
 const initCurFields = chartDetails => {
-  curFields.value = []
   dataRowFiledName.value = []
   dataRowSelect.value = {}
   dataRowNameSelect.value = {}
+  dataRowNameSelectSource.value = {} // 记录原格式，部分数字是经过格式化的，再匹配颜色时会有问题
   if (chartDetails.data && chartDetails.data.sourceFields) {
     const checkAllAxisStr =
       JSON.stringify(chartDetails.xAxis) +
@@ -347,10 +413,12 @@ const initCurFields = chartDetails => {
       JSON.stringify(chartDetails.yAxisExt)
     chartDetails.data.sourceFields.forEach(field => {
       if (checkAllAxisStr.indexOf(field.id) > -1) {
-        curFields.value.push(field)
         dataRowFiledName.value.push(`[${field.name}]`)
       }
     })
+    if (checkAllAxisStr.indexOf('"记录数*"') > -1) {
+      dataRowFiledName.value.push(`[记录数*]`)
+    }
     // Get the corresponding relationship between id and value
     const nameIdMap = chartDetails.data.fields.reduce((pre, next) => {
       pre[next['dataeaseName']] = next['id']
@@ -369,11 +437,21 @@ const initCurFields = chartDetails => {
         yDataeaseNames.push(yItem.dataeaseName)
         yDataeaseNamesCfg[yItem.dataeaseName] = yItem.formatterCfg
       })
-      rowDataFormat(rowData, yDataeaseNames, yDataeaseNamesCfg)
     }
+    const valueFieldMap: Record<string, Axis> = chartDetails.yAxis.reduce((p, n) => {
+      p[n.dataeaseName] = n
+      return p
+    }, {})
     for (const key in rowData) {
       dataRowSelect.value[nameIdMap[key]] = rowData[key]
-      dataRowNameSelect.value[sourceFieldNameIdMap[key]] = rowData[key]
+      let rowDataValue = rowData[key]
+      const rowDataValueSource = rowData[key]
+      const f = valueFieldMap[key]
+      if (f && f.formatterCfg) {
+        rowDataValue = valueFormatter(rowDataValue, f.formatterCfg)
+      }
+      dataRowNameSelect.value[sourceFieldNameIdMap[key]] = rowDataValue
+      dataRowNameSelectSource.value[sourceFieldNameIdMap[key]] = rowDataValueSource
     }
   }
   element.value.propValue['innerType'] = chartDetails.type
@@ -386,17 +464,45 @@ const initCurFields = chartDetails => {
   }
 }
 
-const rowDataFormat = (rowData, yDataeaseNames, yDataeaseNamesCfg) => {
-  console.log(
-    'rowData, yDataeaseNames, yDataeaseNamesCfg',
-    rowData,
-    yDataeaseNames,
-    yDataeaseNamesCfg
-  )
+// 初始化此处不必刷新
+const renderChart = viewInfo => {
+  //do renderView
+  initCurFieldsChange()
+  eventBus.emit('initCurFields-' + element.value.id)
 }
 
-const renderChart = () => {
-  //do nothing
+const conditionAdaptor = (chart: Chart) => {
+  if (!chart) {
+    return
+  }
+  const { threshold } = parseJson(chart.senior)
+  if (!threshold.enable) {
+    return
+  }
+  const res = {}
+  const conditions = threshold.tableThreshold ?? []
+  if (conditions?.length > 0) {
+    for (let i = 0; i < conditions.length; i++) {
+      const field = conditions[i]
+      let defaultValueColor = 'none'
+      let defaultBgColor = 'none'
+      res[field.field.name] = {
+        color: mappingColor(
+          dataRowNameSelectSource.value[field.field.name],
+          defaultValueColor,
+          field,
+          'color'
+        ),
+        backgroundColor: mappingColor(
+          dataRowNameSelectSource.value[field.field.name],
+          defaultBgColor,
+          field,
+          'backgroundColor'
+        )
+      }
+    }
+  }
+  return res
 }
 
 onMounted(() => {
@@ -411,16 +517,16 @@ defineExpose({
 
 <style lang="less" scoped>
 .rich-main-class {
+  display: flex;
   font-size: initial;
   width: 100%;
   height: 100%;
   overflow-y: auto !important;
   position: relative;
-}
-
-::-webkit-scrollbar {
-  width: 0px !important;
-  height: 0px !important;
+  div::-webkit-scrollbar {
+    width: 0px !important;
+    height: 0px !important;
+  }
 }
 
 :deep(.ol) {
@@ -473,6 +579,14 @@ defineExpose({
 </style>
 
 <style lang="less">
+.tox {
+  border-radius: 4px !important;
+  border-bottom: 1px solid #ccc !important;
+  z-index: 1000;
+}
+.tox-tbtn {
+  height: auto !important;
+}
 .tox-collection__item-label {
   p {
     color: #1a1a1a !important;
@@ -520,9 +634,11 @@ defineExpose({
 
 .custom-text-content {
   width: 100%;
-  height: 100%;
   overflow-y: auto;
   outline: none !important;
   border: none !important;
+  ol {
+    list-style-type: decimal;
+  }
 }
 </style>

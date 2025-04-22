@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus-secondary'
 import eventBus from '@/utils/eventBus'
+import { useEmbedded } from '@/store/modules/embedded'
 import { deepCopy } from '@/utils/utils'
-import { nextTick, reactive, ref, computed, onMounted } from 'vue'
+import { nextTick, reactive, ref, computed, toRefs } from 'vue'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
+import { useAppStoreWithOut } from '@/store/modules/app'
 import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
 import { storeToRefs } from 'pinia'
 import Icon from '../icon-custom/src/Icon.vue'
@@ -18,16 +20,24 @@ import MultiplexingCanvas from '@/views/common/MultiplexingCanvas.vue'
 import { useI18n } from '@/hooks/web/useI18n'
 import { getPanelAllLinkageInfo, saveLinkage } from '@/api/visualization/linkage'
 import { queryVisualizationJumpInfo } from '@/api/visualization/linkJump'
-import { canvasSave } from '@/utils/canvasUtils'
+import { canvasSave, initCanvasData } from '@/utils/canvasUtils'
 import { useEmitt } from '@/hooks/web/useEmitt'
 import { copyStoreWithOut } from '@/store/modules/data-visualization/copy'
 import TabsGroup from '@/custom-component/component-group/TabsGroup.vue'
 import DeResourceGroupOpt from '@/views/common/DeResourceGroupOpt.vue'
+import OuterParamsSet from '@/components/visualization/OuterParamsSet.vue'
+import { XpackComponent } from '@/components/plugin'
+import DbMoreComGroup from '@/custom-component/component-group/DbMoreComGroup.vue'
+import { useCache } from '@/hooks/web/useCache'
+import DeFullscreen from '@/components/visualization/common/DeFullscreen.vue'
+import DeAppApply from '@/views/common/DeAppApply.vue'
+import { useUserStoreWithOut } from '@/store/modules/user'
 const { t } = useI18n()
 const dvMainStore = dvMainStoreWithOut()
 const snapshotStore = snapshotStoreWithOut()
 const copyStore = copyStoreWithOut()
 const { styleChangeTimes, snapshotIndex } = storeToRefs(snapshotStore)
+const resourceAppOpt = ref(null)
 const {
   linkageSettingStatus,
   curLinkageView,
@@ -37,10 +47,12 @@ const {
   editMode,
   batchOptStatus,
   targetLinkageInfo,
-  curBatchOptComponents
+  curBatchOptComponents,
+  appData
 } = storeToRefs(dvMainStore)
 const dvModel = 'dashboard'
 const multiplexingRef = ref(null)
+const fullScreeRef = ref(null)
 let nameEdit = ref(false)
 let inputName = ref('')
 let nameInput = ref(null)
@@ -49,6 +61,18 @@ const state = reactive({
   preBatchCanvasViewInfo: {}
 })
 const resourceGroupOpt = ref(null)
+const outerParamsSetRef = ref(null)
+const { wsCache } = useCache('localStorage')
+const userStore = useUserStoreWithOut()
+
+const props = defineProps({
+  createType: {
+    type: String,
+    default: 'create'
+  }
+})
+
+const { createType } = toRefs(props)
 
 const editCanvasName = () => {
   nameEdit.value = true
@@ -66,7 +90,7 @@ const closeEditCanvasName = () => {
     return
   }
   if (inputName.value.trim().length > 64 || inputName.value.trim().length < 2) {
-    ElMessage.warning('名称字段长度不能2-64个字符')
+    ElMessage.warning('名称字段长度2-64个字符')
     editCanvasName()
     return
   }
@@ -89,7 +113,7 @@ const redo = () => {
 }
 
 const previewInner = () => {
-  dvMainStore.setEditMode('preview')
+  fullScreeRef.value.toggleFullscreen()
 }
 
 const previewOuter = () => {
@@ -99,7 +123,8 @@ const previewOuter = () => {
   }
   canvasSave(() => {
     const url = '#/preview?dvId=' + dvInfo.value.id
-    window.open(url, '_blank')
+    const newWindow = window.open(url, '_blank')
+    initOpenHandler(newWindow)
   })
 }
 
@@ -132,25 +157,67 @@ const resourceOptFinish = param => {
 }
 
 const saveCanvasWithCheck = () => {
-  if (dvInfo.value.dataState === 'prepare') {
-    const params = { name: dvInfo.value.name, leaf: true, id: dvInfo.value.pid }
-    resourceGroupOpt.value.optInit('leaf', params, 'newLeaf', true)
+  if (userStore.getOid && wsCache.get('user.oid') && userStore.getOid !== wsCache.get('user.oid')) {
+    ElMessageBox.confirm('已切换至新组织，无权保存其他组织的资源', {
+      confirmButtonType: 'primary',
+      type: 'warning',
+      confirmButtonText: '关闭页面',
+      cancelButtonText: '取消',
+      autofocus: false,
+      showClose: false
+    }).then(() => {
+      window.close()
+    })
     return
+  }
+  if (dvInfo.value.dataState === 'prepare') {
+    if (appData.value) {
+      // 应用保存
+      const params = {
+        base: {
+          pid: '',
+          name: dvInfo.value.name,
+          datasetFolderPid: null,
+          datasetFolderName: dvInfo.value.name
+        },
+        appData: appData.value
+      }
+      resourceAppOpt.value.init(params)
+    } else {
+      const params = { name: dvInfo.value.name, leaf: true, id: dvInfo.value.pid }
+      resourceGroupOpt.value.optInit('leaf', params, 'newLeaf', true)
+      return
+    }
   }
   saveResource()
 }
 
 const saveResource = () => {
-  dvMainStore.matrixSizeAdaptor()
-  queryList.value.forEach(ele => {
-    useEmitt().emitter.emit(`updateQueryCriteria${ele.id}`)
-  })
-
-  canvasSave(() => {
-    snapshotStore.resetStyleChangeTimes()
-    ElMessage.success('保存成功')
-    window.history.pushState({}, '', `#/dashboard?resourceId=${dvInfo.value.id}`)
-  })
+  wsCache.delete('DE-DV-CATCH-' + dvInfo.value.id)
+  if (styleChangeTimes.value > 0) {
+    dvMainStore.matrixSizeAdaptor()
+    queryList.value.forEach(ele => {
+      useEmitt().emitter.emit(`updateQueryCriteria${ele.id}`)
+    })
+    try {
+      canvasSave(() => {
+        snapshotStore.resetStyleChangeTimes()
+        ElMessage.success('保存成功')
+        window.history.pushState({}, '', `#/dashboard?resourceId=${dvInfo.value.id}`)
+        if (appData.value) {
+          initCanvasData(dvInfo.value.id, 'dashboard', () => {
+            useEmitt().emitter.emit('refresh-dataset-selector')
+            useEmitt().emitter.emit('calcData-all')
+            resourceAppOpt.value.close()
+            dvMainStore.setAppDataInfo(null)
+            snapshotStore.resetSnapshot()
+          })
+        }
+      })
+    } catch (e) {
+      console.error(e)
+    }
+  }
 }
 
 const clearCanvas = () => {
@@ -171,11 +238,33 @@ const backToMain = () => {
       autofocus: false,
       showClose: false
     }).then(() => {
-      window.open(url, '_self')
+      backHandler(url)
     })
   } else {
-    window.open(url, '_self')
+    backHandler(url)
   }
+}
+const embeddedStore = useEmbedded()
+
+const backHandler = (url: string) => {
+  if (isEmbedded.value) {
+    embeddedStore.clearState()
+    useEmitt().emitter.emit('changeCurrentComponent', 'DashboardPanel')
+    return
+  }
+  if (window['dataease-embedded-host'] && openHandler?.value) {
+    const pm = {
+      methodName: 'embeddedInteractive',
+      args: {
+        eventName: 'de-dashboard-editor-back',
+        args: 'Just a demo that descript dataease embedded interactive'
+      }
+    }
+    openHandler.value.invokeMethod(pm)
+    return
+  }
+  wsCache.delete('DE-DV-CATCH-' + dvInfo.value.id)
+  window.open(url, '_self')
 }
 
 const multiplexingCanvasOpen = () => {
@@ -188,6 +277,14 @@ eventBus.on('clearCanvas', clearCanvas)
 
 const openDataBoardSetting = () => {
   dvMainStore.setCurComponent({ component: null, index: null })
+}
+
+const openMobileSetting = () => {
+  if (!dvInfo.value.id || dvInfo.value.dataState === 'prepare') {
+    ElMessage.warning('请先保存当前页面')
+    return
+  }
+  useEmitt().emitter.emit('mobileConfig')
 }
 
 const batchDelete = () => {
@@ -248,6 +345,18 @@ const batchOptStatusChange = value => {
   dvMainStore.setBatchOptStatus(value)
 }
 
+const openOuterParamsSet = () => {
+  if (componentData.value.length === 0) {
+    ElMessage.warning('当前仪表板为空，请先添加组件')
+    return
+  }
+  if (!dvInfo.value.id) {
+    ElMessage.warning('请先保存当前页面')
+    return
+  }
+  outerParamsSetRef.value.optInit()
+}
+
 const saveBatchChange = () => {
   batchOptStatusChange(false)
 }
@@ -303,10 +412,19 @@ const saveLinkageSetting = () => {
 const onDvNameChange = () => {
   snapshotStore.recordSnapshotCache()
 }
-const isDataEaseBi = ref(false)
-onMounted(() => {
-  isDataEaseBi.value = !!window.DataEaseBi
-})
+const appStore = useAppStoreWithOut()
+const isEmbedded = computed(() => appStore.getIsDataEaseBi || appStore.getIsIframe)
+
+const openHandler = ref(null)
+const initOpenHandler = newWindow => {
+  if (openHandler?.value) {
+    const pm = {
+      methodName: 'initOpenHandler',
+      args: newWindow
+    }
+    openHandler.value.invokeMethod(pm)
+  }
+}
 </script>
 
 <template>
@@ -321,11 +439,7 @@ onMounted(() => {
         <div class="middle-area"></div>
       </template>
       <template v-else>
-        <el-icon
-          v-if="!batchOptStatus && !isDataEaseBi"
-          class="custom-el-icon back-icon"
-          @click="backToMain()"
-        >
+        <el-icon v-if="!batchOptStatus" class="custom-el-icon back-icon" @click="backToMain()">
           <Icon class="toolbar-icon" name="icon_left_outlined" />
         </el-icon>
         <div class="left-area" v-if="editMode === 'edit' && !batchOptStatus">
@@ -395,23 +509,26 @@ onMounted(() => {
           <component-group
             is-label
             themes="light"
-            :base-width="115"
+            placement="bottom"
+            :base-width="315"
             icon-name="dv-media"
             title="媒体"
           >
             <media-group themes="light" :dv-model="dvModel"></media-group>
           </component-group>
-          <component-group
-            show-split-line
-            themes="light"
-            is-label
-            :base-width="115"
-            icon-name="dv-tab"
-            title="Tab"
-          >
+          <component-group themes="light" is-label :base-width="115" icon-name="dv-tab" title="Tab">
             <tabs-group themes="light" :dv-model="dvModel"></tabs-group>
           </component-group>
-          <!--        <component-button :show-split-line="true" icon-name="dv-tab" title="Tab"></component-button>-->
+          <component-group
+            themes="light"
+            show-split-line
+            is-label
+            :base-width="115"
+            icon-name="dv-more-com"
+            title="更多"
+          >
+            <db-more-com-group themes="light" :dv-model="dvModel"></db-more-com-group>
+          </component-group>
           <component-button-label
             icon-name="icon_copy_filled"
             title="复用"
@@ -423,6 +540,13 @@ onMounted(() => {
 
       <div class="right-area" v-if="!batchOptStatus && !linkageSettingStatus">
         <template v-if="editMode !== 'preview'">
+          <el-tooltip effect="dark" content="外部参数设置" placement="bottom">
+            <component-button
+              tips="外部参数设置"
+              @custom-click="openOuterParamsSet"
+              icon-name="icon_params_setting"
+            />
+          </el-tooltip>
           <el-tooltip effect="dark" content="批量操作" placement="bottom">
             <component-button
               tips="批量操作"
@@ -438,6 +562,14 @@ onMounted(() => {
               icon-name="dv-dashboard"
             />
           </el-tooltip>
+          <div class="divider"></div>
+          <el-tooltip :offset="14" effect="dark" content="切换至移动端布局" placement="bottom">
+            <component-button
+              tips="切换至移动端布局"
+              @custom-click="openMobileSetting"
+              icon-name="icon_phone_outlined"
+            />
+          </el-tooltip>
         </template>
 
         <el-dropdown v-if="editMode === 'edit'" trigger="hover">
@@ -446,11 +578,11 @@ onMounted(() => {
           </el-button>
           <template #dropdown>
             <el-dropdown-menu class="drop-style">
-              <el-dropdown-item @click="previewInner()">
+              <el-dropdown-item @click="previewInner">
                 <el-icon style="margin-right: 8px; font-size: 16px">
-                  <Icon name="dv-preview-inner" />
+                  <Icon name="icon_pc_fullscreen" />
                 </el-icon>
-                当前预览
+                全屏预览
               </el-dropdown-item>
               <el-dropdown-item @click="previewOuter()">
                 <el-icon style="margin-right: 8px; font-size: 16px">
@@ -542,7 +674,18 @@ onMounted(() => {
       cur-canvas-type="dashboard"
       ref="resourceGroupOpt"
     />
+    <outer-params-set ref="outerParamsSetRef"> </outer-params-set>
   </div>
+  <de-fullscreen show-position="edit" ref="fullScreeRef"></de-fullscreen>
+  <XpackComponent ref="openHandler" jsname="L2NvbXBvbmVudC9lbWJlZGRlZC1pZnJhbWUvT3BlbkhhbmRsZXI=" />
+  <de-app-apply
+    ref="resourceAppOpt"
+    :component-data="componentData"
+    :dv-info="dvInfo"
+    :canvas-view-info="canvasViewInfo"
+    cur-canvas-type="dashboard"
+    @saveAppCanvas="saveCanvasWithCheck"
+  ></de-app-apply>
 </template>
 
 <style lang="less" scoped>
@@ -636,6 +779,13 @@ onMounted(() => {
     display: flex;
     align-items: center;
     justify-content: right;
+
+    .divider {
+      background: #ffffff4d;
+      width: 1px;
+      height: 18px;
+      margin: 0 10px;
+    }
   }
   .custom-el-icon {
     margin-left: 15px;

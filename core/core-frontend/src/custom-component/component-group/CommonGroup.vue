@@ -86,7 +86,7 @@ const groupActiveChange = category => {
             :data-id="groupInfo.category + '&' + chartInfo.value"
           >
             <Icon
-              v-if="chartInfo.type === 'outer_svg'"
+              v-if="['outer_svg', 'graphical'].includes(chartInfo.type)"
               class-name="item-top-icon"
               :name="chartInfo.icon"
             />
@@ -148,10 +148,10 @@ const groupActiveChange = category => {
 }
 
 .li-custom-active {
-  background: rgba(51, 112, 255, 0.1);
-  color: #3370ff !important;
+  background: var(--ed-color-primary-1a, rgba(51, 112, 255, 0.1));
+  color: var(--ed-color-primary) !important;
   .li-a {
-    color: #3370ff !important;
+    color: var(--ed-color-primary) !important;
   }
 }
 
@@ -165,7 +165,7 @@ const groupActiveChange = category => {
     border-radius: 4px;
     cursor: pointer;
     &:hover {
-      outline: 1px solid #3370ff;
+      outline: 1px solid var(--ed-color-primary);
     }
     .item-top-icon {
       width: 80px;
@@ -191,7 +191,7 @@ const groupActiveChange = category => {
     padding: 4px;
     cursor: pointer;
     &:hover {
-      outline: 1px solid #3370ff;
+      outline: 1px solid var(--ed-color-primary);
     }
     .item-top-icon {
       width: 20px;

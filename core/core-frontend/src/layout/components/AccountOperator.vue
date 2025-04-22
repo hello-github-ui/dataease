@@ -10,6 +10,11 @@ import { useEmitt } from '@/hooks/web/useEmitt'
 import AboutPage from '@/views/about/index.vue'
 import LangSelector from './LangSelector.vue'
 import router from '@/router'
+import { useCache } from '@/hooks/web/useCache'
+import { useAppearanceStoreWithOut } from '@/store/modules/appearance'
+const appearanceStore = useAppearanceStoreWithOut()
+const navigateBg = computed(() => appearanceStore.getNavigateBg)
+const { wsCache } = useCache()
 const userStore = useUserStoreWithOut()
 const { t } = useI18n()
 
@@ -20,6 +25,11 @@ interface LinkItem {
   method?: string
 }
 const linkList = ref([{ id: 5, label: t('common.about'), method: 'toAbout' }] as LinkItem[])
+if (!appearanceStore.getShowAbout) {
+  linkList.value.splice(0, 1)
+}
+
+const inPlatformClient = computed(() => !!wsCache.get('de-platform-client'))
 
 const logout = async () => {
   await logoutApi()
@@ -28,6 +38,24 @@ const logout = async () => {
 
 const linkLoaded = items => {
   items.forEach(item => linkList.value.push(item))
+  linkList.value.sort(compare('id'))
+}
+const xpackLinkLoaded = items => {
+  let len = linkList.value.length
+  while (len--) {
+    if (linkList.value[len]?.id === 2 && linkList.value[len]?.link === '/modify-pwd/index') {
+      linkList.value.splice(len, 1)
+    }
+  }
+  items.forEach(item => linkList.value.push(item))
+  if (inPlatformClient.value) {
+    len = linkList.value.length
+    while (len--) {
+      if (linkList.value[len]?.id === 2) {
+        linkList.value.splice(len, 1)
+      }
+    }
+  }
   linkList.value.sort(compare('id'))
 }
 
@@ -68,11 +96,20 @@ const openPopover = () => {
 
 if (uid.value === '1') {
   linkLoaded([{ id: 4, link: '/sys-setting/parameter', label: t('commons.system_setting') }])
+  const desktop = wsCache.get('app.desktop')
+  if (!desktop) {
+    linkLoaded([{ id: 2, link: '/modify-pwd/index', label: t('user.change_password') }])
+  }
 }
 </script>
 
 <template>
-  <div class="top-info-container" ref="buttonRef" v-click-outside="openPopover">
+  <div
+    class="top-info-container"
+    :class="{ 'is-light-top-info': navigateBg && navigateBg === 'light' }"
+    ref="buttonRef"
+    v-click-outside="openPopover"
+  >
     <el-icon class="main-color">
       <Icon name="user-img" />
     </el-icon>
@@ -129,7 +166,7 @@ if (uid.value === '1') {
         </div>
       </div>
       <el-divider />
-      <div class="uinfo-footer">
+      <div class="uinfo-footer" v-if="!inPlatformClient">
         <div class="uinfo-main-item de-container" @click="logout">
           <span>{{ t('common.exit_system') }}</span>
         </div>
@@ -138,7 +175,7 @@ if (uid.value === '1') {
   </el-popover>
 
   <AboutPage />
-  <XpackComponent jsname="dWNlbnRlci1oYW5kbGVy" @loaded="linkLoaded" />
+  <XpackComponent jsname="dWNlbnRlci1oYW5kbGVy" @loaded="xpackLinkLoaded" />
 </template>
 
 <style lang="less">
@@ -146,6 +183,15 @@ if (uid.value === '1') {
   width: 12px;
   height: 12px;
   font-size: 14px !important;
+}
+.is-light-top-info {
+  .uname-span {
+    font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
+    color: var(--ed-color-black) !important;
+  }
+  &:hover {
+    background-color: var(--ed-menu-hover-bg-color) !important;
+  }
 }
 .top-info-container {
   height: 32px;
@@ -158,12 +204,13 @@ if (uid.value === '1') {
     background-color: #1e2738;
   }
   .main-color {
-    background: #3370ff;
+    background: var(--ed-color-primary);
     width: 24px;
     height: 24px;
     border-radius: 50%;
   }
   .uname-span {
+    font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
     font-size: 14px;
     color: rgba(255, 255, 255, 0.8);
   }

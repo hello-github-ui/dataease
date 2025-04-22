@@ -231,7 +231,8 @@
                                 >
                                   <span class="custom-option">
                                     <Icon
-                                      :icon-class="item.type"
+                                      :name="item.type"
+                                      class-name="view-type-icon"
                                       style="width: 14px; height: 14px"
                                     />
                                     <span style="float: left; margin-left: 4px; font-size: 14px">{{
@@ -245,7 +246,7 @@
                               <el-select
                                 v-model="targetViewInfo.targetFieldId"
                                 :placeholder="'请选择字段'"
-                                :disabled="!targetViewInfo.sourceFieldActiveId"
+                                :disabled="fieldIdDisabledCheck(targetViewInfo)"
                                 style="width: 100%"
                               >
                                 <el-option
@@ -405,7 +406,7 @@ import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapsho
 import EmptyBackground from '@/components/empty-background/src/EmptyBackground.vue'
 import { filterEmptyFolderTree } from '@/utils/canvasUtils'
 const dvMainStore = dvMainStoreWithOut()
-const { dvInfo, canvasViewInfo } = storeToRefs(dvMainStore)
+const { dvInfo, canvasViewInfo, componentData } = storeToRefs(dvMainStore)
 const linkJumpInfoTree = ref(null)
 const { t } = useI18n()
 const dialogShow = ref(false)
@@ -529,7 +530,7 @@ const init = viewItem => {
       state.curDatasetInfo = res || {}
     })
 
-    // 获取当前视图的字段信息
+    // 获取当前图表的字段信息
     listFieldByDatasetGroup(chartDetails.tableId).then(rsp => {
       state.linkJumpCurViewFieldArray = []
       const sourceCurViewFieldArray = rsp.data
@@ -540,7 +541,7 @@ const init = viewItem => {
       })
     })
 
-    // 获取当前视图的关联信息
+    // 获取当前图表的关联信息
     queryWithViewId(dvInfo.value.id, state.viewId).then(rsp => {
       state.linkJump = rsp.data
       state.linkJumpInfoArray = []
@@ -639,16 +640,32 @@ const codeMirrorContentSet = content => {
   })
 }
 
-// 获取当前视图字段 关联仪表板的视图信息列表
+// 获取当前图表字段 关联仪表板的图表信息列表
 const getPanelViewList = dvId => {
   viewTableDetailList(dvId).then(rsp => {
     state.viewIdFieldArrayMap = {}
-    state.currentLinkPanelViewArray = rsp.data
+    state.currentLinkPanelViewArray = rsp.data.visualizationViewTables
     if (state.currentLinkPanelViewArray) {
       state.currentLinkPanelViewArray.forEach(view => {
         state.viewIdFieldArrayMap[view.id] = view.tableFields
       })
     }
+    // 增加过滤组件匹配
+    JSON.parse(rsp.data.bashComponentData).forEach(componentItem => {
+      if (componentItem.component === 'VQuery') {
+        componentItem.propValue.forEach(filterItem => {
+          state.currentLinkPanelViewArray.push({
+            id: filterItem.id,
+            type: 'filter',
+            name: filterItem.name,
+            title: filterItem.name
+          })
+          state.viewIdFieldArrayMap[filterItem.id] = [
+            { id: '1000001', name: t('visualization.filter_no_select') }
+          ]
+        })
+      }
+    })
   })
 }
 const dvNodeClick = data => {
@@ -667,8 +684,26 @@ const addLinkJumpField = () => {
 const deleteLinkJumpField = index => {
   state.linkJumpInfo.targetViewInfoList.splice(index, 1)
 }
+
+const fieldIdDisabledCheck = targetViewInfo => {
+  return (
+    (state.viewIdFieldArrayMap[targetViewInfo.targetViewId] &&
+      state.viewIdFieldArrayMap[targetViewInfo.targetViewId].length === 1 &&
+      state.viewIdFieldArrayMap[targetViewInfo.targetViewId][0].id === '1000001') ||
+    !targetViewInfo.sourceFieldActiveId
+  )
+}
+
 const viewInfoOnChange = targetViewInfo => {
-  targetViewInfo.targetFieldId = null
+  if (
+    state.viewIdFieldArrayMap[targetViewInfo.targetViewId] &&
+    state.viewIdFieldArrayMap[targetViewInfo.targetViewId].length === 1 &&
+    state.viewIdFieldArrayMap[targetViewInfo.targetViewId][0].id === '1000001'
+  ) {
+    targetViewInfo.targetFieldId = '1000001'
+  } else {
+    targetViewInfo.targetFieldId = null
+  }
 }
 const sourceFieldCheckedChange = data => {
   nextTick(() => {
@@ -791,15 +826,6 @@ defineExpose({
   overflow-y: auto;
 }
 
-:deep(.vue-treeselect__control) {
-  height: 28px;
-}
-
-:deep(.vue-treeselect__single-value) {
-  color: #606266;
-  line-height: 28px !important;
-}
-
 .custom-tree-node {
   display: flex;
   align-items: center;
@@ -826,11 +852,16 @@ defineExpose({
   }
   .head-filter {
     flex: 1;
-    text-align: right;
+    display: flex;
+    align-items: center;
+    justify-content: end;
     margin-right: 16px;
     font-weight: 400;
     font-size: 12px;
     color: #646a73;
+    .ed-switch {
+      margin-left: 8px;
+    }
   }
 }
 
@@ -868,7 +899,7 @@ defineExpose({
 
   color: var(--neutral-900, #1f2329);
   /* 中文/桌面端/正文 14 22 Regular */
-  font-family: PingFang SC;
+  font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
   font-size: 14px;
   font-style: normal;
   font-weight: 400;
@@ -883,7 +914,7 @@ defineExpose({
 
 .item-dimension:hover {
   border: 1px solid var(--blue-500, #3370ff);
-  background: rgba(51, 112, 255, 0.1);
+  background: var(--ed-color-primary-1a, rgba(51, 112, 255, 0.1));
 }
 
 .item-quota {
@@ -1023,7 +1054,7 @@ span {
   align-items: center;
 }
 .view-type-icon {
-  color: #3370ff;
+  color: var(--ed-color-primary);
   width: 22px;
   height: 16px;
 }

@@ -18,6 +18,10 @@ const props = defineProps({
     type: Object,
     required: true
   },
+  chart: {
+    type: Object,
+    required: true
+  },
   index: {
     type: Number,
     required: true
@@ -41,7 +45,7 @@ const emit = defineEmits(['onDimensionItemRemove'])
 const { item } = toRefs(props)
 
 watch(
-  [() => props.dimensionData, () => props.item],
+  [() => props.dimensionData, () => props.item, () => props.chart.type],
   () => {
     getItemTagType()
   },
@@ -144,7 +148,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   background-color: #3370ff0a;
-  border: 1px solid #3370ff;
+  border: 1px solid var(--ed-color-primary);
 }
 
 .item-axis:hover {

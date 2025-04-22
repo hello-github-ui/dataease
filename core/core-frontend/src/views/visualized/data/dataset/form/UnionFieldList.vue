@@ -4,15 +4,7 @@ import { useI18n } from '@/hooks/web/useI18n'
 import { propTypes } from '@/utils/propTypes'
 import { ElTable } from 'element-plus-secondary'
 import { fieldType } from '@/utils/attr'
-export interface Field {
-  checked: boolean
-  deExtractType: number
-  deType: number
-  name: string
-  type: string
-  originName: string
-  id: string
-}
+import { type Field } from './util'
 
 const { t } = useI18n()
 const props = defineProps({
@@ -124,7 +116,7 @@ watch(
             <el-checkbox @change="checkChange" v-model="scope.row.checked" />
           </template>
         </el-table-column>
-        <el-table-column :label="t('panel.column_name')">
+        <el-table-column :label="t('dataset.origin_name')">
           <template #default="scope">
             <el-icon>
               <Icon
@@ -135,7 +127,7 @@ watch(
             {{ scope.row.originName }}
           </template>
         </el-table-column>
-        <el-table-column property="name" :label="t('deDataset.original_name')" />
+        <el-table-column property="description" :label="t('deDataset.description')" />
       </el-table>
     </div>
   </div>
@@ -145,7 +137,7 @@ watch(
 .field-block-style {
   height: 100%;
   width: 100%;
-  font-family: PingFang SC;
+  font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
   .field-block-body {
     height: 327px;
     overflow-y: auto;

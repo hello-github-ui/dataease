@@ -2,6 +2,8 @@
 import { provide, PropType } from 'vue'
 import Select from './Select.vue'
 import Time from './Time.vue'
+import TextSearch from './TextSearch.vue'
+import Tree from './Tree.vue'
 
 interface SelectConfig {
   selectValue: any
@@ -51,7 +53,10 @@ const props = defineProps({
   }
 })
 const filterTypeCom = (displayType: string) => {
-  return ['1', '7'].includes(displayType) ? Time : Select
+  if (displayType === '8') {
+    return TextSearch
+  }
+  return ['1', '7'].includes(displayType) ? Time : displayType === '9' ? Tree : Select
 }
 provide('$custom-style-filter', props.customStyle)
 </script>

@@ -3,19 +3,27 @@ import { useI18n } from '@/hooks/web/useI18n'
 import { ref, reactive, onMounted, computed } from 'vue'
 import type { TabsPaneContext } from 'element-plus-secondary'
 import GridTable from '@/components/grid-table/src/GridTable.vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import { shortcutOption } from './ShortcutOption'
-import { XpackComponent } from '@/components/plugin'
+/* import { XpackComponent } from '@/components/plugin' */
 import { interactiveStoreWithOut } from '@/store/modules/interactive'
 import { storeApi } from '@/api/visualization/dataVisualization'
 import { useCache } from '@/hooks/web/useCache'
 import { useUserStoreWithOut } from '@/store/modules/user'
+import ShareGrid from '@/views/share/share/ShareGrid.vue'
+import ShareHandler from '@/views/share/share/ShareHandler.vue'
+import { useAppStoreWithOut } from '@/store/modules/app'
+import { useEmbedded } from '@/store/modules/embedded'
 const userStore = useUserStoreWithOut()
 const { resolve } = useRouter()
 const { t } = useI18n()
 const interactiveStore = interactiveStoreWithOut()
 const { wsCache } = useCache()
+const appStore = useAppStoreWithOut()
+const embeddedStore = useEmbedded()
+const route = useRoute()
+const { push } = useRouter()
 defineProps({
   expand: {
     type: Boolean,
@@ -34,11 +42,17 @@ const state = reactive({
 const busiDataMap = computed(() => interactiveStore.getData)
 const iconMap = {
   panel: 'icon_dashboard_outlined',
+  panelMobile: 'dv-dashboard-spine-mobile',
   dashboard: 'icon_dashboard_outlined',
+  dashboardMobile: 'dv-dashboard-spine-mobile',
   screen: 'icon_operation-analysis_outlined',
   dataV: 'icon_operation-analysis_outlined',
   dataset: 'icon_app_outlined',
   datasource: 'icon_database_outlined'
+}
+
+const jumpActiveCheck = row => {
+  return row && ['dashboard', 'panel', 'dataV', 'screen'].includes(row.type)
 }
 
 const handleClick = (ele: TabsPaneContext) => {
@@ -111,17 +125,18 @@ const loadTableData = () => {
     })
 }
 
-const panelLoad = paneInfo => {
+/* const panelLoad = paneInfo => {
   tablePaneList.value.push({
     title: paneInfo.title,
     name: paneInfo.name,
     disabled: tablePaneList.value[1].disabled
   })
-}
+} */
 
 const tablePaneList = ref([
   { title: '最近使用', name: 'recent', disabled: false },
-  { title: '我的收藏', name: 'store', disabled: false }
+  { title: '我的收藏', name: 'store', disabled: false },
+  { title: t('visualization.share_out'), name: 'share', disabled: false }
 ])
 
 const busiAuthList = getBusiListWithPermission()
@@ -145,6 +160,34 @@ const sortChange = param => {
   orderDesc.value = type === 'desc'
   loadTableData()
 }
+
+const handleCellClick = row => {
+  if (row) {
+    const sourceId = activeName.value === 'recent' ? row.id : row.resourceId
+    if (['dashboard', 'panel'].includes(row.type)) {
+      window.open('#/panel/index?dvId=' + sourceId, '_self')
+    } else if (['dataV', 'screen'].includes(row.type)) {
+      window.open('#/screen/index?dvId=' + sourceId, '_self')
+    } else if (['dataset'].includes(row.type)) {
+      const routeName =
+        embeddedStore.getToken && appStore.getIsIframe ? 'dataset-embedded' : 'dataset'
+      push({
+        name: routeName,
+        params: {
+          id: sourceId
+        }
+      })
+    } else if (['datasource'].includes(row.type)) {
+      push({
+        name: 'datasource',
+        params: {
+          id: sourceId
+        }
+      })
+    }
+  }
+}
+
 const setLoading = (val: boolean) => {
   loading.value = val
 }
@@ -158,6 +201,17 @@ const executeStore = rowInfo => {
     rowInfo.favorite = !rowInfo.favorite
   })
 }
+
+const executeCancelStore = rowInfo => {
+  const param = {
+    id: rowInfo.resourceId,
+    type: rowInfo.type === 'dataV' ? 'screen' : 'panel'
+  }
+  storeApi(param).then(() => {
+    loadTableData()
+  })
+}
+
 const imgType = ref()
 const emptyDesc = ref('')
 const getEmptyImg = (): string => {
@@ -206,8 +260,9 @@ const getEmptyDesc = (): string => {
         </template>
       </el-tab-pane>
     </el-tabs>
-    <XpackComponent jsname="c2hhcmUtcGFuZWw=" @loaded="panelLoad" />
-    <XpackComponent :active-name="activeName" jsname="c2hhcmU=" @set-loading="setLoading" />
+    <!-- <XpackComponent jsname="c2hhcmUtcGFuZWw=" @loaded="panelLoad" /> -->
+    <!-- <XpackComponent :active-name="activeName" jsname="c2hhcmU=" @set-loading="setLoading" /> -->
+    <share-grid :active-name="activeName" @set-loading="setLoading" />
     <el-row v-if="activeName === 'recent' || activeName === 'store'">
       <el-col :span="12">
         <el-select
@@ -244,14 +299,20 @@ const getEmptyDesc = (): string => {
         :show-pagination="false"
         :table-data="state.tableData"
         @sort-change="sortChange"
+        @cell-click="handleCellClick"
         :empty-desc="emptyDesc"
         :empty-img="imgType"
         class="workbranch-grid"
       >
         <el-table-column key="name" width="280" prop="name" :label="t('common.name')">
           <template v-slot:default="scope">
-            <div class="name-content">
-              <el-icon class="main-color"> <Icon :name="iconMap[scope.row.type]" /> </el-icon>
+            <div class="name-content" :class="{ 'jump-active': jumpActiveCheck(scope.row) }">
+              <el-icon v-if="scope.row.extFlag" style="margin-right: 12px; font-size: 18px">
+                <Icon :name="iconMap[scope.row.type + 'Mobile']" />
+              </el-icon>
+              <el-icon v-else :class="`main-color color-${scope.row.type}`">
+                <Icon :name="iconMap[scope.row.type]" />
+              </el-icon>
               <el-tooltip placement="top">
                 <template #content>{{ scope.row.name }}</template>
                 <span class="ellipsis" style="max-width: 250px">{{ scope.row.name }}</span>
@@ -259,7 +320,7 @@ const getEmptyDesc = (): string => {
               <el-icon
                 v-if="activeName === 'recent' && ['screen', 'panel'].includes(scope.row.type)"
                 class="custom-icon"
-                @click="executeStore(scope.row)"
+                @click.stop="executeStore(scope.row)"
                 :style="{ color: scope.row.favorite ? '#FFC60A' : '#646A73' }"
               >
                 <icon
@@ -272,50 +333,73 @@ const getEmptyDesc = (): string => {
         <el-table-column
           v-for="item in state.tableColumn"
           :key="item.label"
-          prop="name"
+          :prop="item.field"
           show-overflow-tooltip
           :sortable="item.type === 'time'"
           :label="item.label"
         >
           <template #default="scope">
-            <span v-if="item.type && item.type === 'time'">{{
-              formatterTime(null, null, scope.row[item.field])
-            }}</span>
-            <span v-else-if="item.field && item.field === 'type'">{{
-              typeMap[scope.row[item.field]]
-            }}</span>
-            <span v-else-if="desktop && item.field && item.field.endsWith('tor')">{{
-              userStore.getName
-            }}</span>
-            <span v-else>{{ scope.row[item.field] }}</span>
+            <span :class="{ 'jump-active': jumpActiveCheck(scope.row) }">
+              <span v-if="item.type && item.type === 'time'">{{
+                formatterTime(null, null, scope.row[item.field])
+              }}</span>
+              <span v-else-if="item.field && item.field === 'type'">{{
+                typeMap[scope.row[item.field]]
+              }}</span>
+              <span v-else-if="desktop && item.field && item.field.endsWith('tor')">{{
+                userStore.getName
+              }}</span>
+              <span v-else>{{ scope.row[item.field] }}</span>
+            </span>
           </template>
         </el-table-column>
 
-        <el-table-column width="96" fixed="right" key="_operation" :label="$t('common.operate')">
+        <el-table-column width="100" fixed="right" key="_operation" :label="$t('common.operate')">
           <template #default="scope">
             <template v-if="['dashboard', 'dataV', 'panel', 'screen'].includes(scope.row.type)">
               <el-tooltip effect="dark" content="新页面预览" placement="top">
                 <el-icon
                   class="hover-icon hover-icon-in-table"
-                  @click="preview(activeName === 'recent' ? scope.row.id : scope.row.resourceId)"
+                  @click.stop="
+                    preview(activeName === 'recent' ? scope.row.id : scope.row.resourceId)
+                  "
                 >
                   <Icon name="icon_pc_outlined"></Icon>
                 </el-icon>
               </el-tooltip>
-
-              <XpackComponent
+              <ShareHandler
+                :in-grid="true"
+                :weight="scope.row.weight"
+                :resource-id="activeName === 'recent' ? scope.row.id : scope.row.resourceId"
+                :resource-type="scope.row.type"
+              />
+              <!-- <XpackComponent
                 :in-grid="true"
                 jsname="c2hhcmUtaGFuZGxlcg=="
                 :weight="scope.row.weight"
                 :resource-id="activeName === 'recent' ? scope.row.id : scope.row.resourceId"
-              />
+                :resource-type="scope.row.type"
+              /> -->
+              <el-tooltip
+                v-if="activeName === 'store'"
+                effect="dark"
+                content="取消收藏"
+                placement="top"
+              >
+                <el-icon
+                  class="hover-icon hover-icon-in-table"
+                  @click.stop="executeCancelStore(scope.row)"
+                >
+                  <Icon name="icon_cancel_store"></Icon>
+                </el-icon>
+              </el-tooltip>
             </template>
 
             <template v-if="['dataset'].includes(scope.row.type)">
               <el-tooltip effect="dark" content="打开数据集" placement="top">
                 <el-icon
                   class="hover-icon hover-icon-in-table"
-                  @click="
+                  @click.stop="
                     openDataset(activeName === 'recent' ? scope.row.id : scope.row.resourceId)
                   "
                 >
@@ -336,12 +420,15 @@ const getEmptyDesc = (): string => {
   padding: 8px 24px 0 24px;
   background: #fff;
   border-radius: 4px;
-  // height: calc(100% - 280px);
-  // margin-top: 16px;
-  height: 100%;
+  height: calc(100% - 280px);
+  margin-top: 16px;
 
   .select-type-list {
     width: 104px;
+    :deep(.ed-input__wrapper) {
+      padding-left: 11px;
+      padding-right: 11px;
+    }
   }
 
   &.expand {
@@ -354,7 +441,7 @@ const getEmptyDesc = (): string => {
     &:hover,
     &:active,
     &:focus {
-      border-color: #3370ff;
+      border-color: var(--ed-color-primary);
       background-color: #fff;
     }
   }
@@ -374,6 +461,10 @@ const getEmptyDesc = (): string => {
     margin-top: 16px;
     height: calc(100% - 110px);
 
+    :deep(.ed-table__row):hover {
+      cursor: pointer;
+    }
+
     .name-content {
       display: flex;
       align-items: center;
@@ -387,12 +478,11 @@ const getEmptyDesc = (): string => {
       }
     }
     .main-color {
-      font-size: 21.33px;
-      padding: 5.33px;
+      font-size: 18px;
+      padding: 3px;
       margin-right: 12px;
       border-radius: 4px;
       color: #fff;
-      background: #3370ff;
     }
     .name-star {
       font-size: 15px;
@@ -406,5 +496,15 @@ const getEmptyDesc = (): string => {
     margin-top: 0px;
     line-height: 20px !important;
   }
+}
+
+.jump-active {
+  cursor: pointer;
+}
+</style>
+<style lang="less">
+.menu-panel-select_popper {
+  width: 140px;
+  background: #fff;
 }
 </style>

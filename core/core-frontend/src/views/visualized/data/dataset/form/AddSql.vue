@@ -1,15 +1,16 @@
 <script lang="tsx" setup>
-import { ref, reactive, onMounted, PropType, toRefs, watch, onBeforeUnmount } from 'vue'
+import { ref, reactive, onMounted, PropType, toRefs, watch, onBeforeUnmount, shallowRef } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
 import { Base64 } from 'js-base64'
+import FixedSizeList from 'element-plus-secondary/es/components/virtual-list/src/components/fixed-size-list.mjs'
+import { useWindowSize } from '@vueuse/core'
 import useClipboard from 'vue-clipboard3'
 import { ElMessage, ElMessageBox, ElIcon } from 'element-plus-secondary'
 import { Icon } from '@/components/icon-custom'
 import { getTableField } from '@/api/dataset'
 import CodeMirror from './CodeMirror.vue'
-import type { Field } from './UnionFieldList.vue'
+import type { Field, DataSource } from './util'
 import { getDatasourceList, getTables, getPreviewSql } from '@/api/dataset'
-import type { DataSource } from './index.vue'
 import GridTable from '@/components/grid-table/src/GridTable.vue'
 import { EmptyBackground } from '@/components/empty-background'
 import { timestampFormatDate, defaultValueScopeList, fieldOptions } from './util'
@@ -19,6 +20,7 @@ export interface SqlNode {
   tableName: string
   datasourceId: string
   id: string
+  changeFlag?: boolean
   variables?: Array<{
     variableName: string
     defaultValue: string
@@ -56,7 +58,6 @@ const state = reactive({
   sqlData: [],
   variablesTmp: [],
   dataSourceList: [],
-  tableData: [],
   table: {
     name: '',
     id: ''
@@ -65,6 +66,8 @@ const state = reactive({
     tableId: 0
   }
 })
+
+const datasourceTableData = shallowRef([])
 
 const paginationConfig = reactive({
   currentPage: 1,
@@ -76,6 +79,7 @@ const setActiveName = ({ name, enableCheck }) => {
   if (!enableCheck) return
   activeName.value = name
 }
+const { height: windowHeight } = useWindowSize()
 
 const generateColumns = (arr: Field[]) =>
   arr.map(ele => ({
@@ -106,7 +110,7 @@ const referenceSetting = () => {
 
 onMounted(() => {
   dsChange(sqlNode.value.datasourceId)
-  codeCom.value = myCm.value.codeComInit(Base64.decode(sqlNode.value.sql))
+  codeCom.value = myCm.value.codeComInit(Base64.decode(sqlNode.value.sql), true)
 })
 
 onBeforeUnmount(() => {
@@ -159,6 +163,18 @@ const calculateHeight = (e: MouseEvent) => {
   dragHeight.value = e.pageY - 164
 }
 
+const calculateWidth = (e: MouseEvent) => {
+  if (e.pageX < 240) {
+    LeftWidth.value = 240
+    return
+  }
+  if (e.pageX > 400) {
+    LeftWidth.value = 400
+    return
+  }
+  LeftWidth.value = e.pageX
+}
+
 const insertParamToCodeMirror = (value: string) => {
   codeCom.value.dispatch({
     changes: { from: 0, to: codeCom.value.state.doc.toString().length, insert: '' }
@@ -199,8 +215,10 @@ getDatasource()
 const emits = defineEmits(['close', 'save'])
 
 let changeFlag = false
+const changeFlagCode = ref(false)
 const setFlag = () => {
   changeFlag = true
+  changeFlagCode.value = true
 }
 let sql = ''
 
@@ -212,6 +230,7 @@ const save = (cb?: () => void) => {
 
   parseVariable()
   sql = codeCom.value.state.doc.toString()
+  sqlNode.value.changeFlag = true
   if (!sql.trim()) {
     ElMessage.error('SQL不能为空')
     return
@@ -252,9 +271,11 @@ const handleClose = () => {
     }).then(() => {
       close()
       changeFlag = false
+      changeFlagCode.value = false
     })
   } else {
     close()
+    changeFlagCode.value = false
   }
 }
 
@@ -268,7 +289,7 @@ const getSQLPreview = () => {
     sqlVariableDetails: JSON.stringify(state.variables)
   })
     .then(res => {
-      state.plxTableData = res.data.data.map((ele, index) => ({ ...ele, id: index }))
+      state.plxTableData = res.data.data
       state.fields = generateColumns(res.data.fields)
     })
     .finally(() => {
@@ -278,7 +299,7 @@ const getSQLPreview = () => {
 
 let tableList = []
 watch(searchTable, val => {
-  state.tableData = tableList.filter(ele => ele.tableName.includes(val))
+  datasourceTableData.value = tableList.filter(ele => ele.tableName.includes(val))
 })
 
 const getIconName = (type: string) => {
@@ -311,7 +332,7 @@ const dsChange = (val: string) => {
   getTables({ datasourceId: val })
     .then(res => {
       tableList = res || []
-      state.tableData = [...tableList]
+      datasourceTableData.value = [...tableList]
     })
     .finally(() => {
       dsLoading.value = false
@@ -329,6 +350,7 @@ const copyInfo = async (value: string) => {
 
 const mouseupDrag = () => {
   const dom = document.querySelector('.sql-eidtor')
+  dom.removeEventListener('mousemove', calculateWidth)
   dom.removeEventListener('mousemove', calculateHeight)
 }
 
@@ -374,10 +396,11 @@ const parseVariable = () => {
 const saveVariable = () => {
   state.variables = JSON.parse(JSON.stringify(state.variablesTmp))
   showVariableMgm.value = false
+  changeFlagCode.value = true
   ElMessage.success('参数设置成功')
 }
 const mousedownDrag = () => {
-  document.querySelector('.sql-eidtor').addEventListener('mousemove', calculateHeight)
+  document.querySelector('.sql-eidtor').addEventListener('mousemove', calculateWidth)
 }
 </script>
 
@@ -401,7 +424,9 @@ const mousedownDrag = () => {
         </template>
         参数设置
       </el-button>
-      <el-button @click="save(() => {})" type="primary"> 保存</el-button>
+      <el-button :disabled="!changeFlagCode" @click="save(() => {})" type="primary">
+        保存</el-button
+      >
       <el-divider direction="vertical" />
       <el-icon class="hover-icon" @click="handleClose">
         <Icon name="icon_close_outlined"></Icon>
@@ -430,9 +455,11 @@ const mousedownDrag = () => {
       <div class="table-list-top">
         <p class="select-ds">
           当前数据源
-          <el-icon class="left-outlined" @click="showLeft = false">
-            <Icon name="group-3400"></Icon>
-          </el-icon>
+          <span class="left-outlined">
+            <el-icon style="color: #1f2329" @click="showLeft = false">
+              <Icon name="icon_left_outlined" />
+            </el-icon>
+          </span>
         </p>
         <el-tree-select
           :check-strictly="false"
@@ -452,7 +479,7 @@ const mousedownDrag = () => {
             <el-icon class="icon-color">
               <Icon name="reference-table"></Icon>
             </el-icon>
-            {{ state.tableData.length }}
+            {{ datasourceTableData.length }}
           </span>
         </p>
         <el-input
@@ -468,7 +495,7 @@ const mousedownDrag = () => {
           </template>
         </el-input>
       </div>
-      <div v-if="!state.tableData.length && searchTable !== ''" class="el-empty">
+      <div v-if="!datasourceTableData.length && searchTable !== ''" class="el-empty">
         <div
           class="el-empty__description"
           style="margin-top: 80px; color: #5e6d82; text-align: center"
@@ -477,98 +504,127 @@ const mousedownDrag = () => {
         </div>
       </div>
       <div v-else class="table-checkbox-list">
-        <template v-for="ele in state.tableData" :key="ele.tableName">
-          <div
-            :class="[{ active: activeName === ele.tableName }]"
-            class="list-item_primary"
-            :title="ele.tableName"
-            @click="setActiveName(ele)"
-          >
-            <el-icon class="icon-color">
-              <Icon name="icon_form_outlined"></Icon>
-            </el-icon>
-            <span class="label">{{ ele.tableName }}</span>
-            <span class="name-copy">
-              <el-tooltip effect="dark" :content="t('common.copy')" placement="top">
-                <el-icon class="hover-icon" @click="copyInfo(ele.tableName)">
-                  <Icon name="icon_copy_outlined"></Icon>
-                </el-icon>
-              </el-tooltip>
-
-              <el-popover
-                popper-class="sql-table-info"
-                placement="right"
-                :width="502"
-                :persistent="false"
-                @show="getNodeField(ele)"
-                trigger="click"
-              >
-                <template #reference>
-                  <el-icon class="hover-icon">
-                    <Icon name="icon_info_outlined"></Icon>
+        <FixedSizeList
+          :itemSize="40"
+          :data="datasourceTableData"
+          :total="datasourceTableData.length"
+          :width="LeftWidth - 7"
+          :height="windowHeight - 350"
+          :scrollbarAlwaysOn="false"
+          class-name="el-select-dropdown__list"
+          layout="vertical"
+        >
+          <template #default="{ index, style }">
+            <div
+              :class="[{ active: activeName === datasourceTableData[index].tableName }]"
+              class="list-item_primary"
+              :style="style"
+              :title="datasourceTableData[index].tableName"
+              @click="setActiveName(datasourceTableData[index])"
+            >
+              <el-icon class="icon-color">
+                <Icon name="icon_form_outlined"></Icon>
+              </el-icon>
+              <span class="label">{{ datasourceTableData[index].tableName }}</span>
+              <span class="name-copy">
+                <el-tooltip effect="dark" :content="t('common.copy')" placement="top">
+                  <el-icon
+                    class="hover-icon"
+                    @click="copyInfo(datasourceTableData[index].tableName)"
+                  >
+                    <Icon name="icon_copy_outlined"></Icon>
                   </el-icon>
-                </template>
-                <div class="table-filed" v-loading="gridDataLoading">
-                  <div class="top flex-align-center">
-                    <div class="title ellipsis">
-                      {{ ele.name }}
-                    </div>
-                    <el-icon
-                      style="color: #3370ff !important"
-                      class="hover-icon"
-                      @click.stop="copyInfo(ele.name)"
-                    >
-                      <Icon name="icon_copy_outlined"></Icon>
+                </el-tooltip>
+
+                <el-popover
+                  popper-class="sql-table-info"
+                  placement="right"
+                  :width="502"
+                  :persistent="false"
+                  @show="getNodeField(datasourceTableData[index])"
+                  trigger="click"
+                >
+                  <template #reference>
+                    <el-icon class="hover-icon">
+                      <Icon name="icon_info_outlined"></Icon>
                     </el-icon>
-                    <div class="num flex-align-center">
-                      <el-icon>
-                        <Icon name="icon_text-box_outlined"></Icon>
+                  </template>
+                  <div class="table-filed" v-loading="gridDataLoading">
+                    <div class="top flex-align-center">
+                      <div class="title ellipsis">
+                        {{
+                          datasourceTableData[index].name || datasourceTableData[index].tableName
+                        }}
+                      </div>
+                      <el-icon
+                        class="hover-icon de-hover-icon-primary"
+                        @click.stop="
+                          copyInfo(
+                            datasourceTableData[index].name || datasourceTableData[index].tableName
+                          )
+                        "
+                      >
+                        <Icon name="icon_copy_outlined"></Icon>
                       </el-icon>
-                      {{ gridData.length }}
+                      <div class="num flex-align-center">
+                        <el-icon>
+                          <Icon name="icon_text-box_outlined"></Icon>
+                        </el-icon>
+                        {{ gridData.length }}
+                      </div>
+                    </div>
+                    <div class="table-grid">
+                      <el-table
+                        height="405"
+                        style="width: 100%"
+                        header-cell-class-name="header-cell"
+                        :data="gridData"
+                      >
+                        <el-table-column label="物理字段名">
+                          <template #default="scope">
+                            <div class="flex-align-center icon">
+                              <el-icon>
+                                <Icon
+                                  :className="`field-icon-${fieldType[scope.row.deType]}`"
+                                  :name="`field_${fieldType[scope.row.deType]}`"
+                                ></Icon>
+                              </el-icon>
+                              {{ scope.row.originName }}
+                            </div>
+                          </template>
+                        </el-table-column>
+                        <el-table-column :label="t('common.label')">
+                          <template #default="scope">
+                            {{ scope.row.description || '-' }}
+                          </template>
+                        </el-table-column>
+                        <el-table-column :label="t('common.operate')">
+                          <template #default="scope">
+                            <el-icon
+                              class="hover-icon de-hover-icon-primary"
+                              @click.stop="copyInfo(scope.row.originName)"
+                            >
+                              <Icon name="icon_copy_outlined"></Icon>
+                            </el-icon>
+                          </template>
+                        </el-table-column>
+                      </el-table>
                     </div>
                   </div>
-                  <div class="table-grid">
-                    <el-table
-                      height="405"
-                      style="width: 100%"
-                      header-cell-class-name="header-cell"
-                      :data="gridData"
-                    >
-                      <el-table-column label="物理字段名">
-                        <template #default="scope">
-                          <div class="flex-align-center icon">
-                            <el-icon>
-                              <Icon
-                                :className="`field-icon-${fieldType[scope.row.deType]}`"
-                                :name="`field_${fieldType[scope.row.deType]}`"
-                              ></Icon>
-                            </el-icon>
-                            {{ scope.row.originName }}
-                          </div>
-                        </template>
-                      </el-table-column>
-                      <el-table-column :label="t('common.operate')">
-                        <template #default="scope">
-                          <el-icon
-                            style="color: #3370ff !important"
-                            class="hover-icon"
-                            @click.stop="copyInfo(scope.row.originName)"
-                          >
-                            <Icon name="icon_copy_outlined"></Icon>
-                          </el-icon>
-                        </template>
-                      </el-table-column>
-                    </el-table>
-                  </div>
-                </div>
-              </el-popover>
-            </span>
-          </div>
-        </template>
+                </el-popover>
+              </span>
+            </div>
+          </template>
+        </FixedSizeList>
       </div>
     </div>
     <div class="sql-code-right" :style="{ width: `calc(100% - ${showLeft ? LeftWidth : 0}px)` }">
-      <code-mirror :height="`${dragHeight}px`" dom-id="sql-editor" ref="myCm"></code-mirror>
+      <code-mirror
+        @change="changeFlagCode = true"
+        :height="`${dragHeight}px`"
+        dom-id="sql-editor"
+        ref="myCm"
+      ></code-mirror>
       <div class="sql-result" :style="{ height: `calc(100% - ${dragHeight}px)` }">
         <div class="sql-title">
           <span class="drag" @mousedown="mousedownDragH" />
@@ -679,7 +735,7 @@ const mousedownDrag = () => {
         <template #default="scope">
           <el-cascader
             class="select-type"
-            popper-class="cascader-panel"
+            popper-class="cascader-panel no-scroll_bar"
             v-model="scope.row.type"
             :options="fieldOptions"
             @change="scope.row.defaultValue = ''"
@@ -745,10 +801,10 @@ const mousedownDrag = () => {
           </el-input>
           <div
             v-if="getIconName(scope.row.type[0]) === 'time'"
-            class="ed-input-group ed-input-group--prepend de-group__prepend"
+            class="ed-input ed-input--light ed-input-group ed-input-group--prepend de-group__prepend"
           >
             <div class="ed-input-group__prepend">
-              <el-select v-model="scope.row.defaultValueScope" style="width: 161px">
+              <el-select v-model="scope.row.defaultValueScope" style="width: calc(100% + 22px)">
                 <el-option
                   v-for="item in defaultValueScopeList"
                   :key="item.value"
@@ -761,6 +817,8 @@ const mousedownDrag = () => {
               v-if="scope.row.type[0] === 'DATETIME-YEAR'"
               v-model="scope.row.defaultValue"
               type="year"
+              format="YYYY"
+              value-format="YYYY"
               :placeholder="t('dataset.select_year')"
             />
 
@@ -832,12 +890,19 @@ const mousedownDrag = () => {
     width: 20px;
     box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
     border: 1px solid var(--deCardStrokeColor, #dee0e3);
-    border-top-right-radius: 13px;
-    border-bottom-right-radius: 13px;
+    display: flex;
+    align-items: center;
+    padding-left: 2px;
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
     font-size: 12px;
     background: #fff;
-    .ed-icon {
-      margin-left: 2px;
+    &:hover {
+      padding-left: 4px;
+      width: 24px;
+      .ed-icon {
+        color: var(--ed-color-primary, #3370ff);
+      }
     }
   }
 
@@ -845,7 +910,7 @@ const mousedownDrag = () => {
     height: 100%;
     width: 240px;
     float: left;
-    font-family: PingFang SC;
+    font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
     border-right: 1px solid rgba(31, 35, 41, 0.15);
 
     .list-item_primary {
@@ -872,10 +937,24 @@ const mousedownDrag = () => {
 
       .left-outlined {
         position: absolute;
-        font-size: 36px;
+        font-size: 12px;
         right: -30px;
         top: -5px;
-        z-index: 1;
+        height: 24px;
+        border: 1px solid #dee0e3;
+        width: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fff;
+        box-shadow: 0px 5px 10px 0px #1f23291a;
+        z-index: 10;
+        &:hover {
+          .ed-icon {
+            color: var(--ed-color-primary, #3370ff) !important;
+          }
+        }
       }
     }
 
@@ -947,7 +1026,7 @@ const mousedownDrag = () => {
     float: right;
     height: calc(100vh - 156px);
     .sql-result {
-      font-family: PingFang SC;
+      font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
       font-size: 14px;
       overflow-y: auto;
       box-sizing: border-box;
@@ -1030,7 +1109,7 @@ const mousedownDrag = () => {
       .de-Exec-result,
       .de-Underway-pre {
         &::before {
-          background: var(--primary, #3370ff);
+          background: var(--ed-color-primary, #3370ff);
         }
       }
 
@@ -1047,7 +1126,7 @@ const mousedownDrag = () => {
         }
 
         .ed-icon-s-order {
-          color: var(--primary, #3370ff);
+          color: var(--ed-color-primary, #3370ff);
           cursor: pointer;
         }
       }
@@ -1106,10 +1185,18 @@ const mousedownDrag = () => {
 }
 </style>
 <style lang="less">
+.no-scroll_bar {
+  .ed-cascader-menu__wrap.ed-scrollbar__wrap {
+    height: 240px;
+  }
+}
+.de-hover-icon-primary {
+  color: var(--ed-color-primary) !important;
+}
 .sql-tips {
   color: #646a73;
   text-align: center;
-  font-family: PingFang SC;
+  font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
   font-size: 14px;
   font-style: normal;
   font-weight: 400;
@@ -1133,7 +1220,7 @@ const mousedownDrag = () => {
       .num {
         margin-left: auto;
         color: #646a73;
-        font-family: PingFang SC;
+        font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
         font-size: 14px;
         font-style: normal;
         font-weight: 400;
@@ -1180,16 +1267,8 @@ const mousedownDrag = () => {
     padding: 0 11px;
   }
   .de-group__prepend {
-    width: 100%;
-
-    .ed-input-group__prepend {
-      padding: 0 11px;
-      .ed-select {
-        margin: 0 -10px 0 -10px;
-      }
-    }
-
     .ed-date-editor {
+      flex: 1;
       .ed-input__wrapper {
         border-top-left-radius: 0;
         border-bottom-left-radius: 0;
@@ -1222,7 +1301,7 @@ const mousedownDrag = () => {
     background: #e1eaff;
     position: relative;
     padding: 9px 0 9px 40px;
-    font-family: PingFang SC;
+    font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
     font-size: 14px;
     font-weight: 400;
 
@@ -1231,7 +1310,7 @@ const mousedownDrag = () => {
       top: 10.6px;
       left: 16px;
       font-size: 14px;
-      color: var(--primary, #3370ff);
+      color: var(--ed-color-primary, #3370ff);
     }
 
     margin-bottom: 16px;

@@ -10,7 +10,7 @@ import elementResizeDetectorMaker from 'element-resize-detector'
 import { getCanvasStyle, syncShapeItemStyle } from '@/utils/style'
 import { adaptCurThemeCommonStyle } from '@/utils/canvasStyle'
 import CanvasCore from '@/components/data-visualization/canvas/CanvasCore.vue'
-import { isMainCanvas } from '@/utils/canvasUtils'
+import { isMainCanvas, isDashboard } from '@/utils/canvasUtils'
 
 // change-begin
 const props = defineProps({
@@ -34,18 +34,27 @@ const props = defineProps({
   canvasActive: {
     type: Boolean,
     default: true
+  },
+  outerScale: {
+    type: Number,
+    required: false,
+    default: 1
   }
 })
-const { canvasStyleData, componentData, canvasViewInfo, canvasId, canvasActive } = toRefs(props)
+const { canvasStyleData, componentData, canvasViewInfo, canvasId, canvasActive, outerScale } =
+  toRefs(props)
 const domId = ref('de-canvas-' + canvasId.value)
 // change-end
 
 const dvMainStore = dvMainStoreWithOut()
 const snapshotStore = snapshotStoreWithOut()
-const { pcMatrixCount, curOriginThemes } = storeToRefs(dvMainStore)
+const { pcMatrixCount, curOriginThemes, mobileInPc } = storeToRefs(dvMainStore)
 const canvasOut = ref(null)
 const canvasInner = ref(null)
 const canvasInitStatus = ref(false)
+const scaleWidth = ref(100)
+const scaleHeight = ref(100)
+const scaleMin = ref(100)
 
 const state = reactive({
   screenWidth: 1920,
@@ -59,6 +68,7 @@ const renderState = ref(false) // 仪表板默认
 const baseMarginLeft = ref(0)
 const baseMarginTop = ref(0)
 const cyGridster = ref(null)
+const editDomId = ref('edit-' + canvasId.value)
 
 const editStyle = computed(() => {
   if (canvasStyleData.value && isMainCanvas(canvasId.value)) {
@@ -72,12 +82,13 @@ const editStyle = computed(() => {
 
 // 通过实时监听的方式直接添加组件
 const handleNewFromCanvasMain = newComponentInfo => {
-  const { componentName, innerType } = newComponentInfo
+  const { componentName, innerType, staticMap } = newComponentInfo
   if (componentName) {
-    const component = findNewComponentFromList(componentName, innerType, curOriginThemes)
+    const component = findNewComponentFromList(componentName, innerType, curOriginThemes, staticMap)
     syncShapeItemStyle(component, baseWidth.value, baseHeight.value)
     component.id = guid()
     component.y = 200
+    component.x = cyGridster.value.findPositionX(component)
     dvMainStore.addComponent({
       component: component,
       index: undefined,
@@ -123,21 +134,25 @@ const handleMouseDown = e => {
 }
 
 const canvasInit = (isFistLoad = true) => {
-  renderState.value = true
-  setTimeout(function () {
-    if (canvasOut.value) {
-      dashboardCanvasSizeInit()
-      nextTick(() => {
-        cyGridster.value.canvasInit() //在适当的时候初始化布局组件
-        cyGridster.value.afterInitOk(function () {
-          renderState.value = false
+  if (canvasActive.value) {
+    renderState.value = true
+    setTimeout(function () {
+      if (canvasOut.value) {
+        dashboardCanvasSizeInit()
+        nextTick(() => {
+          cyGridster.value.canvasInit() //在适当的时候初始化布局组件
+          cyGridster.value.afterInitOk(function () {
+            renderState.value = false
+          })
         })
-      })
-    }
-    // afterInit
-    dvMainStore.setDataPrepareState(true)
-    isFistLoad && snapshotStore.recordSnapshotCache('renderChart')
-  }, 500)
+      }
+      // afterInit
+      dvMainStore.setDataPrepareState(true)
+      if (isMainCanvas(canvasId.value) && isFistLoad) {
+        snapshotStore.recordSnapshotCache('renderChart')
+      }
+    }, 500)
+  }
 }
 
 const canvasSizeInit = () => {
@@ -147,7 +162,26 @@ const canvasSizeInit = () => {
       dashboardCanvasSizeInit()
       nextTick(() => {
         cyGridster.value.canvasSizeInit() //在适当的时候初始化布局组件
+        // 缩放比例变化
+        scaleInit()
       })
+    }
+  })
+}
+
+const scaleInit = () => {
+  nextTick(() => {
+    if (canvasOut.value) {
+      //div容器获取tableBox.value.clientWidth
+      let canvasWidth = canvasOut.value.clientWidth
+      let canvasHeight = canvasOut.value.clientHeight
+      scaleWidth.value = Math.floor((canvasWidth * 100) / canvasStyleData.value.width)
+      scaleHeight.value = Math.floor((canvasHeight * 100) / canvasStyleData.value.height)
+      scaleMin.value = Math.min(scaleWidth.value, scaleHeight.value)
+      if (isDashboard() && isMainCanvas(canvasId.value)) {
+        const offset = mobileInPc.value ? 4 : 1
+        dvMainStore.setCanvasStyleScale(scaleMin.value * offset)
+      }
     }
   })
 }
@@ -242,7 +276,7 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="canvasOut" class="content" :class="{ 'render-active': renderState }">
+  <div ref="canvasOut" :id="editDomId" class="content" :class="{ 'render-active': renderState }">
     <canvas-opt-bar
       :canvas-style-data="canvasStyleData"
       :component-data="componentData"
@@ -285,10 +319,9 @@ defineExpose({
     width: 100%;
     height: 100%;
   }
-}
-
-&::-webkit-scrollbar {
-  display: none;
+  ::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .render-active {

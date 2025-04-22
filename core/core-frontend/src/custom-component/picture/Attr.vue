@@ -5,7 +5,7 @@ import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapsho
 
 import { storeToRefs } from 'pinia'
 import { ElIcon, ElMessage } from 'element-plus-secondary'
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { beforeUploadCheck, uploadFileResult } from '@/api/staticResource'
 import { imgUrlTrans } from '@/utils/imgUtils'
 import eventBus from '@/utils/eventBus'
@@ -50,6 +50,10 @@ async function upload(file) {
   })
 }
 
+const onStyleChange = () => {
+  snapshotStore.recordSnapshotCache()
+}
+
 const goFile = () => {
   files.value.click()
 }
@@ -76,6 +80,14 @@ const init = () => {
     fileList.value = []
   }
 }
+
+watch(
+  () => curComponent.value.propValue.url,
+  () => {
+    init()
+  }
+)
+
 onMounted(() => {
   init()
   eventBus.on('uploadImg', goFile)
@@ -91,7 +103,7 @@ onBeforeUnmount(() => {
       id="input"
       ref="files"
       type="file"
-      accept=".jpeg,.jpg,.png,.gif"
+      accept=".jpeg,.jpg,.png,.gif,.svg"
       hidden
       @click="
         e => {
@@ -127,14 +139,14 @@ onBeforeUnmount(() => {
             <img-view-dialog v-model="dialogVisible" :image-url="dialogImageUrl"></img-view-dialog>
           </el-col>
         </el-row>
-        <el-row style="margin-bottom: 16px">
+        <el-row>
           <span
             style="margin-top: 2px"
             v-if="!curComponent.propValue.url"
             class="image-hint"
             :class="`image-hint_${themes}`"
           >
-            支持JPG、PNG、GIF
+            支持JPG、PNG、GIF、SVG
           </span>
 
           <el-button
@@ -146,6 +158,27 @@ onBeforeUnmount(() => {
           >
             重新上传
           </el-button>
+        </el-row>
+        <el-row class="pic-adaptor">
+          <el-form-item
+            v-if="curComponent.style.adaptation"
+            class="form-item"
+            label="图片适应方式"
+            size="small"
+            :effect="themes"
+            :class="'form-item-' + themes"
+          >
+            <el-radio-group
+              size="small"
+              v-model="curComponent.style.adaptation"
+              @change="onStyleChange"
+              :effect="themes"
+            >
+              <el-radio label="adaptation" :effect="themes">适应组件</el-radio>
+              <el-radio label="original" :effect="themes">原始尺寸</el-radio>
+              <el-radio label="equiratio" :effect="themes">等比适应</el-radio>
+            </el-radio-group>
+          </el-form-item>
         </el-row>
       </el-collapse-item>
     </CommonAttr>
@@ -204,7 +237,7 @@ onBeforeUnmount(() => {
 
   &:hover {
     .ed-icon {
-      color: #3370ff;
+      color: var(--ed-color-primary);
     }
   }
 }
@@ -226,7 +259,7 @@ onBeforeUnmount(() => {
       }
       &:hover {
         .ed-icon {
-          color: #3370ff;
+          color: var(--ed-color-primary);
         }
       }
     }
@@ -252,9 +285,22 @@ onBeforeUnmount(() => {
 
 .re-update-span {
   cursor: pointer;
-  color: #3370ff;
+  color: var(--ed-color-primary);
   size: 14px;
   line-height: 22px;
   font-weight: 400;
+}
+
+.pic-adaptor {
+  margin: 8px 0 16px 0;
+  :deep(.ed-form-item__content) {
+    margin-top: 8px !important;
+  }
+}
+
+.form-item-dark {
+  .ed-radio {
+    margin-right: 4px !important;
+  }
 }
 </style>

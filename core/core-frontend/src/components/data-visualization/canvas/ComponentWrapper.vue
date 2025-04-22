@@ -1,17 +1,25 @@
 <script setup lang="ts">
 import { getStyle } from '@/utils/style'
 import eventBus from '@/utils/eventBus'
-import { ref, onMounted, toRefs, getCurrentInstance, computed } from 'vue'
+import { ref, onMounted, toRefs, getCurrentInstance, computed, nextTick } from 'vue'
 import findComponent from '@/utils/components'
 import { downloadCanvas, imgUrlTrans } from '@/utils/imgUtils'
 import ComponentEditBar from '@/components/visualization/ComponentEditBar.vue'
+import ComponentSelector from '@/components/visualization/ComponentSelector.vue'
 import { useEmitt } from '@/hooks/web/useEmitt'
+import Board from '@/components/de-board/Board.vue'
+import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 
 const componentWrapperInnerRef = ref(null)
 const componentEditBarRef = ref(null)
+const dvMainStore = dvMainStoreWithOut()
 
 const props = defineProps({
   active: {
+    type: Boolean,
+    default: false
+  },
+  popActive: {
     type: Boolean,
     default: false
   },
@@ -72,13 +80,17 @@ const props = defineProps({
     type: Number,
     required: false,
     default: 100
+  },
+  isSelector: {
+    type: Boolean,
+    default: false
   }
 })
 const { config, showPosition, index, canvasStyleData, canvasViewInfo, dvInfo, searchCount, scale } =
   toRefs(props)
 let currentInstance
 const component = ref(null)
-const emits = defineEmits(['userViewEnlargeOpen'])
+const emits = defineEmits(['userViewEnlargeOpen', 'onPointClick'])
 
 const htmlToImage = () => {
   setTimeout(() => {
@@ -94,6 +106,9 @@ const handleInnerMouseDown = e => {
     e.stopPropagation()
     e.preventDefault()
   }
+  if (showPosition.value.includes('popEdit')) {
+    onClick(e)
+  }
 }
 
 onMounted(() => {
@@ -106,16 +121,22 @@ onMounted(() => {
   })
 })
 
-const onClick = () => {
-  const events = config.value.events
-  Object.keys(events).forEach(event => {
-    currentInstance.ctx[event](events[event])
-  })
-  eventBus.emit('v-click', config.value.id)
+const onClick = e => {
+  e.preventDefault()
+  e.stopPropagation()
+  // 将当前点击组件的事件传播出去
+  eventBus.emit('componentClick')
+  dvMainStore.setInEditorStatus(true)
+  dvMainStore.setClickComponentStatus(true)
+  dvMainStore.setCurComponent({ component: config.value, index: index.value })
 }
 
 const getComponentStyleDefault = style => {
-  return getStyle(style, ['top', 'left', 'width', 'height', 'rotate'])
+  if (config.value.component.includes('Svg')) {
+    return getStyle(style, ['top', 'left', 'width', 'height', 'rotate', 'backgroundColor'])
+  } else {
+    return getStyle(style, ['top', 'left', 'width', 'height', 'rotate'])
+  }
 }
 
 const onMouseEnter = () => {
@@ -133,7 +154,10 @@ const componentBackgroundStyle = computed(() => {
       innerPadding,
       borderRadius
     } = config.value.commonBackground
-    const style = { padding: innerPadding + 'px', borderRadius: borderRadius + 'px' }
+    const style = {
+      padding: innerPadding * deepScale.value + 'px',
+      borderRadius: borderRadius + 'px'
+    }
     let colorRGBA = ''
     if (backgroundColorSelect && backgroundColor) {
       colorRGBA = backgroundColor
@@ -146,6 +170,9 @@ const componentBackgroundStyle = computed(() => {
       }
     } else {
       style['background-color'] = colorRGBA
+    }
+    if (config.value.component !== 'UserView') {
+      style['overflow'] = 'hidden'
     }
     return style
   }
@@ -164,18 +191,23 @@ const commonBackgroundSvgInner = computed(() => {
     return null
   }
 })
+
+const onPointClick = param => {
+  emits('onPointClick', param)
+}
+
+const deepScale = computed(() => scale.value / 100)
 </script>
 
 <template>
   <div
     class="wrapper-outer"
     :class="showPosition + '-' + config.component"
-    @click="onClick"
     @mousedown="handleInnerMouseDown"
     @mouseenter="onMouseEnter"
   >
     <component-edit-bar
-      v-if="!showPosition.includes('canvas') && dvInfo.type === 'dashboard'"
+      v-if="!showPosition.includes('canvas') && dvInfo.type === 'dashboard' && !props.isSelector"
       class="wrapper-edit-bar"
       ref="componentEditBarRef"
       :class="{ 'wrapper-edit-bar-active': active }"
@@ -185,15 +217,22 @@ const commonBackgroundSvgInner = computed(() => {
       :show-position="showPosition"
       @userViewEnlargeOpen="opt => emits('userViewEnlargeOpen', opt)"
     ></component-edit-bar>
+    <component-selector
+      v-if="
+        props.isSelector &&
+        config.component === 'UserView' &&
+        config.propValue?.innerType !== 'rich-text'
+      "
+      :resource-id="config.id"
+    />
     <div class="wrapper-inner" ref="componentWrapperInnerRef" :style="componentBackgroundStyle">
       <!--边框背景-->
-      <Icon
+      <Board
         v-if="svgInnerEnable"
         :style="{ color: config.commonBackground.innerImageColor }"
-        class-name="svg-background"
         :name="commonBackgroundSvgInner"
-      ></Icon>
-      <div class="wrapper-inner-adaptor">
+      ></Board>
+      <div class="wrapper-inner-adaptor" :class="{ 'pop-wrapper-inner': popActive }">
         <component
           :is="findComponent(config['component'])"
           :view="viewInfo"
@@ -210,8 +249,10 @@ const commonBackgroundSvgInner = computed(() => {
           :linkage="config?.linkage"
           :show-position="showPosition"
           :search-count="searchCount"
-          :scale="scale"
+          :scale="deepScale"
           :disabled="true"
+          :is-edit="false"
+          @onPointClick="onPointClick"
         />
       </div>
     </div>
@@ -219,6 +260,10 @@ const commonBackgroundSvgInner = computed(() => {
 </template>
 
 <style lang="less" scoped>
+.pop-wrapper-inner {
+  overflow: hidden;
+  outline: 1px solid var(--ed-color-primary) !important;
+}
 .wrapper-outer {
   position: absolute;
 }
@@ -262,6 +307,7 @@ const commonBackgroundSvgInner = computed(() => {
   position: absolute;
   top: 0;
   left: 0;
+  z-index: 0;
   width: 100% !important;
   height: 100% !important;
 }
