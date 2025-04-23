@@ -1,12 +1,15 @@
 package io.dataease.dataset.server;
 
 import io.dataease.api.dataset.DatasetTreeApi;
+import io.dataease.api.dataset.dto.DataSetExportRequest;
 import io.dataease.api.dataset.dto.DatasetNodeDTO;
 import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.api.dataset.vo.DataSetBarVO;
 import io.dataease.constant.LogOT;
 import io.dataease.constant.LogST;
 import io.dataease.dataset.manage.DatasetGroupManage;
+import io.dataease.exportCenter.manage.ExportCenterManage;
+import io.dataease.exportCenter.server.ExportCenterServer;
 import io.dataease.extensions.datasource.dto.DatasetTableDTO;
 import io.dataease.extensions.view.dto.SqlVariableDetails;
 import io.dataease.log.DeLog;
@@ -23,30 +26,37 @@ import java.util.List;
 public class DatasetTreeServer implements DatasetTreeApi {
     @Resource
     private DatasetGroupManage datasetGroupManage;
+    @Resource
+    private ExportCenterManage exportCenterManage;
 
 
     @DeLog(id = "#p0.id", ot = LogOT.MODIFY, st = LogST.DATASET)
     @Override
     public DatasetGroupInfoDTO save(DatasetGroupInfoDTO datasetNodeDTO) throws Exception {
-        return datasetGroupManage.save(datasetNodeDTO, false);
+        return datasetGroupManage.save(datasetNodeDTO, false, true);
     }
 
     @DeLog(id = "#p0.id", ot = LogOT.MODIFY, st = LogST.DATASET)
     @Override
     public DatasetNodeDTO rename(DatasetGroupInfoDTO dto) throws Exception {
-        return datasetGroupManage.save(dto, true);
+        return datasetGroupManage.save(dto, true, false);
     }
 
     @DeLog(id = "#p0.id", pid = "#p0.pid", ot = LogOT.CREATE, st = LogST.DATASET)
     @Override
     public DatasetNodeDTO create(DatasetGroupInfoDTO dto) throws Exception {
-        return datasetGroupManage.save(dto, false);
+        return datasetGroupManage.save(dto, false, true);
     }
 
     @DeLog(id = "#p0.id", ot = LogOT.MODIFY, st = LogST.DATASET)
     @Override
     public DatasetNodeDTO move(DatasetGroupInfoDTO dto) throws Exception {
         return datasetGroupManage.move(dto);
+    }
+
+    @Override
+    public boolean perDelete(Long id) {
+        return datasetGroupManage.perDelete(id);
     }
 
     @DeLog(id = "#p0", ot = LogOT.DELETE, st = LogST.DATASET)
@@ -67,7 +77,7 @@ public class DatasetTreeServer implements DatasetTreeApi {
 
     @Override
     public DatasetGroupInfoDTO get(Long id) throws Exception {
-        return datasetGroupManage.get(id, "preview");
+        return datasetGroupManage.getDatasetGroupInfoDTO(id, "preview");
     }
 
     @Override
@@ -88,6 +98,11 @@ public class DatasetTreeServer implements DatasetTreeApi {
     @Override
     public List<DatasetTableDTO> detailWithPerm(List<Long> ids) throws Exception {
         return datasetGroupManage.getDetailWithPerm(ids);
+    }
+
+    @Override
+    public void exportDataset(DataSetExportRequest request) throws Exception {
+        exportCenterManage.addTask(request.getId(), "dataset", request);
     }
 
 }

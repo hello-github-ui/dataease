@@ -1,10 +1,7 @@
 package io.dataease.api.dataset;
 
 import com.github.xiaoymin.knife4j.annotations.ApiSupport;
-import io.dataease.api.dataset.dto.BaseTreeNodeDTO;
-import io.dataease.api.dataset.dto.EnumValueRequest;
-import io.dataease.api.dataset.dto.MultFieldValuesRequest;
-import io.dataease.api.dataset.dto.PreviewSqlDTO;
+import io.dataease.api.dataset.dto.*;
 import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.extensions.datasource.dto.DatasetTableDTO;
 import io.dataease.extensions.datasource.dto.DatasetTableFieldDTO;
@@ -38,6 +35,10 @@ public interface DatasetDataApi {
     @PostMapping("previewSqlCheck")
     Map<String, Object> previewSqlCheck(@RequestBody PreviewSqlDTO dto) throws Exception;
 
+    @Operation(summary = "数据集获取字段枚举值")
+    @PostMapping("enumValueDs")
+    List<String> getFieldEnumDs(@RequestBody EnumObj map) throws Exception;
+
     @Operation(summary = "获取字段枚举值")
     @PostMapping("enumValue")
     List<String> getFieldEnum(@RequestBody MultFieldValuesRequest multFieldValuesRequest) throws Exception;
@@ -49,6 +50,10 @@ public interface DatasetDataApi {
     @Operation(summary = "获取数据集总数据量", hidden = true)
     @PostMapping("getDatasetCount")
     Long getDatasetCount(@RequestBody DatasetGroupInfoDTO datasetGroupInfoDTO) throws Exception;
+
+    @Operation(summary = "获取数据集数据量", hidden = true)
+    @PostMapping("getDatasetTotal")
+    Long getDatasetTotal(@RequestBody DatasetGroupInfoDTO datasetGroupInfoDTO) throws Exception;
 
     @Operation(summary = "获取下拉树数据", hidden = true)
     @PostMapping("getFieldTree")

@@ -89,4 +89,8 @@ public class DatasourceDTO implements Serializable {
      * 任务状态
      */
     private String taskStatus;
+
+    private Boolean enableDataFill;
+
+    private int dsVersion = -1;
 }

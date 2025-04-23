@@ -1,12 +1,11 @@
 package io.dataease.datasource.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
  * <p>
- *
+ * 
  * </p>
  *
  * @author fit2cloud
@@ -60,10 +59,10 @@ public class QrtzSchedulerState implements Serializable {
     @Override
     public String toString() {
         return "QrtzSchedulerState{" +
-            "schedName = " + schedName +
-            ", instanceName = " + instanceName +
-            ", lastCheckinTime = " + lastCheckinTime +
-            ", checkinInterval = " + checkinInterval +
-            "}";
+        "schedName = " + schedName +
+        ", instanceName = " + instanceName +
+        ", lastCheckinTime = " + lastCheckinTime +
+        ", checkinInterval = " + checkinInterval +
+        "}";
     }
 }

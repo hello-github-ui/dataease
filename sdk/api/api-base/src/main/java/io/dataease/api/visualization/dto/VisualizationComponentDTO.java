@@ -1,5 +1,6 @@
 package io.dataease.api.visualization.dto;
 
+import io.dataease.api.visualization.vo.VisualizationOutParamsJumpVO;
 import io.dataease.api.visualization.vo.VisualizationViewTableVO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -16,7 +17,10 @@ import java.util.List;
 @AllArgsConstructor
 public class VisualizationComponentDTO {
 
-    List<VisualizationViewTableVO> visualizationViewTables;
     private String bashComponentData;
+
+    List<VisualizationViewTableVO> visualizationViewTables;
+
+    List<VisualizationOutParamsJumpVO> outParamsJumpInfo;
 
 }

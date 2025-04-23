@@ -1,6 +1,5 @@
 package io.dataease.visualization.server;
 
-
 import io.dataease.api.visualization.StaticResourceApi;
 import io.dataease.api.visualization.request.StaticResourceRequest;
 import io.dataease.exception.DEException;
@@ -10,6 +9,7 @@ import io.dataease.utils.LogUtil;
 import io.dataease.utils.StaticResourceUtils;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.Assert;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,11 +18,9 @@ import org.springframework.web.multipart.MultipartFile;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
 
-import javax.imageio.ImageIO;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -36,31 +34,8 @@ import java.util.Map;
 @RequestMapping("/staticResource")
 public class StaticResourceServer implements StaticResourceApi {
 
-    private final Path staticDir = Paths.get("/opt/dataease2.0/data/static-resource/");
-
-    private static boolean isValidSVG(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            return false;
-        }
-
-        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-        dbf.setNamespaceAware(true);
-
-        try (InputStream inputStream = file.getInputStream()) {
-            DocumentBuilder db = dbf.newDocumentBuilder();
-            Document doc = db.parse(inputStream);
-
-            // 检查根元素是否是<svg>
-            if ("svg".equals(doc.getDocumentElement().getNodeName())) {
-                return true;
-            } else {
-                return false;
-            }
-        } catch (ParserConfigurationException | SAXException | IOException e) {
-            // 如果出现任何解析错误，说明该文件不是合法的SVG
-            return false;
-        }
-    }
+    @Value("${dataease.path.static-resource:/opt/dataease2.0/data/static-resource/}")
+    private String staticDir;
 
     @Override
     public void upload(String fileId, MultipartFile file) {
@@ -87,22 +62,15 @@ public class StaticResourceServer implements StaticResourceApi {
     }
 
     private boolean isImage(MultipartFile file) {
-        BufferedImage image = null;
-        try (InputStream input = file.getInputStream()) {
-            image = ImageIO.read(input);
-        } catch (IOException e) {
-            LogUtil.error(e.getMessage(), e);
+        if (file == null || file.isEmpty()) {
             return false;
         }
-        // 判断是否为SVG
-        if (isValidSVG(file)) {
-            return true;
-        }
-        // 判断其他图片
-        if (image == null || image.getWidth() <= 0 || image.getHeight() <= 0) {
+        String mimeType = file.getContentType();
+        if (StringUtils.isEmpty(mimeType)) {
             return false;
         }
-        return true;
+        // 判断是否为图片或SVG
+        return (isImageCheckType(file)) || isValidSVG(file);
     }
 
     public void saveFilesToServe(String staticResource) {
@@ -145,8 +113,101 @@ public class StaticResourceServer implements StaticResourceApi {
         return result;
     }
 
-    @Override
-    public Map<String, String> urlTest() {
+    private static boolean isValidSVG(MultipartFile file){
+        if (file == null || file.isEmpty()) {
+            return false;
+        }
+
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+
+        try (InputStream inputStream = file.getInputStream()) {
+            // 禁用外部实体解析以防止XXE攻击
+            dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+            dbf.setNamespaceAware(true);
+            DocumentBuilder db = dbf.newDocumentBuilder();
+            Document doc = db.parse(inputStream);
+
+            // 检查根元素是否是<svg>
+            if ("svg".equals(doc.getDocumentElement().getNodeName())) {
+                return true;
+            } else {
+                return false;
+            }
+        } catch (ParserConfigurationException | SAXException | IOException e) {
+            // 如果出现任何解析错误，说明该文件不是合法的SVG
+            if(e.getMessage() != null && e.getMessage().indexOf("DOCTYPE")>-1){
+                DEException.throwException("svg 内容禁止使用 DOCTYPE");
+            }else {
+                DEException.throwException(e);
+            }
+        }
+        return false;
+    }
+    public static FileType getFileType(InputStream is) throws IOException {
+        byte[] src = new byte[28];
+        is.read(src, 0, 28);
+        StringBuilder stringBuilder = new StringBuilder("");
+        if (src == null || src.length <= 0) {
+            return null;
+        }
+        for (int i = 0; i < src.length; i++) {
+            int v = src[i] & 0xFF;
+            String hv = Integer.toHexString(v).toUpperCase();
+            if (hv.length() < 2) {
+                stringBuilder.append(0);
+            }
+            stringBuilder.append(hv);
+        }
+        FileType[] fileTypes = FileType.values();
+        for (FileType fileType : fileTypes) {
+            if (stringBuilder.toString().startsWith(fileType.getValue())) {
+                return fileType;
+            }
+        }
         return null;
+    }
+
+    private static Boolean isImageCheckType(MultipartFile file) {
+        try {
+            return getFileType(file.getInputStream()) != null;
+        } catch (Exception e) {
+            LogUtil.error(e.getMessage());
+            return false;
+        }
+    }
+
+    public static String getImageType(InputStream fileInputStream) {
+        byte[] b = new byte[10];
+        int l = -1;
+        try {
+            l = fileInputStream.read(b);
+            fileInputStream.close();
+        } catch (Exception e) {
+            return null;
+        }
+        if (l == 10) {
+            byte b0 = b[0];
+            byte b1 = b[1];
+            byte b2 = b[2];
+            byte b3 = b[3];
+            byte b6 = b[6];
+            byte b7 = b[7];
+            byte b8 = b[8];
+            byte b9 = b[9];
+            if (b0 == (byte) 'G' && b1 == (byte) 'I' && b2 == (byte) 'F') {
+                return "gif";
+            } else if (b1 == (byte) 'P' && b2 == (byte) 'N' && b3 == (byte) 'G') {
+                return "png";
+            } else if (b6 == (byte) 'J' && b7 == (byte) 'F' && b8 == (byte) 'I' && b9 == (byte) 'F') {
+                return "jpg";
+            } else {
+                return null;
+            }
+        } else {
+            return null;
+        }
     }
 }

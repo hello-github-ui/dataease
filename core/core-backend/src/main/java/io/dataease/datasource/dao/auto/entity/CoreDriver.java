@@ -3,7 +3,6 @@ package io.dataease.datasource.dao.auto.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
@@ -101,12 +100,12 @@ public class CoreDriver implements Serializable {
     @Override
     public String toString() {
         return "CoreDriver{" +
-            "id = " + id +
-            ", name = " + name +
-            ", createTime = " + createTime +
-            ", type = " + type +
-            ", driverClass = " + driverClass +
-            ", description = " + description +
-            "}";
+        "id = " + id +
+        ", name = " + name +
+        ", createTime = " + createTime +
+        ", type = " + type +
+        ", driverClass = " + driverClass +
+        ", description = " + description +
+        "}";
     }
 }

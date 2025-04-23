@@ -31,8 +31,7 @@ public class TaskInfoVO {
     /**
      * 创建人
      */
-    private Long createBy;
-    ;
+    private Long createBy;;
     /**
      * 创建人
      */
@@ -132,5 +131,10 @@ public class TaskInfoVO {
      * 在执行周期内
      */
     private boolean withinCycle;
+
+    /**
+     * 所有内容可编辑
+     */
+    private boolean editable;
 
 }

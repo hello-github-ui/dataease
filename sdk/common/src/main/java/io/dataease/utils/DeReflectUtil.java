@@ -10,7 +10,7 @@ public class DeReflectUtil {
         Method[] methods = cla.getMethods();
         if (ArrayUtils.isEmpty(methods)) return null;
         for (Method method : methods) {
-            if (method.getName().equals(methodName)) {
+            if (method.getName().equals(methodName)){
                 return method;
             }
         }

@@ -1,6 +1,5 @@
 package io.dataease.visualization.utils;
 
-
 import io.dataease.extensions.view.dto.ChartViewDTO;
 import io.dataease.utils.JsonUtil;
 

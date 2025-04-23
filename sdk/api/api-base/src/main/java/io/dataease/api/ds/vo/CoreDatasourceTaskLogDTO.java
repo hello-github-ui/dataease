@@ -1,5 +1,8 @@
 package io.dataease.api.ds.vo;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
@@ -8,7 +11,7 @@ import java.io.Serializable;
 
 /**
  * <p>
- *
+ * 
  * </p>
  *
  * @author fit2cloud
@@ -22,19 +25,19 @@ public class CoreDatasourceTaskLogDTO implements Serializable {
     /**
      * 主键
      */
-    @JsonSerialize(using = ToStringSerializer.class)
+    @JsonSerialize(using= ToStringSerializer.class)
     private Long id;
 
     /**
      * 数据源ID
      */
-    @JsonSerialize(using = ToStringSerializer.class)
+    @JsonSerialize(using= ToStringSerializer.class)
     private Long dsId;
 
     /**
      * 任务ID
      */
-    @JsonSerialize(using = ToStringSerializer.class)
+    @JsonSerialize(using= ToStringSerializer.class)
     private Long taskId;
 
     /**

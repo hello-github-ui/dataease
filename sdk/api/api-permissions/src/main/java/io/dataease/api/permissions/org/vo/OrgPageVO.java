@@ -16,7 +16,7 @@ public class OrgPageVO implements Serializable {
     @Serial
     private static final long serialVersionUID = -7788232223396601785L;
     @Schema(description = "ID")
-    @JsonSerialize(using = ToStringSerializer.class)
+    @JsonSerialize(using= ToStringSerializer.class)
     private Long id;
     @Schema(description = "名称")
     private String name;

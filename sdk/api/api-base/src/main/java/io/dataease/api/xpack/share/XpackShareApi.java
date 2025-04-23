@@ -1,7 +1,7 @@
 package io.dataease.api.xpack.share;
 
-import io.dataease.api.visualization.request.VisualizationWorkbranchQueryRequest;
 import io.dataease.api.xpack.share.request.*;
+import io.dataease.api.visualization.request.VisualizationWorkbranchQueryRequest;
 import io.dataease.api.xpack.share.vo.XpackShareGridVO;
 import io.dataease.api.xpack.share.vo.XpackShareProxyVO;
 import io.dataease.api.xpack.share.vo.XpackShareVO;
@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import java.util.List;
 import java.util.Map;
 
-@Tag(name = "分享")
+@Tag(name = "可视化管理:分享")
 public interface XpackShareApi {
 
     @Operation(summary = "查询资源分享状态")

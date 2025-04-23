@@ -8,6 +8,14 @@ public enum ReportTaskEnum {
 
     private Integer flag;
 
+    public Integer getFlag() {
+        return flag;
+    }
+
+    public void setFlag(Integer flag) {
+        this.flag = flag;
+    }
+
     ReportTaskEnum(Integer flag) {
         this.flag = flag;
     }
@@ -17,13 +25,5 @@ public enum ReportTaskEnum {
 
     public static ReportTaskEnum fromValue(Integer flag) {
         return Arrays.stream(values()).filter(v -> v.flag.equals(flag)).findFirst().get();
-    }
-
-    public Integer getFlag() {
-        return flag;
-    }
-
-    public void setFlag(Integer flag) {
-        this.flag = flag;
     }
 }

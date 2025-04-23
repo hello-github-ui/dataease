@@ -14,7 +14,7 @@ public class UserItem implements Serializable {
     @Serial
     private static final long serialVersionUID = -3423336650739339624L;
 
-    @JsonSerialize(using = ToStringSerializer.class)
+    @JsonSerialize(using= ToStringSerializer.class)
     @Schema(description = "用户ID")
     private Long id;
     @Schema(description = "用户名称")

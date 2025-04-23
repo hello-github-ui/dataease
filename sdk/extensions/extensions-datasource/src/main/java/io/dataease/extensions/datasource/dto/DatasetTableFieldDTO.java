@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * @Author Junjun
@@ -81,7 +82,7 @@ public class DatasetTableFieldDTO implements Serializable {
     private Integer scale;
 
     /**
-     * dataease字段类型：0-文本，1-时间，2-整型数值，3-浮点数值，4-布尔，5-地理位置，6-二进制
+     * dataease字段类型：0-文本，1-时间，2-整型数值，3-浮点数值，4-布尔，5-地理位置，6-二进制, 7-URL
      */
     private Integer deType;
 
@@ -123,7 +124,22 @@ public class DatasetTableFieldDTO implements Serializable {
     private String fieldShortName;
 
     /**
+     * 分组设置
+     */
+    private List<FieldGroupDTO> groupList;
+
+    /**
+     * 未分组的值
+     */
+    private String otherGroup;
+
+    /**
      * 是否脱敏
      */
     private Boolean desensitized;
+
+    /**
+     * 计算字段参数
+     */
+    private List<CalParam> params;
 }

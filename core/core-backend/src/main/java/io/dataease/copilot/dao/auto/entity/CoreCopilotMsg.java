@@ -1,12 +1,11 @@
 package io.dataease.copilot.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
  * <p>
- *
+ * 
  * </p>
  *
  * @author fit2cloud
@@ -254,24 +253,24 @@ public class CoreCopilotMsg implements Serializable {
     @Override
     public String toString() {
         return "CoreCopilotMsg{" +
-            "id = " + id +
-            ", userId = " + userId +
-            ", datasetGroupId = " + datasetGroupId +
-            ", msgType = " + msgType +
-            ", engineType = " + engineType +
-            ", schemaSql = " + schemaSql +
-            ", question = " + question +
-            ", history = " + history +
-            ", copilotSql = " + copilotSql +
-            ", apiMsg = " + apiMsg +
-            ", sqlOk = " + sqlOk +
-            ", chartOk = " + chartOk +
-            ", chart = " + chart +
-            ", chartData = " + chartData +
-            ", execSql = " + execSql +
-            ", msgStatus = " + msgStatus +
-            ", errMsg = " + errMsg +
-            ", createTime = " + createTime +
-            "}";
+        "id = " + id +
+        ", userId = " + userId +
+        ", datasetGroupId = " + datasetGroupId +
+        ", msgType = " + msgType +
+        ", engineType = " + engineType +
+        ", schemaSql = " + schemaSql +
+        ", question = " + question +
+        ", history = " + history +
+        ", copilotSql = " + copilotSql +
+        ", apiMsg = " + apiMsg +
+        ", sqlOk = " + sqlOk +
+        ", chartOk = " + chartOk +
+        ", chart = " + chart +
+        ", chartData = " + chartData +
+        ", execSql = " + execSql +
+        ", msgStatus = " + msgStatus +
+        ", errMsg = " + errMsg +
+        ", createTime = " + createTime +
+        "}";
     }
 }

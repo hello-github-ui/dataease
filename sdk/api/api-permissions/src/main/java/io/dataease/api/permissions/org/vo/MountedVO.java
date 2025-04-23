@@ -25,4 +25,6 @@ public class MountedVO implements Serializable {
     private boolean readOnly = true;
     @Schema(description = "子集")
     private List<MountedVO> children;
+
+    private boolean leaf;
 }

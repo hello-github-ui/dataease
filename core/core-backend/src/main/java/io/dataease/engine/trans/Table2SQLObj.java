@@ -1,6 +1,6 @@
 package io.dataease.engine.trans;
 
-import io.dataease.engine.constant.SQLConstants;
+import io.dataease.constant.SQLConstants;
 import io.dataease.extensions.datasource.constant.SqlPlaceholderConstants;
 import io.dataease.extensions.datasource.model.SQLMeta;
 import io.dataease.extensions.datasource.model.SQLObj;
@@ -18,9 +18,9 @@ public class Table2SQLObj {
             sql = table;
         }
         SQLObj tableObj = SQLObj.builder()
-            .tableName((table.startsWith("(") && table.endsWith(")")) ? sql : String.format(SQLConstants.TABLE_NAME, tablePrefix, table))
-            .tableAlias(String.format(SQLConstants.TABLE_ALIAS_PREFIX, 0))
-            .build();
+                .tableName((table.startsWith("(") && table.endsWith(")")) ? sql : String.format(SQLConstants.TABLE_NAME, tablePrefix, table))
+                .tableAlias(String.format(SQLConstants.TABLE_ALIAS_PREFIX, 0))
+                .build();
         meta.setTable(tableObj);
     }
 }

@@ -1,4 +1,4 @@
-import {withInstall} from '../install'
+import { withInstall } from '../install'
 
 import Dashboard from '@/views/dashboard/index.vue'
 

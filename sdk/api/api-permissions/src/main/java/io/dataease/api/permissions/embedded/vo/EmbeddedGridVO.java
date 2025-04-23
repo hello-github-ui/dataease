@@ -12,7 +12,7 @@ import java.io.Serializable;
 public class EmbeddedGridVO implements Serializable {
 
     @Schema(description = "ID")
-    @JsonSerialize(using = ToStringSerializer.class)
+    @JsonSerialize(using= ToStringSerializer.class)
     private Long id;
     @Schema(description = "应用名称")
     private String name;
@@ -22,4 +22,6 @@ public class EmbeddedGridVO implements Serializable {
     private String appSecret;
     @Schema(description = "应用域名")
     private String domain;
+    @Schema(description = "密钥长度")
+    private Integer secretLength = 16;
 }

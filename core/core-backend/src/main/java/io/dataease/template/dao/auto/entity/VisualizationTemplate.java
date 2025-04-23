@@ -1,7 +1,6 @@
 package io.dataease.template.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
@@ -63,7 +62,7 @@ public class VisualizationTemplate implements Serializable {
     private String snapshot;
 
     /**
-     * 模板类型 system 系统内置 self 用户自建
+     * 模板类型 system 系统内置 self 用户自建 
      */
     private String templateType;
 
@@ -225,22 +224,22 @@ public class VisualizationTemplate implements Serializable {
     @Override
     public String toString() {
         return "VisualizationTemplate{" +
-            "id = " + id +
-            ", name = " + name +
-            ", pid = " + pid +
-            ", level = " + level +
-            ", dvType = " + dvType +
-            ", nodeType = " + nodeType +
-            ", createBy = " + createBy +
-            ", createTime = " + createTime +
-            ", snapshot = " + snapshot +
-            ", templateType = " + templateType +
-            ", templateStyle = " + templateStyle +
-            ", templateData = " + templateData +
-            ", dynamicData = " + dynamicData +
-            ", appData = " + appData +
-            ", useCount = " + useCount +
-            ", version = " + version +
-            "}";
+        "id = " + id +
+        ", name = " + name +
+        ", pid = " + pid +
+        ", level = " + level +
+        ", dvType = " + dvType +
+        ", nodeType = " + nodeType +
+        ", createBy = " + createBy +
+        ", createTime = " + createTime +
+        ", snapshot = " + snapshot +
+        ", templateType = " + templateType +
+        ", templateStyle = " + templateStyle +
+        ", templateData = " + templateData +
+        ", dynamicData = " + dynamicData +
+        ", appData = " + appData +
+        ", useCount = " + useCount +
+        ", version = " + version +
+        "}";
     }
 }

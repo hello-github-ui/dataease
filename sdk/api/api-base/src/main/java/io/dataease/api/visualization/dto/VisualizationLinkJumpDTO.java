@@ -21,5 +21,5 @@ public class VisualizationLinkJumpDTO extends VisualizationLinkJumpVO {
 
     private List<VisualizationLinkJumpInfoDTO> linkJumpInfoArray = new ArrayList<>();
 
-    private Map<String, VisualizationLinkJumpInfoDTO> mapJumpInfoArray = new HashMap<>();
+    private Map<String,VisualizationLinkJumpInfoDTO> mapJumpInfoArray = new HashMap<>();
 }

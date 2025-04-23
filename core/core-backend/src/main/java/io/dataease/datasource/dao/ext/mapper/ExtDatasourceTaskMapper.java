@@ -15,22 +15,20 @@ public interface ExtDatasourceTaskMapper {
 
 
     @Select(
-        """     
-            SELECT core_datasource.name as datasource_name,core_datasource_task.* , QRTZ_TRIGGERS.NEXT_FIRE_TIME as NEXT_FIRE_TIME
-            FROM core_datasource_task
-            left join core_datasource on core_datasource.id=core_datasource_task.ds_id
-            left join QRTZ_TRIGGERS on core_datasource_task.id=QRTZ_TRIGGERS.TRIGGER_NAME
-             ${ew.customSqlSegment}
-            """
+            """     
+                    SELECT QRTZ_TRIGGERS.* 
+                    FROM QRTZ_TRIGGERS
+                     ${ew.customSqlSegment}
+                    """
     )
     @Results(
-        id = "taskWithTriggers",
-        value = {
-            @Result(property = "id", column = "id"),
-            @Result(property = "datasourceName", column = "datasource_name"),
-            @Result(property = "dsId", column = "ds_id"),
-            @Result(property = "nextExecTime", column = "NEXT_FIRE_TIME")
-        }
+            id = "taskWithTriggers",
+            value = {
+                    @Result(property = "id", column = "id"),
+                    @Result(property = "datasourceName", column = "datasource_name"),
+                    @Result(property = "dsId", column = "ds_id"),
+                    @Result(property = "nextExecTime", column = "NEXT_FIRE_TIME")
+            }
     )
     List<CoreDatasourceTaskDTO> taskWithTriggers(@Param("ew") QueryWrapper queryWrapper);
 

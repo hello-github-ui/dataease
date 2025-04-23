@@ -1,7 +1,7 @@
 package io.dataease.share.dao.auto.mapper;
 
-import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import io.dataease.share.dao.auto.entity.XpackShare;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 
 /**

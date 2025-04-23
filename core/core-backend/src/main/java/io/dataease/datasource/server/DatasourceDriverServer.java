@@ -13,6 +13,7 @@ import io.dataease.utils.BeanUtils;
 import io.dataease.utils.FileUtils;
 import io.dataease.utils.Md5Utils;
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,7 +33,8 @@ import java.util.Map;
 @RequestMapping("/datasourceDriver")
 public class DatasourceDriverServer implements DatasourceDriverApi {
 
-    private final static String DRIVER_PATH = "/opt/dataease2.0/custom-drivers/";
+    @Value("${dataease.path.custom-drivers:/opt/dataease2.0/custom-drivers/}")
+    private String DRIVER_PATH;
 
     @Resource
     private CoreDriverMapper coreDriverMapper;
@@ -116,8 +118,6 @@ public class DatasourceDriverServer implements DatasourceDriverApi {
         FileUtils.deleteFile(DRIVER_PATH + driverJar.getDeDriverId() + "/" + driverJar.getTransName());
         //TODO 更新classloader
     }
-
-    ;
 
     @Override
     public DriveJarDTO uploadJar(@RequestParam("deDriverId") String deDriverId, @RequestParam("jarFile") MultipartFile jarFile) throws Exception {

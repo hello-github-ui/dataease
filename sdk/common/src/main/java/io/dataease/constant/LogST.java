@@ -15,22 +15,11 @@ public enum LogST {
     DRIVER(10, "SOURCE_TYPE_DRIVER"),
     DRIVER_FILE(11, "SOURCE_TYPE_DRIVER_FILE"),
     MENU(12, "SOURCE_TYPE_MENU"),
-    APIKEY(13, "SOURCE_TYPE_APIKEY");
+    APIKEY(13, "SOURCE_TYPE_APIKEY"),
+    DATA_FILLING(14, "SOURCE_TYPE_DATAFILLING");
     private Integer value;
 
     private String name;
-
-    LogST(Integer value, String name) {
-        this.value = value;
-        this.name = name;
-    }
-
-    LogST() {
-    }
-
-    public static LogST fromValue(Integer value) {
-        return Arrays.stream(values()).filter(v -> v.value.equals(value)).findFirst().get();
-    }
 
     public Integer getValue() {
         return value;
@@ -38,5 +27,17 @@ public enum LogST {
 
     public String getName() {
         return name;
+    }
+
+    LogST(Integer value, String name) {
+        this.value = value;
+        this.name = name;
+    }
+
+    public static LogST fromValue(Integer value) {
+        return Arrays.stream(values()).filter(v -> v.value.equals(value)).findFirst().get();
+    }
+
+    LogST() {
     }
 }

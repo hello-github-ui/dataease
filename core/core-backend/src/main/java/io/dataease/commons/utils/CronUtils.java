@@ -38,8 +38,8 @@ public class CronUtils {
         Calendar instance = Calendar.getInstance();
         instance.add(Calendar.SECOND, 5);
         return instance.get(Calendar.SECOND) + " " +
-            instance.get(Calendar.MINUTE) + " " +
-            instance.get(Calendar.HOUR_OF_DAY) + " * * ?";
+                instance.get(Calendar.MINUTE) + " " +
+                instance.get(Calendar.HOUR_OF_DAY) + " * * ?";
     }
 
     public static String cron(Integer rateType, String rateVal) {
@@ -60,20 +60,20 @@ public class CronUtils {
 
         if (rateType == 1) {
             return instance.get(Calendar.SECOND) + " " +
-                instance.get(Calendar.MINUTE) + " " +
-                instance.get(Calendar.HOUR_OF_DAY) + " * * ?";
+                    instance.get(Calendar.MINUTE) + " " +
+                    instance.get(Calendar.HOUR_OF_DAY) + " * * ?";
         }
         if (rateType == 2) {
             return instance.get(Calendar.SECOND) + " " +
-                instance.get(Calendar.MINUTE) + " " +
-                instance.get(Calendar.HOUR_OF_DAY) + " ? * " +
-                getDayOfWeek(instance);
+                    instance.get(Calendar.MINUTE) + " " +
+                    instance.get(Calendar.HOUR_OF_DAY) + " ? * " +
+                    getDayOfWeek(instance);
         }
         if (rateType == 3) {
             return instance.get(Calendar.SECOND) + " " +
-                instance.get(Calendar.MINUTE) + " " +
-                instance.get(Calendar.HOUR_OF_DAY) + " " +
-                instance.get(Calendar.DATE) + " * ?";
+                    instance.get(Calendar.MINUTE) + " " +
+                    instance.get(Calendar.HOUR_OF_DAY) + " " +
+                    instance.get(Calendar.DATE) + " * ?";
         }
 
         return null;

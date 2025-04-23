@@ -5,7 +5,6 @@ export function getTableFieldWithViewId(viewId) {
     url: '/linkJump/getTableFieldWithViewId/' + viewId
   })
 }
-
 export function queryWithViewId(dvId, viewId) {
   return request.get({
     url: '/linkJump/queryWithViewId/' + dvId + '/' + viewId
@@ -19,7 +18,6 @@ export function updateJumpSet(requestInfo) {
     loading: true
   })
 }
-
 export function queryTargetVisualizationJumpInfo(requestInfo) {
   return request.post({
     url: '/linkJump/queryTargetVisualizationJumpInfo',
@@ -28,9 +26,9 @@ export function queryTargetVisualizationJumpInfo(requestInfo) {
   })
 }
 
-export function queryVisualizationJumpInfo(dvId) {
+export function queryVisualizationJumpInfo(dvId, resourceTable = 'snapshot') {
   return request.get({
-    url: '/linkJump/queryVisualizationJumpInfo/' + dvId,
+    url: '/linkJump/queryVisualizationJumpInfo/' + dvId + '/' + resourceTable,
     loading: false
   })
 }
@@ -45,6 +43,14 @@ export function viewTableDetailList(dvId) {
 export function updateJumpSetActive(requestInfo) {
   return request.post({
     url: '/linkJump/updateJumpSetActive',
+    data: requestInfo,
+    loading: true
+  })
+}
+
+export function removeJumpSet(requestInfo) {
+  return request.post({
+    url: '/linkJump/removeJumpSet',
     data: requestInfo,
     loading: true
   })

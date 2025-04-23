@@ -1,30 +1,31 @@
-import {dvMainStoreWithOut} from '@/store/modules/data-visualization/dvMain'
-import {storeToRefs} from 'pinia'
-import {getDynamicRange, getCustomTime} from '@/custom-component/v-query/time-format'
-
+import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
+import type { ManipulateType } from 'dayjs'
+import { storeToRefs } from 'pinia'
+import dayjs from 'dayjs'
+import { getDynamicRange, getCustomTime } from '@/custom-component/v-query/time-format'
+import { getCustomRange } from '@/custom-component/v-query/time-format-dayjs'
 const dvMainStore = dvMainStoreWithOut()
-const {componentData} = storeToRefs(dvMainStore)
+const { componentData, canvasStyleData } = storeToRefs(dvMainStore)
 
 const getDynamicRangeTime = (type: number, selectValue: any, timeGranularityMultiple: string) => {
   const timeType = (timeGranularityMultiple || '').split('range')[0]
 
-  if (timeGranularityMultiple === 'datetimerange' || type === 1 || !timeType) {
+  if (timeGranularityMultiple.includes('range') || type === 1 || !timeType) {
     return selectValue.map(ele => +new Date(ele))
   }
 
-  const [start, end] = selectValue
+  const [start] = selectValue
 
   return [
     +new Date(start),
     +getCustomTime(
       1,
-      timeType,
+      timeType as ManipulateType,
       timeType,
       'b',
       null,
       timeGranularityMultiple,
-      'start-config',
-      new Date(end)
+      'start-config'
     ) - 1000
   ]
 }
@@ -58,32 +59,42 @@ export const getRange = (selectValue, timeGranularity) => {
   }
 }
 const getYearEnd = timestamp => {
-  const time = new Date(timestamp)
   return [
-    +new Date(time.getFullYear(), 0, 1),
-    +new Date(time.getFullYear(), 11, 31) + 60 * 1000 * 60 * 24 - 1000
+    +new Date(dayjs(timestamp).startOf('year').format('YYYY/MM/DD HH:mm:ss')),
+    +new Date(dayjs(timestamp).endOf('year').format('YYYY/MM/DD HH:mm:ss'))
   ]
 }
 
 const getMonthEnd = timestamp => {
-  const time = new Date(timestamp)
-  const date = new Date(time.getFullYear(), time.getMonth(), 1)
-  date.setDate(1)
-  date.setMonth(date.getMonth() + 1)
-  return [+new Date(time.getFullYear(), time.getMonth(), 1), +new Date(date.getTime() - 1000)]
+  return [
+    +new Date(dayjs(timestamp).startOf('month').format('YYYY/MM/DD HH:mm:ss')),
+    +new Date(dayjs(timestamp).endOf('month').format('YYYY/MM/DD HH:mm:ss'))
+  ]
 }
 
 const getDayEnd = timestamp => {
-  return [+new Date(timestamp), +new Date(timestamp) + 60 * 1000 * 60 * 24 - 1000]
+  return [
+    +new Date(dayjs(timestamp).startOf('day').format('YYYY/MM/DD HH:mm:ss')),
+    +new Date(dayjs(timestamp).endOf('day').format('YYYY/MM/DD HH:mm:ss'))
+  ]
 }
 
-const getFieldId = (arr, result) => {
-  const [obj] = result
-  const idArr = obj.split(',')
-  return arr
-    .map(ele => ele.id)
-    .slice(0, idArr.length)
-    .join(',')
+const getFieldId = (arr, result, relationshipChartIndex, ids) => {
+  const [obj] = [...result].reverse()
+  const valArr = obj.split(',')
+  const idArr = arr.map(ele => ele.id)
+  const indexArr = relationshipChartIndex.filter(ele => valArr[ele])
+  if (!relationshipChartIndex.length) {
+    return [idArr.slice(0, valArr.length).join(','), [...new Set(result)]]
+  } else {
+    for (const key in result) {
+      result[key] = indexArr.map(ele => result[key].split(',')[ele]).join(',')
+    }
+    return [
+      indexArr.map(ele => ids[ele]).join(','),
+      result.filter(ele => !ele.endsWith(',') && !!ele)
+    ]
+  }
 }
 
 const getValueByDefaultValueCheckOrFirstLoad = (
@@ -130,18 +141,32 @@ const getValueByDefaultValueCheckOrFirstLoad = (
 }
 
 export const useFilter = (curComponentId: string, firstLoad = false) => {
+  // 弹窗区域过滤组件是否生效
+  const popupAvailable = canvasStyleData.value.popupAvailable
   const filter = []
-  const queryComponentList = componentData.value.filter(ele => ele.component === 'VQuery')
+  const queryComponentList = componentData.value.filter(
+    ele =>
+      ele.component === 'VQuery' &&
+      (popupAvailable || (!popupAvailable && ele.category !== 'hidden'))
+  )
   searchQuery(queryComponentList, filter, curComponentId, firstLoad)
   componentData.value.forEach(ele => {
     if (ele.component === 'Group') {
-      const list = ele.propValue.filter(item => item.innerType === 'VQuery')
+      const list = ele.propValue.filter(
+        item =>
+          item.innerType === 'VQuery' &&
+          (popupAvailable || (!popupAvailable && ele.category !== 'hidden'))
+      )
       searchQuery(list, filter, curComponentId, firstLoad)
 
       list.forEach(element => {
         if (element.innerType === 'DeTabs') {
           element.propValue.forEach(itx => {
-            const elementArr = itx.componentData.filter(item => item.innerType === 'VQuery')
+            const elementArr = itx.componentData.filter(
+              item =>
+                item.innerType === 'VQuery' &&
+                (popupAvailable || (!popupAvailable && ele.category !== 'hidden'))
+            )
             searchQuery(elementArr, filter, curComponentId, firstLoad)
           })
         }
@@ -150,6 +175,17 @@ export const useFilter = (curComponentId: string, firstLoad = false) => {
 
     if (ele.innerType === 'DeTabs') {
       ele.propValue.forEach(itx => {
+        itx.componentData.forEach(v => {
+          if (v.component === 'Group') {
+            const listGroup = v.propValue.filter(
+              item =>
+                item.innerType === 'VQuery' &&
+                (popupAvailable || (!popupAvailable && v.category !== 'hidden'))
+            )
+            searchQuery(listGroup, filter, curComponentId, firstLoad)
+          }
+        })
+
         const arr = itx.componentData.filter(item => item.innerType === 'VQuery')
         searchQuery(arr, filter, curComponentId, firstLoad)
       })
@@ -176,6 +212,22 @@ const getResult = (
   return [valueF || '', valueS || ''].filter(ele => ele !== '')
 }
 
+const getResultNum = (
+  defaultNumValueEnd,
+  numValueEnd,
+  numValueStart,
+  defaultNumValueStart,
+  defaultValueCheck,
+  firstLoad
+) => {
+  if (firstLoad && !defaultValueCheck) {
+    return []
+  }
+  const valueS = firstLoad ? defaultNumValueStart : numValueStart
+  const valueE = firstLoad ? defaultNumValueEnd : numValueEnd
+  return [valueS ?? '', valueE ?? ''].filter(ele => ele !== '')
+}
+
 const getOperator = (
   displayType,
   multiple,
@@ -193,6 +245,11 @@ const getOperator = (
   if (+displayType === 9) {
     return multiple ? 'in' : 'eq'
   }
+
+  if (+displayType === 22) {
+    return 'between'
+  }
+
   const valueF = firstLoad ? defaultConditionValueF : conditionValueF
   const valueS = firstLoad ? defaultConditionValueS : conditionValueS
   const operatorF = firstLoad ? defaultConditionValueOperatorF : conditionValueOperatorF
@@ -213,156 +270,277 @@ const getOperator = (
   return [1, 7].includes(+displayType) ? 'between' : multiple ? 'in' : 'eq'
 }
 
+const duplicateRemoval = arr => {
+  const objList = []
+  let idList = arr.map(ele => ele.id)
+  for (let index = 0; index < arr.length; index++) {
+    const element = arr[index]
+    if (idList.includes(element.id)) {
+      objList.push(element)
+      idList = idList.filter(ele => ele !== element.id)
+    }
+  }
+  return objList
+}
+
 export const searchQuery = (queryComponentList, filter, curComponentId, firstLoad) => {
   queryComponentList.forEach(ele => {
     if (!!ele.propValue?.length) {
-      ele.propValue
-        .filter(itx => itx.visible)
-        .forEach(item => {
-          if (
-            item.checkedFields.includes(curComponentId) &&
-            item.checkedFieldsMap[curComponentId]
-          ) {
-            let selectValue
-            const {
-              selectValue: value,
-              timeGranularityMultiple,
-              conditionType = 0,
-              treeFieldList = [],
-              defaultConditionValueOperatorF = 'eq',
-              defaultConditionValueF = '',
-              defaultConditionValueOperatorS = 'like',
-              defaultConditionValueS = '',
-              conditionValueOperatorF = 'eq',
-              conditionValueF = '',
-              conditionValueOperatorS = 'like',
-              conditionValueS = '',
-              defaultValueCheck,
-              timeType = 'fixed',
-              defaultValue,
-              optionValueSource,
-              defaultMapValue,
-              mapValue,
-              parameters = [],
-              timeGranularity = 'date',
-              displayType,
-              displayId,
-              multiple
-            } = item
-
-            const isTree = +displayType === 9
-
+      ele.propValue.forEach(item => {
+        let shouldSearch = false
+        const relationshipChartIndex = []
+        const ids = Array(5).fill(1)
+        if (item.displayType === '9' && item.treeCheckedList?.length) {
+          item.treeCheckedList.forEach((itx, idx) => {
             if (
-              timeType === 'dynamic' &&
-              [1, 7].includes(+displayType) &&
-              firstLoad &&
-              defaultValueCheck
+              itx.checkedFields.includes(curComponentId) &&
+              itx.checkedFieldsMap[curComponentId] &&
+              idx < item.treeFieldList.length
             ) {
-              if (+displayType === 1) {
-                selectValue = getDynamicRange(item)
-                item.defaultValue = new Date(selectValue[0])
-                item.selectValue = new Date(selectValue[0])
-              } else {
-                const {
-                  timeNum,
-                  relativeToCurrentType,
-                  around,
-                  arbitraryTime,
-                  timeGranularity,
-                  timeNumRange,
-                  relativeToCurrentTypeRange,
-                  aroundRange,
-                  timeGranularityMultiple,
-                  arbitraryTimeRange
-                } = item
-
-                const startTime = getCustomTime(
-                  timeNum,
-                  relativeToCurrentType,
-                  timeGranularity,
-                  around,
-                  arbitraryTime,
-                  timeGranularityMultiple,
-                  'start-panel'
-                )
-                const endTime = getCustomTime(
-                  timeNumRange,
-                  relativeToCurrentTypeRange,
-                  timeGranularity,
-                  aroundRange,
-                  arbitraryTimeRange,
-                  timeGranularityMultiple,
-                  'end-panel'
-                )
-                item.defaultValue = [startTime, endTime]
-                item.selectValue = [startTime, endTime]
-                selectValue = [startTime, endTime]
-              }
-            } else if (displayType === '8') {
-              selectValue = getResult(
-                conditionType,
-                defaultConditionValueF,
-                defaultConditionValueS,
-                conditionValueF,
-                conditionValueS,
-                firstLoad
-              )
-            } else {
-              selectValue = getValueByDefaultValueCheckOrFirstLoad(
-                defaultValueCheck,
-                defaultValue,
-                value,
-                firstLoad,
-                multiple,
-                defaultMapValue,
-                optionValueSource,
-                mapValue,
-                displayType,
-                displayId
-              )
+              relationshipChartIndex.push(idx)
+              ids[idx] = itx.checkedFieldsMap[curComponentId]
             }
-            if (
-              !!selectValue?.length ||
-              ['[object Number]', '[object Date]'].includes(
-                Object.prototype.toString.call(selectValue)
-              ) ||
-              displayType === '8'
-            ) {
-              const result = forMatterValue(
-                +displayType,
-                selectValue,
+          })
+        } else {
+          shouldSearch =
+            item.checkedFields.includes(curComponentId) && item.checkedFieldsMap[curComponentId]
+        }
+        if (shouldSearch || relationshipChartIndex.length) {
+          let selectValue
+          const {
+            id,
+            selectValue: value,
+            timeGranularityMultiple,
+            defaultNumValueEnd,
+            numValueEnd,
+            numValueStart,
+            defaultNumValueStart,
+            conditionType = 0,
+            treeFieldList = [],
+            defaultConditionValueOperatorF = 'eq',
+            defaultConditionValueF = '',
+            defaultConditionValueOperatorS = 'like',
+            defaultConditionValueS = '',
+            conditionValueOperatorF = 'eq',
+            conditionValueF = '',
+            conditionValueOperatorS = 'like',
+            conditionValueS = '',
+            defaultValueCheck,
+            timeType = 'fixed',
+            defaultValue,
+            optionValueSource,
+            defaultMapValue,
+            mapValue,
+            parameters = [],
+            timeGranularity = 'date',
+            displayType,
+            displayId,
+            multiple
+          } = item
+
+          const isTree = +displayType === 9
+
+          if (
+            timeType === 'dynamic' &&
+            [1, 7].includes(+displayType) &&
+            firstLoad &&
+            defaultValueCheck
+          ) {
+            if (+displayType === 1) {
+              selectValue = getDynamicRange(item)
+              item.defaultValue = new Date(selectValue[0])
+              item.selectValue = new Date(selectValue[0])
+            } else {
+              const {
+                timeNum,
+                relativeToCurrentType,
+                around,
+                relativeToCurrentRange,
+                arbitraryTime,
                 timeGranularity,
-                timeGranularityMultiple
+                timeNumRange,
+                relativeToCurrentTypeRange,
+                aroundRange,
+                timeGranularityMultiple,
+                arbitraryTimeRange
+              } = item
+
+              let startTime = getCustomTime(
+                timeNum,
+                relativeToCurrentType,
+                timeGranularity,
+                around,
+                arbitraryTime,
+                timeGranularityMultiple,
+                'start-panel'
               )
-              const operator = getOperator(
-                displayType,
-                multiple,
-                conditionType,
-                defaultConditionValueOperatorF,
-                defaultConditionValueF,
-                defaultConditionValueOperatorS,
-                defaultConditionValueS,
-                conditionValueOperatorF,
-                conditionValueF,
-                conditionValueOperatorS,
-                conditionValueS,
-                firstLoad
+              let endTime = getCustomTime(
+                timeNumRange,
+                relativeToCurrentTypeRange,
+                timeGranularity,
+                aroundRange,
+                arbitraryTimeRange,
+                timeGranularityMultiple,
+                'end-panel'
               )
-              if (result?.length) {
+
+              if (!!relativeToCurrentRange && relativeToCurrentRange !== 'custom') {
+                ;[startTime, endTime] = getCustomRange(relativeToCurrentRange)
+              }
+              item.defaultValue = [startTime, endTime]
+              item.selectValue = [startTime, endTime]
+              selectValue = [startTime, endTime]
+            }
+          } else if (displayType === '8') {
+            selectValue = getResult(
+              conditionType,
+              defaultConditionValueF,
+              defaultConditionValueS,
+              conditionValueF,
+              conditionValueS,
+              firstLoad
+            )
+          } else if (displayType === '22') {
+            selectValue = getResultNum(
+              defaultNumValueEnd,
+              numValueEnd,
+              numValueStart,
+              defaultNumValueStart,
+              defaultValueCheck,
+              firstLoad
+            )
+          } else {
+            selectValue = getValueByDefaultValueCheckOrFirstLoad(
+              defaultValueCheck,
+              defaultValue,
+              value,
+              firstLoad,
+              multiple,
+              defaultMapValue,
+              optionValueSource,
+              mapValue,
+              displayType,
+              displayId
+            )
+          }
+          if (
+            !!selectValue?.length ||
+            ['[object Number]', '[object Date]'].includes(
+              Object.prototype.toString.call(selectValue)
+            ) ||
+            displayType === '8'
+          ) {
+            let result = forMatterValue(
+              +displayType,
+              selectValue,
+              timeGranularity,
+              timeGranularityMultiple
+            )
+            const operator = getOperator(
+              displayType,
+              multiple,
+              conditionType,
+              defaultConditionValueOperatorF,
+              defaultConditionValueF,
+              defaultConditionValueOperatorS,
+              defaultConditionValueS,
+              conditionValueOperatorF,
+              conditionValueF,
+              conditionValueOperatorS,
+              conditionValueS,
+              firstLoad
+            )
+            if (result?.length) {
+              let fieldId = item.checkedFieldsMap[curComponentId]
+              if (isTree) {
+                const [i, r] = getFieldId(treeFieldList, result, relationshipChartIndex, ids)
+                fieldId = i
+                result = r
+              }
+              let parametersFilter = duplicateRemoval(
+                parameters.reduce((pre, next) => {
+                  if (next.id === fieldId && !pre.length) {
+                    pre.push(next)
+                  }
+                  return pre
+                }, [])
+              )
+
+              if (item.checkedFieldsMapArr?.[curComponentId]?.length) {
+                const endTimeFieldId = item.checkedFieldsMapArr?.[curComponentId].find(
+                  element => element !== fieldId
+                )
+                const resultEnd = Array(2).fill(
+                  endTimeFieldId === item.checkedFieldsMapEnd[curComponentId]
+                    ? result[1]
+                    : result[0]
+                )
+                result = Array(2).fill(
+                  endTimeFieldId === item.checkedFieldsMapEnd[curComponentId]
+                    ? result[0]
+                    : result[1]
+                )
+                parametersFilter = duplicateRemoval(
+                  item.parametersArr[curComponentId].filter(e => e.id === fieldId)
+                )
+
+                const parametersFilterEnd = duplicateRemoval(
+                  item.parametersArr[curComponentId].filter(e => e.id === endTimeFieldId)
+                )
                 filter.push({
                   componentId: ele.id,
-                  fieldId: isTree
-                    ? getFieldId(treeFieldList, result)
-                    : item.checkedFieldsMap[curComponentId],
+                  fieldId: endTimeFieldId,
                   operator,
-                  value: result,
-                  parameters,
+                  value: resultEnd,
+                  parameters: parametersFilterEnd,
                   isTree
                 })
               }
+
+              if (item.checkedFieldsMapArrNum?.[curComponentId]?.length) {
+                const endTimeFieldId = item.checkedFieldsMapArrNum?.[curComponentId].find(
+                  element => element !== fieldId
+                )
+                const resultEnd = Array(2).fill(
+                  endTimeFieldId === item.checkedFieldsMapEndNum[curComponentId]
+                    ? result[1]
+                    : result[0]
+                )
+                result = Array(2).fill(
+                  endTimeFieldId === item.checkedFieldsMapEndNum[curComponentId]
+                    ? result[0]
+                    : result[1]
+                )
+                parametersFilter = duplicateRemoval(
+                  item.parametersArr[curComponentId].filter(e => e.id === fieldId)
+                )
+
+                const parametersFilterEnd = duplicateRemoval(
+                  item.parametersArr[curComponentId].filter(e => e.id === endTimeFieldId)
+                )
+                filter.push({
+                  componentId: ele.id,
+                  fieldId: endTimeFieldId,
+                  operator,
+                  value: resultEnd,
+                  parameters: parametersFilterEnd,
+                  isTree
+                })
+              }
+
+              filter.push({
+                filterId: id,
+                componentId: ele.id,
+                fieldId,
+                operator,
+                value: result,
+                parameters: parametersFilter,
+                isTree
+              })
             }
           }
-        })
+        }
+      })
     }
   })
 }

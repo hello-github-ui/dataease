@@ -25,6 +25,8 @@ public class ReportCreator implements Serializable {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long rid;
 
+    private Boolean showWatermark;
+
     private Integer format;
 
     private List<Long> viewIdList;
@@ -42,6 +44,7 @@ public class ReportCreator implements Serializable {
     private List<String> emailList;
 
     private List<String> larkGroupList;
+    private List<String> larksuiteGroupList;
 
     private Integer extWaitTime;
 

@@ -2,13 +2,12 @@ package io.dataease.template.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
  * <p>
- *
+ * 
  * </p>
  *
  * @author fit2cloud
@@ -123,16 +122,16 @@ public class DeTemplateVersion implements Serializable {
     @Override
     public String toString() {
         return "DeTemplateVersion{" +
-            "installedRank = " + installedRank +
-            ", version = " + version +
-            ", description = " + description +
-            ", type = " + type +
-            ", script = " + script +
-            ", checksum = " + checksum +
-            ", installedBy = " + installedBy +
-            ", installedOn = " + installedOn +
-            ", executionTime = " + executionTime +
-            ", success = " + success +
-            "}";
+        "installedRank = " + installedRank +
+        ", version = " + version +
+        ", description = " + description +
+        ", type = " + type +
+        ", script = " + script +
+        ", checksum = " + checksum +
+        ", installedBy = " + installedBy +
+        ", installedOn = " + installedOn +
+        ", executionTime = " + executionTime +
+        ", success = " + success +
+        "}";
     }
 }

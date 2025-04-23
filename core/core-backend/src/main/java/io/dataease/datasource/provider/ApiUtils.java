@@ -5,43 +5,49 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
-import io.dataease.api.ds.vo.ApiDefinition;
-import io.dataease.api.ds.vo.ApiDefinitionRequest;
+import com.jayway.jsonpath.Option;
+import io.dataease.extensions.datasource.dto.ApiDefinition;
+import io.dataease.extensions.datasource.dto.ApiDefinitionRequest;
 import io.dataease.exception.DEException;
 import io.dataease.extensions.datasource.dto.DatasetTableDTO;
 import io.dataease.extensions.datasource.dto.DatasourceRequest;
 import io.dataease.extensions.datasource.dto.TableField;
-import io.dataease.utils.CommonBeanFactory;
-import io.dataease.utils.HttpClientConfig;
-import io.dataease.utils.HttpClientUtil;
-import io.dataease.utils.JsonUtil;
+import io.dataease.utils.*;
 import org.apache.commons.lang3.StringUtils;
 import org.json.simple.JSONArray;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.net.URLEncoder;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class ApiUtils {
-
-    public static ObjectMapper objectMapper = CommonBeanFactory.getBean(ObjectMapper.class);
+    private static Configuration jsonPathConf = Configuration.builder()
+            .options(Option.DEFAULT_PATH_LEAF_TO_NULL, Option.ALWAYS_RETURN_LIST)
+            .build();
     private static String path = "['%s']";
+    public static ObjectMapper objectMapper = CommonBeanFactory.getBean(ObjectMapper.class);
+
     private static TypeReference<List<Object>> listTypeReference = new TypeReference<List<Object>>() {
     };
     private static TypeReference<List<Map<String, Object>>> listForMapTypeReference = new TypeReference<List<Map<String, Object>>>() {
     };
 
-    public static List<DatasetTableDTO> getTables(DatasourceRequest datasourceRequest) throws DEException {
+    public static List<DatasetTableDTO> getApiTables(DatasourceRequest datasourceRequest) throws DEException {
         List<DatasetTableDTO> tableDescs = new ArrayList<>();
         TypeReference<List<ApiDefinition>> listTypeReference = new TypeReference<List<ApiDefinition>>() {
         };
         List<ApiDefinition> apiDefinitionList = JsonUtil.parseList(datasourceRequest.getDatasource().getConfiguration(), listTypeReference);
         for (ApiDefinition apiDefinition : apiDefinitionList) {
+            if (apiDefinition == null) {
+                continue;
+            }
             if (StringUtils.isNotEmpty(apiDefinition.getType()) && apiDefinition.getType().equalsIgnoreCase("params")) {
                 continue;
             }
@@ -69,20 +75,62 @@ public class ApiUtils {
     }
 
 
-    public static Map<String, Object> fetchResultField(DatasourceRequest datasourceRequest) throws DEException {
+    public static Map<String, Object> fetchApiResultField(DatasourceRequest datasourceRequest) throws DEException {
         Map<String, Object> result = new HashMap<>();
         List<String[]> dataList = new ArrayList<>();
         List<TableField> fieldList = new ArrayList<>();
-        ApiDefinition apiDefinition = checkApiDefinition(datasourceRequest);
+        ApiDefinition apiDefinition = getApiDefinition(datasourceRequest);
         if (apiDefinition == null) {
             DEException.throwException("未找到");
         }
-        String response = execHttpRequest(apiDefinition, apiDefinition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), params(datasourceRequest));
-        fieldList = getTableFields(apiDefinition);
-        result.put("fieldList", fieldList);
-        dataList = fetchResult(response, apiDefinition);
-        result.put("dataList", dataList);
-        return result;
+        if (apiDefinition.getRequest().getPage() != null && apiDefinition.getRequest().getPage().getPageType() != null && !apiDefinition.getRequest().getPage().getPageType().equalsIgnoreCase("empty")) {
+            String response = execHttpRequest(false, apiDefinition, apiDefinition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), params(datasourceRequest));
+            fieldList = getTableFields(apiDefinition);
+            result.put("fieldList", fieldList);
+            if (apiDefinition.getRequest().getPage().getPageType().equalsIgnoreCase("pageNumber")) {
+                int pageCount = Integer.valueOf(JsonPath.read(response, apiDefinition.getRequest().getPage().getResponseData().get(0).getResolutionPath()).toString());
+                int beginPage = Integer.valueOf(apiDefinition.getRequest().getPage().getRequestData().get(0).getParameterDefaultValue());
+                if (apiDefinition.getRequest().getPage().getResponseData().get(0).getResolutionPathType().equalsIgnoreCase("totalNumber")) {
+                    pageCount = pageCount / Integer.valueOf(apiDefinition.getRequest().getPage().getRequestData().get(1).getParameterDefaultValue()) + 1;
+                }
+                for (int i = beginPage; i <= pageCount; i++) {
+                    apiDefinition.getRequest().getPage().getRequestData().get(0).setParameterDefaultValue(String.valueOf(i));
+                    response = execHttpRequest(false, apiDefinition, apiDefinition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), params(datasourceRequest));
+                    dataList.addAll(fetchResult(response, apiDefinition));
+                }
+            }
+            if (apiDefinition.getRequest().getPage().getPageType().equalsIgnoreCase("cursor")) {
+                dataList.addAll(fetchResult(response, apiDefinition));
+                String cursor = null;
+                try {
+                    cursor = JsonPath.read(response, apiDefinition.getRequest().getPage().getResponseData().get(0).getResolutionPath()).toString();
+                } catch (Exception e) {
+                }
+                while (cursor != null) {
+                    apiDefinition.getRequest().getPage().getRequestData().get(0).setParameterDefaultValue(cursor);
+                    response = execHttpRequest(false, apiDefinition, apiDefinition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), params(datasourceRequest));
+                    dataList.addAll(fetchResult(response, apiDefinition));
+                    try {
+                        if (cursor.equalsIgnoreCase(JsonPath.read(response, apiDefinition.getRequest().getPage().getResponseData().get(0).getResolutionPath()).toString())) {
+                            cursor = null;
+                        } else {
+                            cursor = JsonPath.read(response, apiDefinition.getRequest().getPage().getResponseData().get(0).getResolutionPath()).toString();
+                        }
+                    } catch (Exception e) {
+                        cursor = null;
+                    }
+                }
+            }
+            result.put("dataList", dataList);
+            return result;
+        } else {
+            String response = execHttpRequest(false, apiDefinition, apiDefinition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), params(datasourceRequest));
+            fieldList = getTableFields(apiDefinition);
+            result.put("fieldList", fieldList);
+            dataList = fetchResult(response, apiDefinition);
+            result.put("dataList", dataList);
+            return result;
+        }
     }
 
 
@@ -96,7 +144,7 @@ public class ApiUtils {
 
         List<TableField> tableFields = new ArrayList<>();
         try {
-            List<ApiDefinition> lists = objectMapper.readValue(datasourceRequest.getDatasource().getConfiguration(), listTypeReference);
+            List<ApiDefinition> lists = JsonUtil.parseList(datasourceRequest.getDatasource().getConfiguration(), listTypeReference);
             for (ApiDefinition apiDefinition : lists) {
                 if (datasourceRequest.getTable().equalsIgnoreCase(apiDefinition.getDeTableName())) {
                     tableFields = getTableFields(apiDefinition);
@@ -108,19 +156,23 @@ public class ApiUtils {
         return tableFields;
     }
 
-    public static String checkStatus(DatasourceRequest datasourceRequest) throws Exception {
+    public static String checkAPIStatus(DatasourceRequest datasourceRequest) throws Exception {
         TypeReference<List<ApiDefinition>> listTypeReference = new TypeReference<List<ApiDefinition>>() {
         };
         List<ApiDefinition> apiDefinitionList = JsonUtil.parseList(datasourceRequest.getDatasource().getConfiguration(), listTypeReference);
         List<ObjectNode> status = new ArrayList();
         for (ApiDefinition apiDefinition : apiDefinitionList) {
+            if (apiDefinition == null || (apiDefinition.getType() != null && apiDefinition.getType().equalsIgnoreCase("params"))) {
+                continue;
+            }
             datasourceRequest.setTable(apiDefinition.getName());
             ObjectNode apiItemStatuses = objectMapper.createObjectNode();
             try {
                 getData(datasourceRequest);
                 apiItemStatuses.put("name", apiDefinition.getName());
                 apiItemStatuses.put("status", "Success");
-            } catch (Exception ignore) {
+            } catch (Exception e) {
+                LogUtil.error("API status Error: " + datasourceRequest.getDatasource().getName() + "-" + apiDefinition.getName(), e);
                 apiItemStatuses.put("name", apiDefinition.getName());
                 apiItemStatuses.put("status", "Error");
             }
@@ -130,16 +182,30 @@ public class ApiUtils {
     }
 
     private static List<String[]> getData(DatasourceRequest datasourceRequest) throws Exception {
-        ApiDefinition apiDefinition = checkApiDefinition(datasourceRequest);
+        ApiDefinition apiDefinition = getApiDefinition(datasourceRequest);
         if (apiDefinition == null) {
             DEException.throwException("未找到");
         }
-        String response = execHttpRequest(apiDefinition, apiDefinition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), params(datasourceRequest));
+        String response = execHttpRequest(true, apiDefinition, apiDefinition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), params(datasourceRequest));
         return fetchResult(response, apiDefinition);
     }
 
+    public static String execHttpRequest(boolean preview, ApiDefinition api, int socketTimeout, List<ApiDefinition> paramsList) {
+        ApiDefinition apiDefinition = new ApiDefinition();
+        BeanUtils.copyBean(apiDefinition, api);
 
-    public static String execHttpRequest(ApiDefinition apiDefinition, int socketTimeout, List<ApiDefinition> paramsList) {
+        if (apiDefinition.getRequest().getPage() != null && apiDefinition.getRequest().getPage().getPageType() != null && apiDefinition.getRequest().getPage().getPageType().equalsIgnoreCase("pageNumber")) {
+            apiDefinition.setUrl(apiDefinition.getUrl().replace(apiDefinition.getRequest().getPage().getRequestData().get(0).getBuiltInParameterName(), apiDefinition.getRequest().getPage().getRequestData().get(0).getParameterDefaultValue()).replace(apiDefinition.getRequest().getPage().getRequestData().get(1).getBuiltInParameterName(), apiDefinition.getRequest().getPage().getRequestData().get(1).getParameterDefaultValue()));
+            apiDefinition.setRequest(JsonUtil.parseObject(JsonUtil.toJSONString(apiDefinition.getRequest()).toString().replace(apiDefinition.getRequest().getPage().getRequestData().get(0).getBuiltInParameterName(), apiDefinition.getRequest().getPage().getRequestData().get(0).getParameterDefaultValue()).replace(apiDefinition.getRequest().getPage().getRequestData().get(1).getBuiltInParameterName(), apiDefinition.getRequest().getPage().getRequestData().get(1).getParameterDefaultValue()), ApiDefinitionRequest.class));
+        }
+
+        if (apiDefinition.getRequest().getPage() != null && apiDefinition.getRequest().getPage().getPageType() != null && apiDefinition.getRequest().getPage().getPageType().equalsIgnoreCase("cursor")) {
+            apiDefinition.setUrl(apiDefinition.getUrl().replace(apiDefinition.getRequest().getPage().getRequestData().get(0).getBuiltInParameterName(), apiDefinition.getRequest().getPage().getRequestData().get(0).getParameterDefaultValue()).replace(apiDefinition.getRequest().getPage().getRequestData().get(1).getBuiltInParameterName(), apiDefinition.getRequest().getPage().getRequestData().get(1).getParameterDefaultValue()));
+            String defaultCursor = apiDefinition.getRequest().getPage().getRequestData().get(0).getParameterDefaultValue();
+            apiDefinition.setRequest(JsonUtil.parseObject(JsonUtil.toJSONString(apiDefinition.getRequest()).toString().replace(apiDefinition.getRequest().getPage().getRequestData().get(0).getBuiltInParameterName(), StringUtils.isEmpty(defaultCursor) ? "" : defaultCursor).replace(apiDefinition.getRequest().getPage().getRequestData().get(1).getBuiltInParameterName(), apiDefinition.getRequest().getPage().getRequestData().get(1).getParameterDefaultValue()), ApiDefinitionRequest.class));
+        }
+
+
         String response = "";
         HttpClientConfig httpClientConfig = new HttpClientConfig();
         httpClientConfig.setSocketTimeout(socketTimeout * 1000);
@@ -151,8 +217,8 @@ public class ApiUtils {
                     for (ApiDefinition definition : paramsList) {
                         for (int i = 0; i < definition.getFields().size(); i++) {
                             TableField field = definition.getFields().get(i);
-                            if (field.getOriginName().equalsIgnoreCase(param)) {
-                                String resultStr = execHttpRequest(definition, definition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), null);
+                            if (field.getName().equalsIgnoreCase(param)) {
+                                String resultStr = execHttpRequest(true, definition, definition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), null);
                                 List<String[]> dataList = fetchResult(resultStr, definition);
                                 if (dataList.size() > 0) {
                                     httpClientConfig.addHeader(header.get("name").toString(), dataList.get(0)[i]);
@@ -173,8 +239,8 @@ public class ApiUtils {
                         for (ApiDefinition definition : paramsList) {
                             for (int i = 0; i < definition.getFields().size(); i++) {
                                 TableField field = definition.getFields().get(i);
-                                if (field.getOriginName().equalsIgnoreCase(param)) {
-                                    String resultStr = execHttpRequest(definition, definition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), null);
+                                if (field.getName().equalsIgnoreCase(param)) {
+                                    String resultStr = execHttpRequest(true, definition, definition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), null);
                                     List<String[]> dataList = fetchResult(resultStr, definition);
                                     if (dataList.size() > 0) {
                                         result = result.replace("${" + param + "}", dataList.get(0)[i]);
@@ -184,6 +250,14 @@ public class ApiUtils {
                         }
                     }
                     httpClientConfig.addHeader(header.get("name").toString(), result);
+                } else if (header.get("nameType") != null && header.get("nameType").toString().equalsIgnoreCase("timeFun")) {
+                    String timeFormat = header.get("value").toString();
+                    Calendar calendar = Calendar.getInstance();
+                    Date date = calendar.getTime();
+                    if (StringUtils.isNotEmpty(timeFormat) && timeFormat.split(" ")[0].equalsIgnoreCase("currentDay")) {
+                        SimpleDateFormat simpleDateFormat = new SimpleDateFormat(timeFormat.split(" ")[1]);
+                        httpClientConfig.addHeader(header.get("name").toString(), simpleDateFormat.format(date));
+                    }
                 } else {
                     httpClientConfig.addHeader(header.get("name").toString(), header.get("value").toString());
                 }
@@ -191,18 +265,66 @@ public class ApiUtils {
             }
         }
         if (apiDefinitionRequest.getAuthManager() != null
-            && StringUtils.isNotBlank(apiDefinitionRequest.getAuthManager().getUsername())
-            && StringUtils.isNotBlank(apiDefinitionRequest.getAuthManager().getPassword())
-            && apiDefinitionRequest.getAuthManager().getVerification().equals("Basic Auth")) {
+                && StringUtils.isNotBlank(apiDefinitionRequest.getAuthManager().getUsername())
+                && StringUtils.isNotBlank(apiDefinitionRequest.getAuthManager().getPassword())
+                && apiDefinitionRequest.getAuthManager().getVerification().equals("Basic Auth")) {
             String authValue = "Basic " + Base64.getUrlEncoder().encodeToString((apiDefinitionRequest.getAuthManager().getUsername()
-                + ":" + apiDefinitionRequest.getAuthManager().getPassword()).getBytes());
+                    + ":" + apiDefinitionRequest.getAuthManager().getPassword()).getBytes());
             httpClientConfig.addHeader("Authorization", authValue);
         }
 
         List<String> params = new ArrayList<>();
         for (Map<String, String> argument : apiDefinition.getRequest().getArguments()) {
             if (StringUtils.isNotEmpty(argument.get("name")) && StringUtils.isNotEmpty(argument.get("value"))) {
-                params.add(argument.get("name") + "=" + URLEncoder.encode(argument.get("value")));
+                if (argument.get("nameType") != null && argument.get("nameType").toString().equalsIgnoreCase("params")) {
+                    String param = argument.get("value").toString();
+                    for (ApiDefinition definition : paramsList) {
+                        for (int i = 0; i < definition.getFields().size(); i++) {
+                            TableField field = definition.getFields().get(i);
+                            if (field.getOriginName().equalsIgnoreCase(param)) {
+                                String resultStr = execHttpRequest(true, definition, definition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), null);
+                                List<String[]> dataList = fetchResult(resultStr, definition);
+                                if (dataList.size() > 0) {
+                                    params.add(argument.get("name") + "=" + dataList.get(0)[i]);
+                                }
+                            }
+                        }
+                    }
+                } else if (argument.get("nameType") != null && argument.get("nameType").toString().equalsIgnoreCase("custom")) {
+                    List<String> arrayList = new ArrayList<>();
+                    String regex = "\\$\\{(.*?)\\}";
+                    Pattern pattern = Pattern.compile(regex);
+                    Matcher matcher = pattern.matcher(argument.get("value").toString());
+                    while (matcher.find()) {
+                        arrayList.add(matcher.group(1));
+                    }
+                    String result = argument.get("value").toString();
+                    for (String param : arrayList) {
+                        for (ApiDefinition definition : paramsList) {
+                            for (int i = 0; i < definition.getFields().size(); i++) {
+                                TableField field = definition.getFields().get(i);
+                                if (field.getName().equalsIgnoreCase(param)) {
+                                    String resultStr = execHttpRequest(true, definition, definition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), null);
+                                    List<String[]> dataList = fetchResult(resultStr, definition);
+                                    if (dataList.size() > 0) {
+                                        result = result.replace("${" + param + "}", dataList.get(0)[i]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    params.add(argument.get("name") + "=" + result);
+                } else if (argument.get("nameType") != null && argument.get("nameType").toString().equalsIgnoreCase("timeFun")) {
+                    String timeFormat = argument.get("value").toString();
+                    Calendar calendar = Calendar.getInstance();
+                    Date date = calendar.getTime();
+                    if (StringUtils.isNotEmpty(timeFormat) && timeFormat.split(" ")[0].equalsIgnoreCase("currentDay")) {
+                        SimpleDateFormat simpleDateFormat = new SimpleDateFormat(timeFormat.split(" ")[1]);
+                        params.add(argument.get("name") + "=" + simpleDateFormat.format(date));
+                    }
+                } else {
+                    params.add(argument.get("name") + "=" + URLEncoder.encode(argument.get("value")));
+                }
             }
         }
         if (org.apache.commons.collections4.CollectionUtils.isNotEmpty(params)) {
@@ -211,7 +333,6 @@ public class ApiUtils {
 
         switch (apiDefinition.getMethod()) {
             case "GET":
-
                 response = HttpClientUtil.get(apiDefinition.getUrl().trim(), httpClientConfig);
                 break;
             case "POST":
@@ -223,6 +344,28 @@ public class ApiUtils {
                     String raw = null;
                     if (apiDefinitionRequest.getBody().get("raw") != null) {
                         raw = apiDefinitionRequest.getBody().get("raw").toString();
+
+                        List<String> bodYparams = new ArrayList<>();
+                        String regex = "\\$\\{(.*?)\\}";
+                        Pattern pattern = Pattern.compile(regex);
+                        Matcher matcher = pattern.matcher(raw);
+                        while (matcher.find()) {
+                            bodYparams.add(matcher.group(1));
+                        }
+                        for (String param : bodYparams) {
+                            for (ApiDefinition definition : paramsList) {
+                                for (int i = 0; i < definition.getFields().size(); i++) {
+                                    TableField field = definition.getFields().get(i);
+                                    if (field.getOriginName().equalsIgnoreCase(param)) {
+                                        String resultStr = execHttpRequest(false, definition, definition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), null);
+                                        List<String[]> dataList = fetchResult(resultStr, definition);
+                                        if (dataList.size() > 0) {
+                                            raw = raw.replace("${" + param + "}", dataList.get(0)[i]);
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         response = HttpClientUtil.post(apiDefinition.getUrl(), raw, httpClientConfig);
                     }
                 }
@@ -239,8 +382,58 @@ public class ApiUtils {
                             DEException.throwException(e);
                         }
                         for (JsonNode jsonNode : rootNode) {
-                            if (jsonNode.has("name")) {
-                                body.put(jsonNode.get("name").asText(), jsonNode.get("value").asText());
+                            if (jsonNode.has("name") && jsonNode.has("value")) {
+                                if (jsonNode.get("value") != null && StringUtils.isNotEmpty(jsonNode.get("value").asText())) {
+                                    if (jsonNode.get("nameType") != null && jsonNode.get("nameType").asText().equalsIgnoreCase("params")) {
+                                        String param = jsonNode.get("value").asText();
+                                        for (ApiDefinition definition : paramsList) {
+                                            for (int i = 0; i < definition.getFields().size(); i++) {
+                                                TableField field = definition.getFields().get(i);
+                                                if (field.getOriginName().equalsIgnoreCase(param)) {
+                                                    String resultStr = execHttpRequest(false, definition, definition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), null);
+                                                    List<String[]> dataList = fetchResult(resultStr, definition);
+                                                    if (dataList.size() > 0) {
+                                                        body.put(jsonNode.get("name").asText(), dataList.get(0)[i]);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else if (jsonNode.get("nameType") != null && jsonNode.get("nameType").asText().equalsIgnoreCase("custom")) {
+                                        List<String> bodYparams = new ArrayList<>();
+                                        String regex = "\\$\\{(.*?)\\}";
+                                        Pattern pattern = Pattern.compile(regex);
+                                        Matcher matcher = pattern.matcher(jsonNode.get("value").asText());
+                                        while (matcher.find()) {
+                                            bodYparams.add(matcher.group(1));
+                                        }
+                                        String result = jsonNode.get("value").asText();
+                                        for (String param : bodYparams) {
+                                            for (ApiDefinition definition : paramsList) {
+                                                for (int i = 0; i < definition.getFields().size(); i++) {
+                                                    TableField field = definition.getFields().get(i);
+                                                    if (field.getOriginName().equalsIgnoreCase(param)) {
+                                                        String resultStr = execHttpRequest(false, definition, definition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), null);
+                                                        List<String[]> dataList = fetchResult(resultStr, definition);
+                                                        if (dataList.size() > 0) {
+                                                            result = result.replace("${" + param + "}", dataList.get(0)[i]);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        body.put(jsonNode.get("name").asText(), result);
+                                    } else if (jsonNode.get("nameType") != null && jsonNode.get("nameType").asText().equalsIgnoreCase("timeFun")) {
+                                        String timeFormat = jsonNode.get("value").asText();
+                                        Calendar calendar = Calendar.getInstance();
+                                        Date date = calendar.getTime();
+                                        if (StringUtils.isNotEmpty(timeFormat) && timeFormat.split(" ")[0].equalsIgnoreCase("currentDay")) {
+                                            SimpleDateFormat simpleDateFormat = new SimpleDateFormat(timeFormat.split(" ")[1]);
+                                            body.put(jsonNode.get("name").toString(), simpleDateFormat.format(date));
+                                        }
+                                    } else {
+                                        body.put(jsonNode.get("name").asText(), jsonNode.get("value").asText());
+                                    }
+                                }
                             }
                         }
                         response = HttpClientUtil.post(apiDefinition.getUrl(), body, httpClientConfig);
@@ -253,28 +446,55 @@ public class ApiUtils {
         return response;
     }
 
-    private static void previewNum(List<Map<String, Object>> field) {
-        for (Map<String, Object> stringObjectMap : field) {
+    private static void previewNum(List<Map<String, Object>> fields, String response) {
+        int previewNum = 100;
+        for (Map<String, Object> field : fields) {
             JSONArray newArray = new JSONArray();
-            if (stringObjectMap.get("value") != null) {
-                try {
-                    TypeReference<JSONArray> listTypeReference = new TypeReference<JSONArray>() {
-                    };
-                    JSONArray array = objectMapper.readValue(stringObjectMap.get("value").toString(), listTypeReference);
-                    if (array.size() > 100) {
-                        for (int i = 0; i < Math.min(100, array.size()); i++) {
-                            newArray.add(array.get(i));
+            if (field.get("value") != null) {
+                Object object = JsonPath.using(jsonPathConf).parse(response).read(field.get("jsonPath").toString());
+                int i = 0;
+                if (object instanceof List) {
+                    for (Object o : (List<String>) object) {
+                        if (Objects.isNull(o)) {
+                            newArray.add("");
+                        } else {
+                            newArray.add(o.toString());
                         }
-                        stringObjectMap.put("value", newArray);
+                        i++;
+                        if (i >= previewNum) {
+                            break;
+                        }
                     }
-                } catch (Exception e) {
-
+                } else {
+                    if (object != null) {
+                        newArray.add(object.toString());
+                    }
                 }
+                field.put("value", newArray);
+            } else {
+                List<Map<String, Object>> childrenFields = (List<Map<String, Object>>) field.get("children");
+                previewNum(childrenFields, response);
             }
         }
     }
 
-    public static ApiDefinition checkApiDefinition(ApiDefinition apiDefinition, String response) throws DEException {
+    public static ApiDefinition checkApiDefinition(DatasourceRequest datasourceRequest) throws DEException {
+        ApiDefinition apiDefinition = new ApiDefinition();
+        TypeReference<List<ApiDefinition>> listTypeReference = new TypeReference<List<ApiDefinition>>() {
+        };
+        List<ApiDefinition> apiDefinitionList = JsonUtil.parseList(datasourceRequest.getDatasource().getConfiguration(), listTypeReference);
+        if (!CollectionUtils.isEmpty(apiDefinitionList)) {
+            for (ApiDefinition definition : apiDefinitionList) {
+                if (definition != null && (definition.getType() == null || !definition.getType().equalsIgnoreCase("params"))) {
+                    apiDefinition = definition;
+                }
+            }
+        }
+        String response = execHttpRequest(true, apiDefinition, apiDefinition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), params(datasourceRequest));
+        return checkApiDefinition(apiDefinition, response);
+    }
+
+    private static ApiDefinition checkApiDefinition(ApiDefinition apiDefinition, String response) throws DEException {
         if (StringUtils.isEmpty(response)) {
             DEException.throwException("该请求返回数据为空");
         }
@@ -296,7 +516,7 @@ public class ApiUtils {
                 rootPath = "$";
                 handleStr(apiDefinition, response, fields, rootPath);
             }
-            previewNum(fields);
+            previewNum(fields, response);
             apiDefinition.setJsonFields(fields);
             return apiDefinition;
         } else {
@@ -343,7 +563,6 @@ public class ApiUtils {
                             };
                             array = objectMapper.readValue(field.get("value").toString(), listTypeReference);
                         } catch (Exception e) {
-                            e.printStackTrace();
                             DEException.throwException(e);
                         }
                         array.add(Optional.ofNullable(data.get(field.get("originName"))).orElse("").toString().replaceAll("\n", " ").replaceAll("\r", " "));
@@ -466,6 +685,8 @@ public class ApiUtils {
                 if (!ObjectUtils.isEmpty(o.get("jsonPath")) && StringUtils.isNotEmpty(field.getJsonPath()) && field.getJsonPath().equals(o.get("jsonPath").toString())) {
                     o.put("checked", true);
                     o.put("name", field.getName());
+                    o.put("primaryKey", field.isPrimaryKey());
+                    o.put("length", field.getLength());
                     o.put("deExtractType", field.getDeExtractType());
                 }
             }
@@ -512,6 +733,7 @@ public class ApiUtils {
                     fieldChildren.add(itemChild);
                 }
             }
+            field.put("children", fieldChildren);
         }
     }
 
@@ -563,7 +785,7 @@ public class ApiUtils {
                 String[] row = new String[apiDefinition.getFields().size()];
                 int i = 0;
                 for (TableField field : apiDefinition.getFields()) {
-                    row[i] = Optional.ofNullable(data.get(field.getName())).orElse("").toString().replaceAll("\n", " ").replaceAll("\r", " ");
+                    row[i] = Optional.ofNullable(data.get(field.getOriginName())).orElse("").toString().replaceAll("\n", " ").replaceAll("\r", " ");
                     i++;
                 }
                 dataList.add(row);
@@ -574,9 +796,15 @@ public class ApiUtils {
             List<List<String>> columnDataList = new ArrayList<>();
             for (int i = 0; i < jsonPaths.size(); i++) {
                 List<String> data = new ArrayList<>();
-                Object object = JsonPath.read(result, jsonPaths.get(i));
-                if (object instanceof List && jsonPaths.get(i).contains("[*]")) {
-                    data = (List<String>) object;
+                Object object = JsonPath.using(jsonPathConf).parse(result).read(jsonPaths.get(i));
+                if (object instanceof List) {
+                    for (Object o : (List<String>) object) {
+                        if (Objects.isNull(o)) {
+                            data.add("");
+                        } else {
+                            data.add(o.toString());
+                        }
+                    }
                 } else {
                     if (object != null) {
                         data.add(object.toString());
@@ -602,27 +830,21 @@ public class ApiUtils {
     private static List<ApiDefinition> params(DatasourceRequest datasourceRequest) {
         TypeReference<List<ApiDefinition>> listTypeReference = new TypeReference<List<ApiDefinition>>() {
         };
-        List<ApiDefinition> apiDefinitionListTemp = null;
-        try {
-            apiDefinitionListTemp = objectMapper.readValue(datasourceRequest.getDatasource().getConfiguration(), listTypeReference);
-        } catch (Exception e) {
-            DEException.throwException(e);
-        }
-        return apiDefinitionListTemp.stream().filter(apiDefinition -> apiDefinition.getType() != null && apiDefinition.getType().equalsIgnoreCase("params")).collect(Collectors.toList());
+        List<ApiDefinition> apiDefinitionListTemp = JsonUtil.parseList(datasourceRequest.getDatasource().getConfiguration(), listTypeReference);
+        return apiDefinitionListTemp.stream().filter(apiDefinition -> apiDefinition != null && apiDefinition.getType() != null && apiDefinition.getType().equalsIgnoreCase("params")).collect(Collectors.toList());
     }
 
-    private static ApiDefinition checkApiDefinition(DatasourceRequest datasourceRequest) throws DEException {
+    private static ApiDefinition getApiDefinition(DatasourceRequest datasourceRequest) throws DEException {
         List<ApiDefinition> apiDefinitionList = new ArrayList<>();
         TypeReference<List<ApiDefinition>> listTypeReference = new TypeReference<List<ApiDefinition>>() {
         };
-        List<ApiDefinition> apiDefinitionListTemp = null;
-        try {
-            apiDefinitionListTemp = objectMapper.readValue(datasourceRequest.getDatasource().getConfiguration(), listTypeReference);
-        } catch (Exception e) {
-            DEException.throwException(e);
-        }
+        List<ApiDefinition> apiDefinitionListTemp = JsonUtil.parseList(datasourceRequest.getDatasource().getConfiguration(), listTypeReference);
+
         if (!CollectionUtils.isEmpty(apiDefinitionListTemp)) {
             for (ApiDefinition apiDefinition : apiDefinitionListTemp) {
+                if (apiDefinition == null || apiDefinition.getType() == null || apiDefinition.getType().equalsIgnoreCase("params")) {
+                    continue;
+                }
                 if (apiDefinition.getDeTableName().equalsIgnoreCase(datasourceRequest.getTable()) || apiDefinition.getName().equalsIgnoreCase(datasourceRequest.getTable())) {
                     apiDefinitionList.add(apiDefinition);
                 }
@@ -637,6 +859,9 @@ public class ApiUtils {
         }
         ApiDefinition find = null;
         for (ApiDefinition apiDefinition : apiDefinitionList) {
+            if (apiDefinition == null) {
+                continue;
+            }
             if (apiDefinition.getName().equalsIgnoreCase(datasourceRequest.getTable()) || apiDefinition.getDeTableName().equalsIgnoreCase(datasourceRequest.getTable())) {
                 find = apiDefinition;
             }

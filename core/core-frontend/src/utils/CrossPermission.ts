@@ -1,4 +1,4 @@
-import {ElMessage, ElMessageBox} from 'element-plus-secondary'
+import { ElMessage, ElMessageBox } from 'element-plus-secondary'
 
 export const check = (data, id?: string, weight?: number) => {
   if (!weight) {

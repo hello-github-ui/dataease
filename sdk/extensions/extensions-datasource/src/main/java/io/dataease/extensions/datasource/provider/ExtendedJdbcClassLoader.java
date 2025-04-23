@@ -9,17 +9,17 @@ import java.net.URLClassLoader;
 public class ExtendedJdbcClassLoader extends URLClassLoader {
 
     private String driver;
-
-    public ExtendedJdbcClassLoader(URL[] urls, ClassLoader parent) {
-        super(urls, parent);
-    }
-
     public String getDriver() {
         return driver;
     }
 
     public void setDriver(String driver) {
         this.driver = driver;
+    }
+
+
+    public ExtendedJdbcClassLoader(URL[] urls, ClassLoader parent) {
+        super(urls, parent);
     }
 
     @Override
@@ -74,6 +74,7 @@ public class ExtendedJdbcClassLoader extends URLClassLoader {
             throw new ClassNotFoundException(name);
         }
     }
+
 
 
     public void addFile(String s) throws IOException {

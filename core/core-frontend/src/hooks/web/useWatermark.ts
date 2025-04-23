@@ -51,5 +51,5 @@ export function useWatermark(appendEl: HTMLElement | null = document.body) {
     window.addEventListener('resize', func)
   }
 
-  return {setWatermark, clear}
+  return { setWatermark, clear }
 }

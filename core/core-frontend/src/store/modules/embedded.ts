@@ -1,16 +1,18 @@
-import {defineStore} from 'pinia'
-import {store} from '../index'
+import { defineStore } from 'pinia'
+import { store } from '../index'
 
 interface AppState {
   type: string
   token: string
   busiFlag: string
   outerParams: string
+  suffixId: string
   baseUrl: string
   dvId: string
   pid: string
   chartId: string
   resourceId: string
+  dfId: string
   opt: string
   createType: string
   templateParams: string
@@ -21,6 +23,7 @@ interface AppState {
   datasetId: string
   datasetCopyId: string
   datasetPid: string
+  tokenInfo?: Map<string, object>
 }
 
 export const userStore = defineStore('embedded', {
@@ -30,11 +33,13 @@ export const userStore = defineStore('embedded', {
       token: '',
       busiFlag: '',
       outerParams: '',
+      suffixId: '',
       baseUrl: '',
       dvId: '',
       pid: '',
       chartId: '',
       resourceId: '',
+      dfId: '',
       opt: '',
       createType: '',
       templateParams: '',
@@ -44,7 +49,8 @@ export const userStore = defineStore('embedded', {
       tableName: '',
       datasetId: '',
       datasetCopyId: '',
-      datasetPid: ''
+      datasetPid: '',
+      tokenInfo: new Map()
     }
   },
   getters: {
@@ -72,6 +78,9 @@ export const userStore = defineStore('embedded', {
     getOuterParams(): string {
       return this.outerParams
     },
+    getSuffixId(): string {
+      return this.suffixId
+    },
     getBaseUrl(): string {
       return this.baseUrl
     },
@@ -87,19 +96,27 @@ export const userStore = defineStore('embedded', {
     getResourceId(): string {
       return this.resourceId
     },
+    getDfId(): string {
+      return this.dfId
+    },
     getOpt(): string {
       return this.opt
+    },
+    getTokenInfo(): Map<string, object> {
+      return this.tokenInfo
     },
     getIframeData(): any {
       return {
         embeddedToken: this.token,
         busiFlag: this.busiFlag,
         outerParams: this.outerParams,
+        suffixId: this.suffixId,
         type: this.type,
         dvId: this.dvId,
         chartId: this.chartId,
         pid: this.pid,
-        resourceId: this.resourceId
+        resourceId: this.resourceId,
+        dfId: this.dfId
       }
     }
   },
@@ -143,6 +160,9 @@ export const userStore = defineStore('embedded', {
     setOuterParams(outerParams: string) {
       this.outerParams = outerParams
     },
+    setSuffixId(suffixId: string) {
+      this.suffixId = suffixId
+    },
     setBaseUrl(baseUrl: string) {
       this.baseUrl = baseUrl
     },
@@ -158,18 +178,26 @@ export const userStore = defineStore('embedded', {
     setResourceId(resourceId: string) {
       this.resourceId = resourceId
     },
+    setDfId(dfId: string) {
+      this.dfId = dfId
+    },
     setOpt(opt: string) {
       this.opt = opt
     },
-    setIframeData(data: any) {
+    async setIframeData(data: any) {
       this.type = data['type']
       this.token = data['embeddedToken']
       this.busiFlag = data['busiFlag']
       this.outerParams = data['outerParams']
+      this.suffixId = data['suffixId']
       this.dvId = data['dvId']
       this.chartId = data['chartId']
       this.pid = data['pid']
       this.resourceId = data['resourceId']
+      this.dfId = data['dfId']
+    },
+    async setTokenInfo(tokenInfo: Map<string, object>) {
+      this.tokenInfo = tokenInfo
     },
     clearState() {
       this.setPid('')
@@ -177,6 +205,7 @@ export const userStore = defineStore('embedded', {
       this.setCreateType('')
       this.setTemplateParams('')
       this.setResourceId('')
+      this.setDfId('')
       this.setDvId('')
       this.setJumpInfoParam('')
       this.setOuterUrl('')

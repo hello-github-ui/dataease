@@ -70,10 +70,10 @@ public class DefaultCacheImpl implements DECacheService {
 
     private MutableConfiguration<String, Object> defaultConfiguration() {
         MutableConfiguration<String, Object> configuration =
-            new MutableConfiguration<String, Object>()
-                .setTypes(String.class, Object.class)
-                .setStoreByValue(false)
-                .setExpiryPolicyFactory(ModifiedExpiryPolicy.factoryOf(Duration.ONE_MINUTE));
+                new MutableConfiguration<String, Object>()
+                        .setTypes(String.class, Object.class)
+                        .setStoreByValue(false)
+                        .setExpiryPolicyFactory(ModifiedExpiryPolicy.factoryOf(Duration.ONE_MINUTE));
         return configuration;
     }
 
@@ -83,17 +83,17 @@ public class DefaultCacheImpl implements DECacheService {
             unit = TimeUnit.SECONDS;
         }
         MutableConfiguration<String, Object> configuration =
-            new MutableConfiguration<String, Object>()
-                .setTypes(String.class, Object.class)
-                .setStoreByValue(false)
-                .setExpiryPolicyFactory(ModifiedExpiryPolicy.factoryOf(new Duration(unit, expTime)));
+                new MutableConfiguration<String, Object>()
+                        .setTypes(String.class, Object.class)
+                        .setStoreByValue(false)
+                        .setExpiryPolicyFactory(ModifiedExpiryPolicy.factoryOf(new Duration(unit, expTime)));
         return configuration;
     }
 
     @Override
     public void keyRemove(String cacheName, String key) {
         Cache<Object, Object> cache = cacheManager.getCache(cacheName);
-        if (cache != null) {
+        if(cache != null){
             cache.remove(key);
         }
     }

@@ -12,7 +12,7 @@ public class ReportGridVO implements Serializable {
 
     @Serial
     private static final long serialVersionUID = -5178055146669970633L;
-    @JsonSerialize(using = ToStringSerializer.class)
+    @JsonSerialize(using= ToStringSerializer.class)
     private Long id;
 
     private String name;
@@ -26,6 +26,8 @@ public class ReportGridVO implements Serializable {
     private Long nextExecTime;
 
     private String creator;
+
+    private String updater;
 
     private Long createTime;
 }

@@ -8,21 +8,35 @@ import java.util.List;
 @Data
 public class VisualizationExport2AppVO {
 
-    List<AppCoreChartViewVO> chartViewsInfo;
-    List<AppCoreDatasetGroupVO> datasetGroupsInfo;
-    List<AppCoreDatasetTableVO> datasetTablesInfo;
-    List<AppCoreDatasetTableFieldVO> datasetTableFieldsInfo;
-    List<AppCoreDatasourceVO> datasourceInfo;
-    List<AppCoreDatasourceTaskVO> datasourceTaskInfo;
-    List<VisualizationLinkJumpVO> linkJumps;
-    List<VisualizationLinkJumpInfoVO> linkJumpInfos;
-    List<VisualizationLinkJumpTargetViewInfoVO> linkJumpTargetInfos;
-    List<VisualizationLinkageVO> linkages;
-    List<VisualizationLinkageFieldVO> linkageFields;
     private Boolean checkStatus = false;
+
     private String checkMes;
+
     private String visualizationInfo;
+
     private String visualizationViewsInfo;
+
+    List<AppCoreChartViewVO> chartViewsInfo;
+
+    List<AppCoreDatasetGroupVO> datasetGroupsInfo;
+
+    List<AppCoreDatasetTableVO> datasetTablesInfo;
+
+    List<AppCoreDatasetTableFieldVO> datasetTableFieldsInfo;
+
+    List<AppCoreDatasourceVO> datasourceInfo;
+
+    List<AppCoreDatasourceTaskVO> datasourceTaskInfo;
+
+    List<VisualizationLinkJumpVO> linkJumps;
+
+    List<VisualizationLinkJumpInfoVO> linkJumpInfos;
+
+    List<VisualizationLinkJumpTargetViewInfoVO> linkJumpTargetInfos;
+
+    List<VisualizationLinkageVO> linkages;
+
+    List<VisualizationLinkageFieldVO> linkageFields;
 
     public VisualizationExport2AppVO() {
 

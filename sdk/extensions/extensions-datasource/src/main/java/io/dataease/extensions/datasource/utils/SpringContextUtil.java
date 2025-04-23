@@ -14,17 +14,14 @@ import java.util.Map;
 @Component
 public class SpringContextUtil implements ApplicationContextAware {
 
-    /**
-     * 上下文对象实例
-     */
-    private static ApplicationContext applicationContext;
-
     //获取bean工厂，用来实现动态注入bean
     //不能使用其他类加载器加载bean
     //否则会出现异常:类未找到，类未定义
-    public static DefaultListableBeanFactory getBeanFactory() {
+    public static DefaultListableBeanFactory getBeanFactory(){
         return (DefaultListableBeanFactory) getApplicationContext().getAutowireCapableBeanFactory();
     }
+
+
 
     public static List<Map<String, Object>> getAllBean() {
 
@@ -33,11 +30,11 @@ public class SpringContextUtil implements ApplicationContextAware {
 
 
         String[] beans = getApplicationContext()
-            .getBeanDefinitionNames();
+                .getBeanDefinitionNames();
 
         for (String beanName : beans) {
             Class<?> beanType = getApplicationContext()
-                .getType(beanName);
+                    .getType(beanName);
 
             Map<String, Object> map = new HashMap<>();
 
@@ -51,6 +48,19 @@ public class SpringContextUtil implements ApplicationContextAware {
         return list;
     }
 
+
+
+
+    /**
+     * 上下文对象实例
+     */
+    private static ApplicationContext applicationContext;
+
+
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        this.applicationContext = applicationContext;
+    }
+
     /**
      * 获取applicationContext
      *
@@ -60,9 +70,6 @@ public class SpringContextUtil implements ApplicationContextAware {
         return applicationContext;
     }
 
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        this.applicationContext = applicationContext;
-    }
 
     public static Object getBean(String name) {
         return getApplicationContext().getBean(name);

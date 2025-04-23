@@ -1,18 +1,21 @@
 import eventBus from '@/utils/eventBus'
-import {dvMainStoreWithOut} from '@/store/modules/data-visualization/dvMain'
-import {snapshotStoreWithOut} from '@/store/modules/data-visualization/snapshot'
-import {copyStoreWithOut} from '@/store/modules/data-visualization/copy'
-import {composeStoreWithOut} from '@/store/modules/data-visualization/compose'
-import {lockStoreWithOut} from '@/store/modules/data-visualization/lock'
-import {storeToRefs} from 'pinia'
+import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
+import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
+import { copyStoreWithOut } from '@/store/modules/data-visualization/copy'
+import { composeStoreWithOut } from '@/store/modules/data-visualization/compose'
+import { lockStoreWithOut } from '@/store/modules/data-visualization/lock'
+import { storeToRefs } from 'pinia'
+import { getCurInfo } from '@/store/modules/data-visualization/common'
+import { isGroupCanvas, isTabCanvas } from '@/utils/canvasUtils'
+import { groupStyleRevert } from '@/utils/style'
 
 const dvMainStore = dvMainStoreWithOut()
 const composeStore = composeStoreWithOut()
 const snapshotStore = snapshotStoreWithOut()
 const copyStore = copyStoreWithOut()
 const lockStore = lockStoreWithOut()
-const {curComponent, isInEditor, editMode} = storeToRefs(dvMainStore)
-const {areaData} = storeToRefs(composeStore)
+const { curComponent, isInEditor, editMode } = storeToRefs(dvMainStore)
+const { areaData } = storeToRefs(composeStore)
 
 const ctrlKey = 17,
   shiftKey = 16, // shift
@@ -35,7 +38,8 @@ const ctrlKey = 17,
   dKey = 68, // 删除
   deleteKey = 46, // 删除
   macDeleteKey = 8, // 删除
-  eKey = 69 // 清空画布
+  eKey = 69, // 清空画布
+  spaceKey = 32 // 空格键
 
 export const keycodes = [8, 37, 38, 39, 40, 66, 67, 68, 69, 71, 76, 80, 83, 85, 86, 88, 89, 90]
 
@@ -84,7 +88,10 @@ const checkDialog = () => {
     }
   })
   document.querySelectorAll('.ed-popper').forEach(element => {
-    if (window.getComputedStyle(element).getPropertyValue('display') != 'none') {
+    if (
+      !element.classList?.contains('template-popper-tips') &&
+      window.getComputedStyle(element).getPropertyValue('display') != 'none'
+    ) {
       haveDialog = true
     }
   })
@@ -98,12 +105,11 @@ const checkDialog = () => {
 
 let isCtrlOrCommandDown = false
 let isShiftDown = false
-
 // 全局监听按键操作并执行相应命令
 export function listenGlobalKeyDown() {
   window.onkeydown = e => {
     if (editMode.value === 'preview' || checkDialog()) return
-    const {keyCode} = e
+    const { keyCode } = e
     if (positionMoveKey[keyCode] && curComponent.value) {
       positionMoveKey[keyCode](keyCode)
       e.preventDefault()
@@ -116,6 +122,10 @@ export function listenGlobalKeyDown() {
       isCtrlOrCommandDown = true
       composeStore.setIsCtrlOrCmdDownStatus(true)
       releaseKeyCheck('ctrl')
+    } else if (keyCode === spaceKey) {
+      composeStore.setSpaceDownStatus(true)
+      e.preventDefault()
+      e.stopPropagation()
     } else if ((keyCode == deleteKey || keyCode == macDeleteKey) && curComponent.value) {
       deleteComponent()
     } else if (isCtrlOrCommandDown) {
@@ -136,6 +146,10 @@ export function listenGlobalKeyDown() {
     } else if (e.keyCode === shiftKey) {
       isShiftDown = true
       composeStore.setIsShiftDownStatus(false)
+    } else if (e.keyCode === spaceKey) {
+      composeStore.setSpaceDownStatus(false)
+      e.preventDefault()
+      e.stopPropagation()
     }
   }
 
@@ -173,26 +187,36 @@ function paste() {
 
 function move(keyCode) {
   if (curComponent.value) {
+    const scale = dvMainStore.canvasStyleData.scale / 100
     if (keyCode === leftKey) {
-      curComponent.value.style.left = --curComponent.value.style.left
-      groupAreaAdaptor(-1, 0)
+      curComponent.value.style.left = curComponent.value.style.left - scale
+      groupAreaAdaptor(-scale, 0)
     } else if (keyCode === rightKey) {
-      curComponent.value.style.left = ++curComponent.value.style.left
-      groupAreaAdaptor(1, 0)
+      curComponent.value.style.left = curComponent.value.style.left + scale
+      groupAreaAdaptor(scale, 0)
     } else if (keyCode === upKey) {
-      curComponent.value.style.top = --curComponent.value.style.top
-      groupAreaAdaptor(0, -1)
+      curComponent.value.style.top = curComponent.value.style.top - scale
+      groupAreaAdaptor(0, -scale)
     } else if (keyCode === downKey) {
-      curComponent.value.style.top = ++curComponent.value.style.top
-      groupAreaAdaptor(0, 1)
+      curComponent.value.style.top = curComponent.value.style.top + scale
+      groupAreaAdaptor(0, scale)
     }
     snapshotStore.recordSnapshotCache('key-move')
   }
 }
 
 function groupAreaAdaptor(leftOffset = 0, topOffset = 0) {
-  if (curComponent.value.component === 'GroupArea') {
-    composeStore.areaData.components.forEach(component => {
+  const canvasId = curComponent.value.canvasId
+  const parentNode = document.querySelector('#editor-' + canvasId)
+
+  //如果当前画布是Group内部画布 则对应组件定位在resize时要还原到groupStyle中
+  if (isGroupCanvas(canvasId) || isTabCanvas(canvasId)) {
+    groupStyleRevert(curComponent.value, {
+      width: parentNode.offsetWidth,
+      height: parentNode.offsetHeight
+    })
+  } else if (curComponent.value.component === 'GroupArea' && areaData.value.components.length > 0) {
+    areaData.value.components.forEach(component => {
       component.style.top = component.style.top + topOffset
       component.style.left = component.style.left + leftOffset
     })
@@ -235,8 +259,11 @@ function preview() {
 }
 
 function deleteComponent() {
-  if (curComponent.value) {
-    dvMainStore.deleteComponentById(curComponent.value.id)
+  if (curComponent.value && curComponent.value.component !== 'GroupArea') {
+    const curInfo = getCurInfo()
+    if (curInfo) {
+      dvMainStore.deleteComponent(curInfo.index, curInfo.componentData)
+    }
   } else if (areaData.value.components.length) {
     areaData.value.components.forEach(component => {
       dvMainStore.deleteComponentById(component.id)

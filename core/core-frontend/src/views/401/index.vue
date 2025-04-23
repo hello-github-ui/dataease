@@ -1,15 +1,15 @@
 <template>
   <div class="page-not-found">
-    <Icon className="login-logo-icon" name="401"></Icon>
+    <Icon className="login-logo-icon" name="401"><Four class="svg-icon login-logo-icon" /></Icon>
     <span class="span-403">{{ t('common.no_menu_tips') }}</span>
   </div>
 </template>
 
 <script lang="ts" setup>
-import {Icon} from '@/components/icon-custom'
-import {useI18n} from '@/hooks/web/useI18n'
-
-const {t} = useI18n()
+import Four from '@/assets/svg/401.svg'
+import { Icon } from '@/components/icon-custom'
+import { useI18n } from '@/hooks/web/useI18n'
+const { t } = useI18n()
 </script>
 <style lang="less">
 .page-not-found {
@@ -18,7 +18,6 @@ const {t} = useI18n()
   position: absolute;
   text-align: center;
 }
-
 .span-403 {
   display: block;
   margin: 0;

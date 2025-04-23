@@ -1,9 +1,11 @@
 package io.dataease.engine.sql;
 
-import io.dataease.engine.constant.SQLConstants;
+import io.dataease.constant.SQLConstants;
 import io.dataease.extensions.datasource.model.SQLMeta;
 import io.dataease.extensions.datasource.model.SQLObj;
 import io.dataease.extensions.view.dto.ChartViewDTO;
+import io.dataease.extensions.view.dto.SortAxis;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.stringtemplate.v4.ST;
@@ -11,6 +13,7 @@ import org.stringtemplate.v4.STGroup;
 import org.stringtemplate.v4.STGroupString;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 /**
@@ -59,9 +62,9 @@ public class SQLProvider {
                 xOrders = new ArrayList<>();
                 SQLObj sqlObj = xFields.get(0);
                 SQLObj result = SQLObj.builder()
-                    .orderField(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
-                    .orderAlias(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
-                    .orderDirection("ASC").build();
+                        .orderField(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
+                        .orderAlias(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
+                        .orderDirection("ASC").build();
                 xOrders.add(result);
             }
         }
@@ -104,9 +107,9 @@ public class SQLProvider {
         st_sql.add("isGroup", isGroup);
 
         SQLObj tableSQL = SQLObj.builder()
-            .tableName(String.format(SQLConstants.BRACKETS, sql))
-            .tableAlias(String.format(SQLConstants.TABLE_ALIAS_PREFIX, 1))
-            .build();
+                .tableName(String.format(SQLConstants.BRACKETS, sql))
+                .tableAlias(String.format(SQLConstants.TABLE_ALIAS_PREFIX, 1))
+                .build();
         if (ObjectUtils.isNotEmpty(tableSQL)) st.add("table", tableSQL);
 
         List<String> aggWheres = new ArrayList<>();
@@ -116,14 +119,33 @@ public class SQLProvider {
         List<SQLObj> orders = new ArrayList<>();
         if (ObjectUtils.isNotEmpty(xOrders)) orders.addAll(xOrders);
         if (ObjectUtils.isNotEmpty(yOrders)) orders.addAll(yOrders);
+        if (!orders.isEmpty() && CollectionUtils.isNotEmpty(view.getSortPriority())) {
+            var sortPriority = view.getSortPriority();
+            var tmp = new ArrayList<SQLObj>();
+            var ids = new HashSet<Long>();
+            for (SortAxis sortAxis : sortPriority) {
+                for (SQLObj order : orders) {
+                    if (sortAxis.getId().equals(order.getId())){
+                        tmp.add(order);
+                        ids.add(order.getId());
+                    }
+                }
+            }
+            for (SQLObj order : orders) {
+                if (!ids.contains(order.getId())) {
+                    tmp.add(order);
+                }
+            }
+            orders = tmp;
+        }
         // check datasource 是否需要排序
         if (needOrder && ObjectUtils.isEmpty(orders)) {
             if (ObjectUtils.isNotEmpty(xFields) || ObjectUtils.isNotEmpty(yFields)) {
                 SQLObj sqlObj = ObjectUtils.isNotEmpty(xFields) ? xFields.get(0) : yFields.get(0);
                 SQLObj result = SQLObj.builder()
-                    .orderField(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
-                    .orderAlias(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
-                    .orderDirection("ASC").build();
+                        .orderField(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
+                        .orderAlias(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
+                        .orderDirection("ASC").build();
                 orders.add(result);
             }
         }
@@ -132,8 +154,50 @@ public class SQLProvider {
         return sqlLimit(st.render(), view);
     }
 
+    public static String createQuerySQLNoSort(SQLMeta sqlMeta, boolean isGroup, ChartViewDTO view) {
+        STGroup stg = new STGroupString(SqlTemplate.PREVIEW_SQL);
+        ST st_sql = stg.getInstanceOf("previewSql");
+
+        st_sql.add("isGroup", isGroup);
+
+        SQLObj tableObj = sqlMeta.getTable();
+        if (ObjectUtils.isNotEmpty(tableObj)) st_sql.add("table", tableObj);
+
+        List<SQLObj> xFields = sqlMeta.getXFields();
+        if (ObjectUtils.isNotEmpty(xFields)) st_sql.add("groups", xFields);
+
+        List<SQLObj> yFields = sqlMeta.getYFields();
+        List<String> yWheres = sqlMeta.getYWheres();
+        if (ObjectUtils.isNotEmpty(yFields)) st_sql.add("aggregators", yFields);
+
+        String customWheres = sqlMeta.getCustomWheres();
+        String extWheres = sqlMeta.getExtWheres();
+        String whereTrees = sqlMeta.getWhereTrees();
+        List<String> wheres = new ArrayList<>();
+        if (customWheres != null) wheres.add(customWheres);
+        if (extWheres != null) wheres.add(extWheres);
+        if (whereTrees != null) wheres.add(whereTrees);
+        if (ObjectUtils.isNotEmpty(wheres)) st_sql.add("filters", wheres);
+        String sql = st_sql.render();
+
+        ST st = stg.getInstanceOf("previewSql");
+        st_sql.add("isGroup", isGroup);
+
+        SQLObj tableSQL = SQLObj.builder()
+                .tableName(String.format(SQLConstants.BRACKETS, sql))
+                .tableAlias(String.format(SQLConstants.TABLE_ALIAS_PREFIX, 1))
+                .build();
+        if (ObjectUtils.isNotEmpty(tableSQL)) st.add("table", tableSQL);
+
+        List<String> aggWheres = new ArrayList<>();
+        if (ObjectUtils.isNotEmpty(yWheres)) aggWheres.addAll(yWheres);
+        if (ObjectUtils.isNotEmpty(aggWheres)) st.add("filters", aggWheres);
+
+        return sqlLimit(st.render(), view);
+    }
+
     public static String sqlLimit(String sql, ChartViewDTO view) {
-        if (StringUtils.equalsIgnoreCase(view.getType(), "table-info")) {
+        if (StringUtils.equalsAnyIgnoreCase(view.getType(), "table-info", "table-normal")) {
             return sql;
         }
         if (StringUtils.equalsIgnoreCase(view.getResultMode(), "custom")) {

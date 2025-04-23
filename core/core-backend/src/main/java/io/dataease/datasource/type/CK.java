@@ -12,20 +12,20 @@ public class CK extends DatasourceConfiguration {
     private String extraParams = "";
 
     public String getJdbc() {
-        if (StringUtils.isNoneEmpty(getUrlType()) && !getUrlType().equalsIgnoreCase("hostName")) {
+        if(StringUtils.isNoneEmpty(getUrlType()) && !getUrlType().equalsIgnoreCase("hostName")){
             return getJdbcUrl();
         }
-        if (StringUtils.isEmpty(extraParams.trim())) {
+        if(StringUtils.isEmpty(extraParams.trim())){
             return "jdbc:clickhouse://HOSTNAME:PORT/DATABASE"
-                .replace("HOSTNAME", getLHost().trim())
-                .replace("PORT", getLPort().toString().trim())
-                .replace("DATABASE", getDataBase().trim());
-        } else {
+                    .replace("HOSTNAME", getLHost().trim())
+                    .replace("PORT", getLPort().toString().trim())
+                    .replace("DATABASE", getDataBase().trim());
+        }else {
             return "jdbc:clickhouse://HOSTNAME:PORT/DATABASE?EXTRA_PARAMS"
-                .replace("HOSTNAME", getLHost().trim())
-                .replace("PORT", getLPort().toString().trim())
-                .replace("DATABASE", getDataBase().trim())
-                .replace("EXTRA_PARAMS", getExtraParams().trim());
+                    .replace("HOSTNAME", getLHost().trim())
+                    .replace("PORT", getLPort().toString().trim())
+                    .replace("DATABASE", getDataBase().trim())
+                    .replace("EXTRA_PARAMS", getExtraParams().trim());
         }
     }
 }

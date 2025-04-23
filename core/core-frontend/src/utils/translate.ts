@@ -1,9 +1,9 @@
-import {divide, multiply, floor} from 'mathjs'
-import {dvMainStoreWithOut} from '@/store/modules/data-visualization/dvMain'
-import {storeToRefs} from 'pinia'
+import { divide, multiply, floor } from 'mathjs'
+import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
+import { storeToRefs } from 'pinia'
 
 const dvMainStore = dvMainStoreWithOut()
-const {canvasStyleData} = storeToRefs(dvMainStore)
+const { canvasStyleData } = storeToRefs(dvMainStore)
 
 // 角度转弧度
 // Math.PI = 180 度

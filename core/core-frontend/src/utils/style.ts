@@ -1,10 +1,9 @@
-import {sin, cos} from '@/utils/translate'
-import {imgUrlTrans} from '@/utils/imgUtils'
-import {hexColorToRGBA} from '@/views/chart/components/js/util'
-import {dvMainStoreWithOut} from '@/store/modules/data-visualization/dvMain'
-
+import { sin, cos, toPercent } from '@/utils/translate'
+import { imgUrlTrans } from '@/utils/imgUtils'
+import { hexColorToRGBA } from '@/views/chart/components/js/util'
+import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
+import { isMainCanvas, isTabCanvas } from '@/utils/canvasUtils'
 const dvMainStore = dvMainStoreWithOut()
-
 export function getShapeStyle(style) {
   const result = {}
   ;['width', 'height', 'top', 'left', 'rotate'].forEach(attr => {
@@ -18,7 +17,10 @@ export function getShapeStyle(style) {
   return result
 }
 
-export function getShapeItemStyle(item, {dvModel, cellWidth, cellHeight, curGap}) {
+export function getShapeItemStyle(
+  item,
+  { dvModel, cellWidth, cellHeight, curGap, showPosition = 'preview' }
+) {
   let result = {}
   if (dvModel === 'dashboard' && !item['isPlayer']) {
     result = {
@@ -27,6 +29,14 @@ export function getShapeItemStyle(item, {dvModel, cellWidth, cellHeight, curGap}
       height: cellHeight * item.sizeY + 'px',
       left: cellWidth * (item.x - 1) + 'px',
       top: cellHeight * (item.y - 1) + 'px'
+    }
+  } else if (dvModel === 'dataV' && isTabCanvas(item.canvasId) && showPosition === 'preview') {
+    result = {
+      padding: curGap + 'px!important',
+      width: toPercent(item.groupStyle.width),
+      height: toPercent(item.groupStyle.height),
+      top: toPercent(item.groupStyle.top),
+      left: toPercent(item.groupStyle.left)
     }
   } else {
     result = {
@@ -161,7 +171,7 @@ export function getStyle(style, filter = []) {
 
 // 获取一个组件旋转 rotate 后的样式
 export function getComponentRotatedStyle(style) {
-  style = {...style}
+  style = { ...style }
   if (style.rotate != 0) {
     const newWidth = style.width * cos(style.rotate) + style.height * sin(style.rotate)
     const diffX = (style.width - newWidth) / 2 // 旋转后范围变小是正值，变大是负值
@@ -183,37 +193,42 @@ export function getComponentRotatedStyle(style) {
   return style
 }
 
-export function getCanvasStyle(canvasStyleData) {
+export function getCanvasStyle(canvasStyleData, canvasId = 'canvas-main') {
   const {
     backgroundColorSelect,
     background,
     backgroundColor,
     backgroundImageEnable,
     fontSize,
-    mobileSetting
+    mobileSetting,
+    fontFamily
   } = canvasStyleData
-  const style = {fontSize: fontSize + 'px', color: canvasStyleData.color}
-  // 仪表板默认色#f5f6f7 大屏默认配色 #1a1a1a
-  let colorRGBA = dvMainStore.dvInfo.type === 'dashboard' ? '#f5f6f7' : '#1a1a1a'
-  if (backgroundColorSelect && backgroundColor) {
-    colorRGBA = backgroundColor
-  }
-  if (backgroundImageEnable) {
-    style['background'] = `url(${imgUrlTrans(background)}) no-repeat ${colorRGBA}`
-  } else {
-    style['background-color'] = colorRGBA
+  const style = { fontSize: fontSize + 'px', color: canvasStyleData.color }
+  if (isMainCanvas(canvasId)) {
+    // 仪表板默认色#f5f6f7 大屏默认配色 #1a1a1a
+    let colorRGBA = dvMainStore.dvInfo.type === 'dashboard' ? '#f5f6f7' : '#1a1a1a'
+    if (backgroundColorSelect && backgroundColor) {
+      colorRGBA = backgroundColor
+    }
+    if (backgroundImageEnable) {
+      style['background'] = `url(${imgUrlTrans(background)}) no-repeat ${colorRGBA}`
+    } else {
+      style['background-color'] = colorRGBA
+    }
+
+    if (dvMainStore.mobileInPc && mobileSetting?.customSetting) {
+      const { backgroundColorSelect, color, backgroundImageEnable, background } = mobileSetting
+      if (backgroundColorSelect && backgroundImageEnable && typeof background === 'string') {
+        style['background'] = `url(${imgUrlTrans(background)}) no-repeat ${color}`
+      } else if (backgroundColorSelect) {
+        style['background-color'] = color
+      } else if (backgroundImageEnable) {
+        style['background'] = `url(${imgUrlTrans(background)}) no-repeat`
+      }
+    }
+    style['font-family'] = fontFamily + '!important'
   }
 
-  if (dvMainStore.mobileInPc && mobileSetting?.customSetting) {
-    const {backgroundColorSelect, color, backgroundImageEnable, background} = mobileSetting
-    if (backgroundColorSelect && backgroundImageEnable && typeof background === 'string') {
-      style['background'] = `url(${imgUrlTrans(background)}) no-repeat ${color}`
-    } else if (backgroundColorSelect) {
-      style['background-color'] = color
-    } else if (backgroundImageEnable) {
-      style['background'] = `url(${imgUrlTrans(background)}) no-repeat`
-    }
-  }
   return style
 }
 
@@ -223,7 +238,7 @@ export function createGroupStyle(groupComponent) {
     // 分组计算逻辑
     // 1.groupStyle记录left top width height 在出现分组缩放的时候进行等比例变更（缩放来源有两种a.整个大屏的缩放 b.分组尺寸的调整）
     // 2.component 内部进行位移或者尺寸的变更 要同步到这个比例中
-    const style = {...component.style}
+    const style = { ...component.style }
     component.groupStyle.left = (style.left - parentStyle.left) / parentStyle.width
     component.groupStyle.top = (style.top - parentStyle.top) / parentStyle.height
     component.groupStyle.width = style.width / parentStyle.width
@@ -234,23 +249,88 @@ export function createGroupStyle(groupComponent) {
   })
 }
 
-export function groupSizeStyleAdaptor(groupComponent) {
-  const parentStyle = groupComponent.style
-  groupComponent.propValue.forEach(component => {
-    // 分组还原逻辑
-    // 当发上分组缩放是，要将内部组件按照比例转换
-    const styleScale = component.groupStyle
-    component.style.left = parentStyle.width * styleScale.left
-    component.style.top = parentStyle.height * styleScale.top
-    component.style.width = parentStyle.width * styleScale.width
-    component.style.height = parentStyle.height * styleScale.height
+function dataVTabSizeStyleAdaptor(tabComponent) {
+  const parentStyleAdaptor = { ...tabComponent.style }
+  const offset = parentStyleAdaptor.showTabTitle ? 46 : 0
+  const domId =
+    dvMainStore.editMode === 'edit'
+      ? 'component' + tabComponent.id
+      : 'enlarge-inner-content' + tabComponent.id
+  const tabDom = document.getElementById(domId)
+  if (tabDom) {
+    parentStyleAdaptor.height = tabDom.clientHeight - offset
+    parentStyleAdaptor.width = tabDom.clientWidth
+  } else {
+    parentStyleAdaptor.height = parentStyleAdaptor.height - offset
+  }
+
+  tabComponent.propValue.forEach(tabItem => {
+    tabItem.componentData.forEach(tabComponent => {
+      groupItemStyleAdaptor(tabComponent, parentStyleAdaptor)
+      if (['Group'].includes(tabComponent.component)) {
+        groupSizeStyleAdaptor(tabComponent)
+      }
+    })
+  })
+}
+
+function groupItemStyleAdaptor(component, parentStyle) {
+  // 分组还原逻辑
+  // 当发上分组缩放是，要将内部组件按照比例转换
+  const styleScale = component.groupStyle
+  component.style.left = parentStyle.width * styleScale.left
+  component.style.top = parentStyle.height * styleScale.top
+  component.style.width = parentStyle.width * styleScale.width
+  component.style.height = parentStyle.height * styleScale.height
+}
+
+export function groupStyleRevertBatch(groupComponent, parentStyle) {
+  if (groupComponent.component === 'DeTabs') {
+    groupComponent.propValue.forEach(tabItem => {
+      tabItem.componentData.forEach(tabComponent => {
+        groupStyleRevert(tabComponent, parentStyle)
+      })
+    })
+  }
+}
+
+export function tabInnerStyleRevert(tabOuterComponent) {
+  const parentStyle = {
+    width: tabOuterComponent.style.width,
+    height: tabOuterComponent.style.height - (tabOuterComponent.style.showTabTitle ? 46 : 0)
+  }
+  tabOuterComponent.propValue.forEach(tabItem => {
+    tabItem.componentData.forEach(tabComponent => {
+      groupStyleRevert(tabComponent, parentStyle)
+    })
   })
 }
 
 export function groupStyleRevert(innerComponent, parentStyle) {
-  const innerStyle = {...innerComponent.style}
+  const innerStyle = { ...innerComponent.style }
   innerComponent.groupStyle.left = innerStyle.left / parentStyle.width
   innerComponent.groupStyle.top = innerStyle.top / parentStyle.height
   innerComponent.groupStyle.width = innerStyle.width / parentStyle.width
   innerComponent.groupStyle.height = innerStyle.height / parentStyle.height
+}
+
+export function groupSizeStyleAdaptor(groupComponent) {
+  if (groupComponent.component === 'Group') {
+    const parentStyle = groupComponent.style
+    groupComponent.propValue.forEach(component => {
+      groupItemStyleAdaptor(component, parentStyle)
+    })
+  } else {
+    dataVTabSizeStyleAdaptor(groupComponent)
+  }
+}
+
+export function dataVTabComponentAdd(innerComponent, parentComponent) {
+  //do dataVTabComponentAdd
+  innerComponent.style.top = 0
+  innerComponent.style.left = 0
+  const parentStyleAdaptor = { ...parentComponent.style }
+  // 去掉tab头部高度
+  parentStyleAdaptor.height = parentStyleAdaptor.height - (parentComponent.showTabTitle ? 46 : 0)
+  groupStyleRevert(innerComponent, parentStyleAdaptor)
 }

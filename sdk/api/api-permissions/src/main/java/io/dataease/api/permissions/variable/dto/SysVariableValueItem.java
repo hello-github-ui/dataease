@@ -17,7 +17,7 @@ public class SysVariableValueItem {
     private Long variableId;
     private List<String> variableValueIds = new ArrayList<>();
     @JsonSerialize(using = ToStringSerializer.class)
-    private Long variableValueId;
+    private Long variableValueId ;
     private String variableName;
     private boolean valid = true;
     private List<SysVariableValueDto> valueList;

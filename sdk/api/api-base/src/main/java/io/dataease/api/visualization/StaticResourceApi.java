@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
-
 @Tag(name = "可视化管理:静态文件")
 @ApiSupport(order = 998)
 public interface StaticResourceApi {
@@ -18,9 +17,6 @@ public interface StaticResourceApi {
 
     @PostMapping("findResourceAsBase64")
     @Operation(summary = "查找静态文件并转为Base64")
-    Map<String, String> findResourceAsBase64(@RequestBody StaticResourceRequest resourceRequest);
-
-    @GetMapping("urlTest")
-    Map<String, String> urlTest();
+    Map<String,String> findResourceAsBase64(@RequestBody StaticResourceRequest resourceRequest);
 
 }

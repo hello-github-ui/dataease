@@ -18,9 +18,9 @@ public class TemplateInitListener implements ApplicationListener<ApplicationRead
     @Override
     public void onApplicationEvent(ApplicationReadyEvent applicationReadyEvent) {
         LogUtil.info("=====Template init from code [Start]=====");
-        try {
+        try{
             templateLocalParseManage.doInit();
-        } catch (Exception e) {
+        }catch (Exception e){
             LogUtil.error("=====Template init from code ERROR=====");
         }
         LogUtil.info("=====Template init from code [End]=====");

@@ -1,16 +1,15 @@
 package io.dataease.dataset.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
  * <p>
- *
+ * 数据集分组表
  * </p>
  *
  * @author fit2cloud
- * @since 2023-08-28
+ * @since 2025-04-14
  */
 @TableName("core_dataset_group")
 public class CoreDatasetGroup implements Serializable {
@@ -67,6 +66,9 @@ public class CoreDatasetGroup implements Serializable {
      */
     private Long createTime;
 
+    /**
+     * Quartz 实例 ID
+     */
     private String qrtzInstance;
 
     /**
@@ -88,6 +90,11 @@ public class CoreDatasetGroup implements Serializable {
      * 关联sql
      */
     private String unionSql;
+
+    /**
+     * 是否跨源
+     */
+    private Boolean isCross;
 
     public Long getId() {
         return id;
@@ -209,24 +216,33 @@ public class CoreDatasetGroup implements Serializable {
         this.unionSql = unionSql;
     }
 
+    public Boolean getIsCross() {
+        return isCross;
+    }
+
+    public void setIsCross(Boolean isCross) {
+        this.isCross = isCross;
+    }
+
     @Override
     public String toString() {
         return "CoreDatasetGroup{" +
-            "id = " + id +
-            ", name = " + name +
-            ", pid = " + pid +
-            ", level = " + level +
-            ", nodeType = " + nodeType +
-            ", type = " + type +
-            ", mode = " + mode +
-            ", info = " + info +
-            ", createBy = " + createBy +
-            ", createTime = " + createTime +
-            ", qrtzInstance = " + qrtzInstance +
-            ", syncStatus = " + syncStatus +
-            ", updateBy = " + updateBy +
-            ", lastUpdateTime = " + lastUpdateTime +
-            ", unionSql = " + unionSql +
-            "}";
+        "id = " + id +
+        ", name = " + name +
+        ", pid = " + pid +
+        ", level = " + level +
+        ", nodeType = " + nodeType +
+        ", type = " + type +
+        ", mode = " + mode +
+        ", info = " + info +
+        ", createBy = " + createBy +
+        ", createTime = " + createTime +
+        ", qrtzInstance = " + qrtzInstance +
+        ", syncStatus = " + syncStatus +
+        ", updateBy = " + updateBy +
+        ", lastUpdateTime = " + lastUpdateTime +
+        ", unionSql = " + unionSql +
+        ", isCross = " + isCross +
+        "}";
     }
 }

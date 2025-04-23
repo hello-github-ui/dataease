@@ -3,6 +3,9 @@ package io.dataease.chart.charts.impl;
 import io.dataease.extensions.view.dto.AxisFormatResult;
 import io.dataease.extensions.view.dto.ChartAxis;
 import io.dataease.extensions.view.dto.ChartViewDTO;
+import io.dataease.extensions.view.dto.ChartViewFieldDTO;
+
+import java.util.ArrayList;
 
 public class ExtQuotaChartHandler extends DefaultChartHandler {
     @Override

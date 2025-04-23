@@ -20,8 +20,8 @@ import org.springframework.stereotype.Component;
 @Component
 @Order(value = 4)
 public class ChartFilterMergeListener implements ApplicationListener<ApplicationReadyEvent> {
-    public static final String JOB_ID = "chartFilterMerge";
     private final Logger logger = LoggerFactory.getLogger(ChartFilterMergeListener.class);
+    public static final String JOB_ID = "chartFilterMerge";
     @Resource
     private CoreSysStartupJobMapper coreSysStartupJobMapper;
     @Resource

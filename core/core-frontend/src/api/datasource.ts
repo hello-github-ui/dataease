@@ -1,4 +1,5 @@
 import request from '@/config/axios'
+import { nameTrim } from '@/utils/utils'
 
 export interface DatasetOrFolder {
   name: string
@@ -13,7 +14,6 @@ interface Fields {
   fields: Array<{}>
   data: Array<{}>
 }
-
 export interface FieldData {
   allFields: Array<{}>
   data: Fields
@@ -37,100 +37,116 @@ export interface Table {
 
 export const listDatasources = data => {
   return request
-    .post({url: '/datasource/tree', data: {...data, ...{busiFlag: 'datasource'}}})
+    .post({ url: '/datasource/tree', data: { ...data, ...{ busiFlag: 'datasource' } } })
     .then(res => {
       return res?.data
     })
 }
 
 export const listDatasourceType = async (data = {}): Promise<IResponse> => {
-  return request.post({url: '/datasource/types', data}).then(res => {
+  return request.post({ url: '/datasource/types', data }).then(res => {
     return res?.data
   })
 }
-export const getTableField = (data = {}) => request.post({url: '/datasource/getTableField', data})
+export const getTableField = (data = {}) => request.post({ url: '/datasource/getTableField', data })
 
-export const syncApiTable = (data = {}) => request.post({url: '/datasource/syncApiTable', data})
+export const syncApiTable = (data = {}) => request.post({ url: '/datasource/syncApiTable', data })
 
-export const syncApiDs = (data = {}) => request.post({url: '/datasource/syncApiDs', data})
+export const syncApiDs = (data = {}) => request.post({ url: '/datasource/syncApiDs', data })
 
 export const listDatasourceTables = async (data = {}): Promise<IResponse> => {
-  return request.post({url: '/datasource/getTables', data}).then(res => {
+  return request.post({ url: '/datasource/getTables', data }).then(res => {
+    return res
+  })
+}
+
+export const getTableStatus = async (data = {}): Promise<IResponse> => {
+  return request.post({ url: '/datasource/getTableStatus', data }).then(res => {
     return res
   })
 }
 
 export const getSchema = (data = {}) => {
-  return request.post({url: '/datasource/getSchema', data})
+  return request.post({ url: '/datasource/getSchema', data })
 }
 
 export const previewData = (data = {}) => {
-  return request.post({url: '/datasource/previewData', data}).then(res => {
+  return request.post({ url: '/datasource/previewData', data }).then(res => {
     return res?.data
   })
 }
 export const validate = (data = {}) => {
-  return request.post({url: '/datasource/validate', data})
+  return request.post({ url: '/datasource/validate', data })
 }
 
 export const isShowFinishPage = async () => {
-  return request.get({url: '/datasource/showFinishPage'})
+  return request.get({ url: '/datasource/showFinishPage' })
 }
 
 export const setShowFinishPage = (data = {}) => {
-  return request.post({url: '/datasource/setShowFinishPage', data})
+  return request.post({ url: '/datasource/setShowFinishPage', data })
 }
 export const latestUse = async (data = {}) => {
-  return request.post({url: '/datasource/latestUse', data})
+  return request.post({ url: '/datasource/latestUse', data })
 }
 
-export const validateById = (id: number) => request.get({url: '/datasource/validate/' + id})
+export const validateById = (id: number) => request.get({ url: '/datasource/validate/' + id })
 
 export const save = async (data = {}): Promise<Dataset> => {
-  return request.post({url: '/datasource/save', data}).then(res => {
+  nameTrim(data)
+  return request.post({ url: '/datasource/save', data }).then(res => {
+    return res?.data
+  })
+}
+
+export const perDeleteDatasource = async (id): Promise<boolean> => {
+  return request.post({ url: `/datasource/perDelete/${id}`, data: {} }).then(res => {
     return res?.data
   })
 }
 
 export const update = async (data = {}): Promise<Dataset> => {
-  return request.post({url: '/datasource/update', data}).then(res => {
+  nameTrim(data)
+  return request.post({ url: '/datasource/update', data }).then(res => {
     return res?.data
   })
 }
 
 export const move = async (data = {}): Promise<Dataset> => {
-  return request.post({url: '/datasource/move', data}).then(res => {
+  return request.post({ url: '/datasource/move', data }).then(res => {
     return res?.data
   })
 }
 
 export const reName = async (data = {}): Promise<Dataset> => {
-  return request.post({url: '/datasource/reName', data}).then(res => {
+  nameTrim(data)
+  return request.post({ url: '/datasource/reName', data }).then(res => {
     return res?.data
   })
 }
 
 export const createFolder = async (data = {}): Promise<Dataset> => {
-  return request.post({url: '/datasource/createFolder', data}).then(res => {
+  nameTrim(data)
+  return request.post({ url: '/datasource/createFolder', data }).then(res => {
     return res?.data
   })
 }
 
 export const checkRepeat = async (data = {}): Promise<Dataset> => {
-  return request.post({url: '/datasource/checkRepeat', data}).then(res => {
+  return request.post({ url: '/datasource/checkRepeat', data }).then(res => {
     return res?.data
   })
 }
 
 export const checkApiItem = async (data = {}): Promise<IResponse> => {
-  return request.post({url: '/datasource/checkApiDatasource', data}).then(res => {
+  return request.post({ url: '/datasource/checkApiDatasource', data }).then(res => {
     return res
   })
 }
 
 export const getDatasetTree = async (data = {}): Promise<IResponse> => {
   return request
-    .post({url: '/datasetTree/tree', data: {...data, ...{busiFlag: 'dataset'}}})
+    .post({ url: '/datasetTree/tree', data: { ...data, ...{ busiFlag: 'dataset' } } })
     .then(res => {
       return res?.data
     })
@@ -138,17 +154,19 @@ export const getDatasetTree = async (data = {}): Promise<IResponse> => {
 
 export const getDsTree = async (data = {}): Promise<IResponse> => {
   return request
-    .post({url: '/datasource/tree', data: {...data, ...{busiFlag: 'datasource'}}})
+    .post({ url: '/datasource/tree', data: { ...data, ...{ busiFlag: 'datasource' } } })
     .then(res => {
       return res?.data
     })
 }
 
-export const deleteById = (id: number) => request.get({url: '/datasource/delete/' + id})
+export const deleteById = (id: number) => request.get({ url: '/datasource/delete/' + id })
 
-export const getById = (id: number) => request.get({url: '/datasource/get/' + id})
+export const getById = (id: number) => request.get({ url: '/datasource/get/' + id })
 
-export const getHidePwById = (id: number) => request.get({url: '/datasource/hidePw/' + id})
+export const getHidePwById = (id: number) => request.get({ url: '/datasource/hidePw/' + id })
+
+export const getSimpleDs = (id: number) => request.get({ url: '/datasource/getSimpleDs/' + id })
 
 export const uploadFile = async (data): Promise<IResponse> => {
   return request
@@ -163,7 +181,13 @@ export const uploadFile = async (data): Promise<IResponse> => {
     })
 }
 
-export const listSyncRecord = (page: number, limit: number, dsId: number | string) =>
-  request.post({url: '/datasource/listSyncRecord/' + dsId + '/' + page + '/' + limit})
+export const loadRemoteFile = async (data = {}) => {
+  return request.post({ url: '/datasource/loadRemoteFile', data })
+}
 
-export const getDeEngine = () => request.get({url: '/engine/getEngine'})
+export const listSyncRecord = (page: number, limit: number, dsId: number | string) =>
+  request.post({ url: '/datasource/listSyncRecord/' + dsId + '/' + page + '/' + limit })
+
+export const getDeEngine = () => request.get({ url: '/engine/getEngine' })
+
+export const supportSetKey = () => request.get({ url: '/engine/supportSetKey' })

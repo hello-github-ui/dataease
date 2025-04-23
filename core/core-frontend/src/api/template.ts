@@ -7,7 +7,6 @@ export function save(data) {
     loading: true
   })
 }
-
 export function templateDelete(id, categoryId) {
   return request.post({
     url: '/templateManage/delete/' + id + '/' + categoryId

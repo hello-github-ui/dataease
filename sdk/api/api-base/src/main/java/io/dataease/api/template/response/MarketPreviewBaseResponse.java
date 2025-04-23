@@ -1,6 +1,8 @@
 package io.dataease.api.template.response;
 
+import io.dataease.api.template.dto.TemplateMarketDTO;
 import io.dataease.api.template.dto.TemplateMarketPreviewInfoDTO;
+import io.dataease.api.template.vo.MarketMetaDataVO;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 

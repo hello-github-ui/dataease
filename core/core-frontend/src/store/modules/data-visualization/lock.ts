@@ -1,25 +1,25 @@
-import {defineStore, storeToRefs} from 'pinia'
-import {store} from '../../index'
-import {dvMainStoreWithOut} from './dvMain'
+import { defineStore, storeToRefs } from 'pinia'
+import { store } from '../../index'
+import { dvMainStoreWithOut } from './dvMain'
 
 const dvMainStore = dvMainStoreWithOut()
-const {curComponent} = storeToRefs(dvMainStore)
+const { curComponent } = storeToRefs(dvMainStore)
 
 export const lockStore = defineStore('lock', {
   actions: {
-    lock() {
-      curComponent.value.isLock = true
-      if (curComponent.value.component === 'Group') {
-        curComponent.value.propValue.forEach(component => {
+    lock(optComponent = curComponent.value) {
+      optComponent.isLock = true
+      if (optComponent.component === 'Group') {
+        optComponent.propValue.forEach(component => {
           component.isLock = true
         })
       }
     },
 
-    unlock() {
-      curComponent.value.isLock = false
-      if (curComponent.value.component === 'Group') {
-        curComponent.value.propValue.forEach(component => {
+    unlock(optComponent = curComponent.value) {
+      optComponent.isLock = false
+      if (optComponent.component === 'Group') {
+        optComponent.propValue.forEach(component => {
           component.isLock = false
         })
       }

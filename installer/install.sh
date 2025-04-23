@@ -32,6 +32,11 @@ function check_and_prepare_env_params() {
 
    cd ${CURRENT_DIR}
    if [ -f /usr/bin/dectl ]; then
+      v2_version=$(dectl version | head -n 2 | grep "v2.")
+      if [[ -z $v2_version ]];then
+         echo "系统当前版本不是 DataEase v2 版本系列，不支持升级到 v2，请检查离线包版本。"
+         exit 1;
+      fi
       # 获取已安装的 DataEase 的运行目录
       DE_BASE=$(grep "^DE_BASE=" /usr/bin/dectl | cut -d'=' -f2)
       DE_BASE_OLD=$DE_BASE
@@ -46,12 +51,6 @@ function check_and_prepare_env_params() {
       fi
 
       INSTALL_TYPE='upgrade'
-
-      v2_version=$(dectl version | head -n 2 | grep "v2.")
-      if [[ -z $v2_version ]];then
-         echo "系统当前版本不是 DataEase v2 版本系列，不支持升级到 v2，请检查离线包版本。"
-         exit 1;
-      fi
    fi
 
    set -a
@@ -105,7 +104,7 @@ function prepare_de_run_base() {
    env | grep DE_ >.env
 
    mkdir -p ${DE_RUN_BASE}/{cache,logs,conf}
-   mkdir -p ${DE_RUN_BASE}/data/{mysql,static-resource,map,etcd_data,geo,appearance,exportData,plugin}
+   mkdir -p ${DE_RUN_BASE}/data/{mysql,static-resource,map,etcd_data,geo,appearance,exportData,plugin,font,i18n}
    mkdir -p ${DE_RUN_BASE}/apisix/logs
    mkdir -p ${DE_RUN_BASE}/task/logs
    chmod 777 ${DE_RUN_BASE}/apisix/logs ${DE_RUN_BASE}/data/etcd_data ${DE_RUN_BASE}/task/logs
@@ -113,6 +112,7 @@ function prepare_de_run_base() {
    if [ "${DE_EXTERNAL_MYSQL}" = "false" ]; then
       sed -i -e "s/^      DE_MYSQL_HOST/      ${DE_MYSQL_HOST}/g" docker-compose.yml
       sed -i -e "s/^. DE_MYSQL_HOST/  ${DE_MYSQL_HOST}/g" docker-compose-mysql.yml
+      export DE_MYSQL_PORT=3306
    else
       sed -i -e "/^    depends_on/,+2d" docker-compose.yml
    fi
@@ -177,8 +177,6 @@ function install_docker() {
          cp docker/service/docker.service /etc/systemd/system/
          chmod +x /usr/bin/docker*
          chmod 644 /etc/systemd/system/docker.service
-         log_content "启动 docker"
-         systemctl enable docker >/dev/null 2>&1; systemctl daemon-reload; systemctl start docker 2>&1 | tee -a ${CURRENT_DIR}/install.log
       else
          log_content "在线安装 docker"
          curl -fsSL https://resource.fit2cloud.com/get-docker-linux.sh -o get-docker.sh 2>&1 | tee -a ${CURRENT_DIR}/install.log
@@ -187,14 +185,24 @@ function install_docker() {
             exit 1
          fi
          sudo sh get-docker.sh 2>&1 | tee -a ${CURRENT_DIR}/install.log
-         log_content "启动 docker"
-         systemctl enable docker >/dev/null 2>&1; systemctl daemon-reload; systemctl start docker 2>&1 | tee -a ${CURRENT_DIR}/install.log
       fi
 
       docker_config_folder="/etc/docker"
       if [ ! -d "$docker_config_folder" ];then
          mkdir -p "$docker_config_folder"
+         cat <<EOF> $docker_config_folder/daemon.json
+         {
+            "log-driver": "json-file",
+            "log-opts": {
+               "max-file": "3",
+               "max-size": "10m"
+            }
+         }
+EOF
       fi
+
+      log_content "启动 docker"
+      systemctl enable docker >/dev/null 2>&1; systemctl daemon-reload; systemctl start docker 2>&1 | tee -a ${CURRENT_DIR}/install.log
 
       docker version >/dev/null 2>&1
       if [ $? -ne 0 ]; then
@@ -202,6 +210,7 @@ function install_docker() {
          exit 1
       else
          log_content "docker 安装成功"
+
       fi
    fi
 }

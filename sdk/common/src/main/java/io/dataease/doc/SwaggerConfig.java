@@ -39,18 +39,18 @@ public class SwaggerConfig {
         contact.setUrl("https://www.fit2cloud.com/dataease/index.html");
         contact.setEmail("dataease@fit2cloud.com");
         return new OpenAPI()
-            .info(new Info()
-                .title("DataEaseAPI")
-                .description("人人可用的开源数据可视化分析工具")
-                .termsOfService("https://dataease.io")
-                .contact(contact)
-                .version(version));
+                .info(new Info()
+                        .title("DataEaseAPI")
+                        .description("人人可用的开源 BI 工具")
+                        .termsOfService("https://dataease.io")
+                        .contact(contact)
+                        .version(version));
     }
 
 
     @Bean
     public GroupedOpenApi visualizationApi() {
-        return GroupedOpenApi.builder().group("1-visualization").displayName("可视化管理").packagesToScan("io.dataease.visualization").build();
+        return GroupedOpenApi.builder().group("1-visualization").displayName("可视化管理").packagesToScan("io.dataease.visualization", "io.dataease.share").build();
     }
 
     @Bean
@@ -71,8 +71,8 @@ public class SwaggerConfig {
     @Bean
     public GroupedOpenApi basicSettingApi() {
         String[] packageArray = {
-            "io.dataease.system",
-            "io.dataease.map",
+                "io.dataease.system",
+                "io.dataease.map",
         };
         return GroupedOpenApi.builder().group("5-xpackpermission").displayName("系统设置").packagesToScan(packageArray).build();
     }
@@ -85,6 +85,11 @@ public class SwaggerConfig {
     @Bean
     public GroupedOpenApi systemApi() {
         return GroupedOpenApi.builder().group("7-xpackpermission").displayName("权限相关xpack").packagesToScan("io.dataease.xpack.permissions").build();
+    }
+
+    @Bean
+    public GroupedOpenApi syncApi() {
+        return GroupedOpenApi.builder().group("8-xpacksync").displayName("同步管理").packagesToScan("io.dataease.xpack.sync.task").build();
     }
 
 

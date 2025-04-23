@@ -1,8 +1,8 @@
 package io.dataease.chart.charts.impl.numeric;
 
-import io.dataease.dataset.manage.DatasetTableFieldManage;
 import io.dataease.extensions.view.dto.AxisFormatResult;
 import io.dataease.extensions.view.dto.ChartAxis;
+import io.dataease.dataset.manage.DatasetTableFieldManage;
 import io.dataease.extensions.view.dto.ChartViewDTO;
 import io.dataease.extensions.view.dto.ChartViewFieldDTO;
 import jakarta.annotation.Resource;

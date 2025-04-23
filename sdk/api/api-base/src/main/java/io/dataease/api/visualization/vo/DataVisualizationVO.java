@@ -2,6 +2,7 @@ package io.dataease.api.visualization.vo;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import com.google.gson.Gson;
 import io.dataease.api.template.dto.VisualizationTemplateExtendDataDTO;
 import io.dataease.extensions.view.dto.ChartViewDTO;
 import io.dataease.utils.JsonUtil;
@@ -145,6 +146,16 @@ public class DataVisualizationVO implements Serializable {
     private Integer version;
 
     /**
+     * 内容标识
+     */
+    private String contentId;
+
+    /**
+     * 内容检查标识
+     */
+    private String checkVersion;
+
+    /**
      * 图表基本信息
      */
     private Map<Long, ChartViewDTO> canvasViewInfo = new HashMap<>();
@@ -170,13 +181,15 @@ public class DataVisualizationVO implements Serializable {
      */
     private Integer weight;
 
+    private int ext;
+
     /**
      * 应用信息
      */
     private VisualizationExport2AppVO appData;
 
 
-    public DataVisualizationVO(Long id, String name, String type, Integer version, String canvasStyleData, String componentData, String appDataStr, Map<Long, ChartViewDTO> canvasViewInfo, Map<Long, VisualizationTemplateExtendDataDTO> extendDataInfo) {
+    public DataVisualizationVO(Long id, String name, String type, Integer version, String canvasStyleData, String componentData,String appDataStr, Map<Long, ChartViewDTO> canvasViewInfo, Map<Long, VisualizationTemplateExtendDataDTO> extendDataInfo) {
         this.id = id;
         this.name = name;
         this.type = type;
@@ -184,9 +197,13 @@ public class DataVisualizationVO implements Serializable {
         this.componentData = componentData;
         this.canvasViewInfo = canvasViewInfo;
         this.extendDataInfo = extendDataInfo;
-        if (StringUtils.isNotEmpty(appDataStr)) {
-            this.appData = JsonUtil.parseObject(appDataStr, VisualizationExport2AppVO.class);
+        if(StringUtils.isNotEmpty(appDataStr)){
+            this.appData= JsonUtil.parseObject(appDataStr,VisualizationExport2AppVO.class);
         }
         this.version = version;
+    }
+
+    public DataVisualizationVO(Integer status) {
+        this.status = status;
     }
 }

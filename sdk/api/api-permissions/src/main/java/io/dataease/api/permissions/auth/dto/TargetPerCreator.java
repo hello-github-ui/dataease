@@ -8,14 +8,13 @@ import lombok.Data;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.List;
-
 @Schema(description = "权限构造器")
 @Data
 public class TargetPerCreator implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 6469957337188015981L;
-    @JsonSerialize(using = ToStringSerializer.class)
+    @JsonSerialize(using= ToStringSerializer.class)
     @Schema(description = "权限ID集合")
     private List<Long> ids;
 }

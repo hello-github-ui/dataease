@@ -1,16 +1,15 @@
 package io.dataease.dataset.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
  * <p>
- *
+ * table数据集表字段
  * </p>
  *
  * @author fit2cloud
- * @since 2023-07-10
+ * @since 2025-02-06
  */
 @TableName("core_dataset_table_field")
 public class CoreDatasetTableField implements Serializable {
@@ -38,7 +37,7 @@ public class CoreDatasetTableField implements Serializable {
     private Long datasetGroupId;
 
     /**
-     * 图表ID
+     * 视图ID
      */
     private Long chartId;
 
@@ -68,6 +67,16 @@ public class CoreDatasetTableField implements Serializable {
     private String fieldShortName;
 
     /**
+     * 分组设置
+     */
+    private String groupList;
+
+    /**
+     * 未分组的值
+     */
+    private String otherGroup;
+
+    /**
      * 维度/指标标识 d:维度，q:指标
      */
     private String groupType;
@@ -77,6 +86,9 @@ public class CoreDatasetTableField implements Serializable {
      */
     private String type;
 
+    /**
+     * 字段长度（允许为空，默认0）
+     */
     private Integer size;
 
     /**
@@ -114,12 +126,20 @@ public class CoreDatasetTableField implements Serializable {
      */
     private Integer accuracy;
 
+    /**
+     * 时间字段类型
+     */
     private String dateFormat;
 
     /**
      * 时间格式类型
      */
     private String dateFormatType;
+
+    /**
+     * 计算字段参数
+     */
+    private String params;
 
     public Long getId() {
         return id;
@@ -199,6 +219,22 @@ public class CoreDatasetTableField implements Serializable {
 
     public void setFieldShortName(String fieldShortName) {
         this.fieldShortName = fieldShortName;
+    }
+
+    public String getGroupList() {
+        return groupList;
+    }
+
+    public void setGroupList(String groupList) {
+        this.groupList = groupList;
+    }
+
+    public String getOtherGroup() {
+        return otherGroup;
+    }
+
+    public void setOtherGroup(String otherGroup) {
+        this.otherGroup = otherGroup;
     }
 
     public String getGroupType() {
@@ -297,31 +333,42 @@ public class CoreDatasetTableField implements Serializable {
         this.dateFormatType = dateFormatType;
     }
 
+    public String getParams() {
+        return params;
+    }
+
+    public void setParams(String params) {
+        this.params = params;
+    }
+
     @Override
     public String toString() {
         return "CoreDatasetTableField{" +
-            "id = " + id +
-            ", datasourceId = " + datasourceId +
-            ", datasetTableId = " + datasetTableId +
-            ", datasetGroupId = " + datasetGroupId +
-            ", chartId = " + chartId +
-            ", originName = " + originName +
-            ", name = " + name +
-            ", description = " + description +
-            ", dataeaseName = " + dataeaseName +
-            ", fieldShortName = " + fieldShortName +
-            ", groupType = " + groupType +
-            ", type = " + type +
-            ", size = " + size +
-            ", deType = " + deType +
-            ", deExtractType = " + deExtractType +
-            ", extField = " + extField +
-            ", checked = " + checked +
-            ", columnIndex = " + columnIndex +
-            ", lastSyncTime = " + lastSyncTime +
-            ", accuracy = " + accuracy +
-            ", dateFormat = " + dateFormat +
-            ", dateFormatType = " + dateFormatType +
-            "}";
+        "id = " + id +
+        ", datasourceId = " + datasourceId +
+        ", datasetTableId = " + datasetTableId +
+        ", datasetGroupId = " + datasetGroupId +
+        ", chartId = " + chartId +
+        ", originName = " + originName +
+        ", name = " + name +
+        ", description = " + description +
+        ", dataeaseName = " + dataeaseName +
+        ", fieldShortName = " + fieldShortName +
+        ", groupList = " + groupList +
+        ", otherGroup = " + otherGroup +
+        ", groupType = " + groupType +
+        ", type = " + type +
+        ", size = " + size +
+        ", deType = " + deType +
+        ", deExtractType = " + deExtractType +
+        ", extField = " + extField +
+        ", checked = " + checked +
+        ", columnIndex = " + columnIndex +
+        ", lastSyncTime = " + lastSyncTime +
+        ", accuracy = " + accuracy +
+        ", dateFormat = " + dateFormat +
+        ", dateFormatType = " + dateFormatType +
+        ", params = " + params +
+        "}";
     }
 }

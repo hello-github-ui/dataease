@@ -1,7 +1,7 @@
 package io.dataease.visualization.dao.auto.entity;
 
+import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
@@ -10,7 +10,7 @@ import java.io.Serializable;
  * </p>
  *
  * @author fit2cloud
- * @since 2024-03-08
+ * @since 2024-09-09
  */
 @TableName("visualization_outer_params")
 public class VisualizationOuterParams implements Serializable {
@@ -20,6 +20,7 @@ public class VisualizationOuterParams implements Serializable {
     /**
      * 主键
      */
+    @TableId("params_id")
     private String paramsId;
 
     /**
@@ -98,12 +99,12 @@ public class VisualizationOuterParams implements Serializable {
     @Override
     public String toString() {
         return "VisualizationOuterParams{" +
-            "paramsId = " + paramsId +
-            ", visualizationId = " + visualizationId +
-            ", checked = " + checked +
-            ", remark = " + remark +
-            ", copyFrom = " + copyFrom +
-            ", copyId = " + copyId +
-            "}";
+        "paramsId = " + paramsId +
+        ", visualizationId = " + visualizationId +
+        ", checked = " + checked +
+        ", remark = " + remark +
+        ", copyFrom = " + copyFrom +
+        ", copyId = " + copyId +
+        "}";
     }
 }

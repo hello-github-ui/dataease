@@ -7,10 +7,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,7 +27,6 @@ public class TenantDatasourceProvider {
     /**
      * 这里需要加上异常处理
      * 某个数据源不能构建成功 continue 不能影响全局
-     *
      * @param manage
      * @return
      */
@@ -49,13 +45,14 @@ public class TenantDatasourceProvider {
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            close(connection, statement, resultSet);
+            close(connection,statement, resultSet);
         }
         return null;
     }
 
 
-    public static Map<String, DataSource> getDbInfo(DataSource manage, Long tenantId) throws Exception {
+
+    public static Map<String, DataSource> getDbInfo(DataSource manage, Long tenantId) throws Exception{
 
 
         Connection connection = null;
@@ -73,7 +70,7 @@ public class TenantDatasourceProvider {
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            close(connection, statement, resultSet);
+            close(connection,statement, resultSet);
         }
         return null;
 
@@ -99,7 +96,7 @@ public class TenantDatasourceProvider {
         return hikariDataSource;
     }
 
-    private static List<Map<String, Object>> parseResultSet(ResultSet resultSet) throws Exception {
+    private static List<Map<String, Object>> parseResultSet(ResultSet resultSet) throws Exception{
         List<Map<String, Object>> resultList = new ArrayList<>();
         ResultSetMetaData metaData = resultSet.getMetaData();
         int columnCount = metaData.getColumnCount();

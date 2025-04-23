@@ -16,7 +16,7 @@ public class PluginVO implements Serializable {
     @Serial
     private static final long serialVersionUID = -3889122930435272191L;
 
-    @JsonSerialize(using = ToStringSerializer.class)
+    @JsonSerialize(using= ToStringSerializer.class)
     private Long id;
 
     private String name;

@@ -2,11 +2,14 @@ package io.dataease.visualization.manage;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.dataease.api.visualization.vo.DataVisualizationVO;
+import io.dataease.chart.constant.ChartConstants;
 import io.dataease.chart.manage.ChartDataManage;
 import io.dataease.chart.manage.ChartViewManege;
 import io.dataease.constant.CommonConstants;
-import io.dataease.engine.constant.DeTypeConstants;
+import io.dataease.constant.DeTypeConstants;
+import io.dataease.dataset.server.DatasetFieldServer;
 import io.dataease.exception.DEException;
+import io.dataease.exportCenter.util.ExportCenterUtils;
 import io.dataease.extensions.view.dto.ChartExtFilterDTO;
 import io.dataease.extensions.view.dto.ChartExtRequest;
 import io.dataease.extensions.view.dto.ChartViewDTO;
@@ -33,21 +36,31 @@ import java.util.stream.Collectors;
 
 @Component
 public class CoreVisualizationExportManage {
-    private final TypeReference<List<Map<String, Object>>> tokenType = new TypeReference<List<Map<String, Object>>>() {
-    };
     @Resource
     private ExtDataVisualizationMapper extDataVisualizationMapper;
+
     @Resource
     private ChartViewManege chartViewManege;
+
     @Resource
     private ChartDataManage chartDataManage;
+
     @Resource
     private VisualizationTemplateExtendDataManage extendDataManage;
 
-    public File exportExcel(Long dvId, String busiFlag, List<Long> viewIdList, boolean onlyDisplay) throws Exception {
-        DataVisualizationVO visualization = extDataVisualizationMapper.findDvInfo(dvId, busiFlag);
+    @Resource
+    private DatasetFieldServer datasetFieldServer;
+
+    public String getResourceName(Long dvId, String busiFlag) {
+        DataVisualizationVO visualization = extDataVisualizationMapper.findDvInfo(dvId, busiFlag, "core");
         if (ObjectUtils.isEmpty(visualization)) DEException.throwException("资源不存在或已经被删除...");
-        List<ChartViewDTO> chartViewDTOS = chartViewManege.listBySceneId(dvId);
+        return visualization.getName();
+    }
+
+    public File exportExcel(Long dvId, String busiFlag, List<Long> viewIdList, boolean onlyDisplay, String filterJson) throws Exception {
+        DataVisualizationVO visualization = extDataVisualizationMapper.findDvInfo(dvId, busiFlag, "core");
+        if (ObjectUtils.isEmpty(visualization)) DEException.throwException("资源不存在或已经被删除...");
+        List<ChartViewDTO> chartViewDTOS = chartViewManege.listBySceneId(dvId, CommonConstants.RESOURCE_TABLE.CORE);
 
         String componentsJson = visualization.getComponentData();
         List<Map<String, Object>> components = JsonUtil.parseList(componentsJson, tokenType);
@@ -57,37 +70,26 @@ public class CoreVisualizationExportManage {
             chartViewDTOS = chartViewDTOS.stream().filter(item -> idList.contains(item.getId()) && viewIdList.contains(item.getId())).collect(Collectors.toList());
         }
         if (CollectionUtils.isEmpty(chartViewDTOS)) return null;
-        Map<String, ChartExtRequest> chartExtRequestMap = buildViewRequest(visualization, onlyDisplay);
+        Map<Long, ChartExtRequest> chartExtRequestMap = buildViewRequest(filterJson);
         List<ExcelSheetModel> sheets = new ArrayList<>();
         for (int i = 0; i < chartViewDTOS.size(); i++) {
             ChartViewDTO view = chartViewDTOS.get(i);
-            ChartExtRequest extRequest = chartExtRequestMap.get(view.getId().toString());
+            ChartExtRequest extRequest = chartExtRequestMap.get(view.getId());
             if (ObjectUtils.isNotEmpty(extRequest)) {
                 view.setChartExtRequest(extRequest);
+            } else {
+                view.setChartExtRequest(buildDefaultRequest());
             }
             view.getChartExtRequest().setUser(AuthUtils.getUser().getUserId());
             view.setTitle((i + 1) + "-" + view.getTitle());
-            sheets.add(exportViewData(view));
+            sheets.addAll(exportViewData(view));
         }
 
         return VisualizationExcelUtils.exportExcel(sheets, visualization.getName(), visualization.getId().toString());
     }
 
-    private ExcelSheetModel exportViewData(ChartViewDTO request) {
+    private ExcelSheetModel exportSingleData(Map<String, Object> chart, String title) {
         ExcelSheetModel result = new ExcelSheetModel();
-        ChartViewDTO chartViewDTO = null;
-        if (CommonConstants.VIEW_DATA_FROM.TEMPLATE.equalsIgnoreCase(request.getDataFrom())) {
-            chartViewDTO = extendDataManage.getChartDataInfo(request.getId(), request);
-        } else {
-            try {
-                chartViewDTO = chartDataManage.calcData(request);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-        String title = chartViewDTO.getTitle();
-        Map<String, Object> chart = chartViewDTO.getData();
-
         Object objectFields = chart.get("fields");
         List<ChartViewFieldDTO> fields = (List<ChartViewFieldDTO>) objectFields;
         List<String> heads = new ArrayList<>();
@@ -110,6 +112,9 @@ public class CoreVisualizationExportManage {
             });
         }
         Object objectTableRow = chart.get("tableRow");
+        if (objectTableRow == null) {
+            objectTableRow = chart.get("sourceData");
+        }
         List<Map<String, Object>> tableRow = (List<Map<String, Object>>) objectTableRow;
 
         List<List<String>> details = tableRow.stream().map(row -> {
@@ -134,6 +139,45 @@ public class CoreVisualizationExportManage {
         return result;
     }
 
+    private List<ExcelSheetModel> exportViewData(ChartViewDTO request) {
+
+        ChartViewDTO chartViewDTO = null;
+        request.setIsExcelExport(true);
+        String type = request.getType();
+        if (StringUtils.equals("table-info", type)) {
+            request.setResultCount(Math.toIntExact(ExportCenterUtils.getExportLimit("view")));
+            request.setResultMode(ChartConstants.VIEW_RESULT_MODE.ALL);
+        }
+        if (CommonConstants.VIEW_DATA_FROM.TEMPLATE.equalsIgnoreCase(request.getDataFrom())) {
+            chartViewDTO = extendDataManage.getChartDataInfo(request.getId(), request);
+        } else {
+            try {
+                chartViewDTO = chartDataManage.calcData(request);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        String title = chartViewDTO.getTitle();
+        Map<String, Object> chart = chartViewDTO.getData();
+        List<ExcelSheetModel> resultList = new ArrayList<>();
+        boolean leftExist = ObjectUtils.isNotEmpty(chart.get("left"));
+        boolean rightExist = ObjectUtils.isNotEmpty(chart.get("right"));
+        if (!leftExist && !rightExist) {
+            ExcelSheetModel sheetModel = exportSingleData(chart, title);
+            resultList.add(sheetModel);
+            return resultList;
+        }
+        if (leftExist) {
+            ExcelSheetModel sheetModel = exportSingleData((Map<String, Object>) chart.get("left"), title + "_left");
+            resultList.add(sheetModel);
+        }
+        if (rightExist) {
+            ExcelSheetModel sheetModel = exportSingleData((Map<String, Object>) chart.get("right"), title + "_right");
+            resultList.add(sheetModel);
+        }
+        return resultList;
+    }
+
     private String filterInvalidDecimal(String sourceNumberStr) {
         if (StringUtils.isNotBlank(sourceNumberStr) && StringUtils.contains(sourceNumberStr, ".")) {
             sourceNumberStr = sourceNumberStr.replaceAll("0+?$", "");
@@ -142,19 +186,47 @@ public class CoreVisualizationExportManage {
         return sourceNumberStr;
     }
 
+    private final TypeReference<List<Map<String, Object>>> tokenType = new TypeReference<List<Map<String, Object>>>() {
+    };
+
+    private Map<Long, ChartExtRequest> buildViewRequest(String filterJson) {
+        if (StringUtils.isBlank(filterJson)) {
+            return new HashMap<>();
+        }
+        Map<Long, ChartExtRequest> extRequestMap = JsonUtil.parseObject(filterJson, new TypeReference<Map<Long, ChartExtRequest>>() {
+        });
+        extRequestMap.forEach((key, chartExtRequest) -> {
+            chartExtRequest.setQueryFrom("panel");
+            chartExtRequest.setResultCount(Math.toIntExact(ExportCenterUtils.getExportLimit("view")));
+            chartExtRequest.setResultMode(ChartConstants.VIEW_RESULT_MODE.ALL);
+            chartExtRequest.setPageSize(ExportCenterUtils.getExportLimit("view"));
+        });
+        return extRequestMap;
+    }
+
+    private ChartExtRequest buildDefaultRequest() {
+        ChartExtRequest chartExtRequest = new ChartExtRequest();
+        chartExtRequest.setQueryFrom("panel");
+        chartExtRequest.setFilter(new ArrayList<>());
+        chartExtRequest.setResultCount(Math.toIntExact(ExportCenterUtils.getExportLimit("view")));
+        chartExtRequest.setResultMode(ChartConstants.VIEW_RESULT_MODE.ALL);
+        chartExtRequest.setPageSize(ExportCenterUtils.getExportLimit("view"));
+        return chartExtRequest;
+    }
+
     private Map<String, ChartExtRequest> buildViewRequest(DataVisualizationVO panelDto, Boolean justView) {
         String componentsJson = panelDto.getComponentData();
         List<Map<String, Object>> components = JsonUtil.parseList(componentsJson, tokenType);
         Map<String, ChartExtRequest> result = new HashMap<>();
         Map<String, List<ChartExtFilterDTO>> panelFilters = FilterBuildTemplate.buildEmpty(components);
-        // List<String> tableInfoViewIds = findTableInfoViewIds(components);
         for (Map.Entry<String, List<ChartExtFilterDTO>> entry : panelFilters.entrySet()) {
             List<ChartExtFilterDTO> chartExtFilterRequests = entry.getValue();
             ChartExtRequest chartExtRequest = new ChartExtRequest();
             chartExtRequest.setQueryFrom("panel");
             chartExtRequest.setFilter(chartExtFilterRequests);
-            chartExtRequest.setResultCount((int) 1000);
-            chartExtRequest.setResultMode("all");
+            chartExtRequest.setResultCount(Math.toIntExact(ExportCenterUtils.getExportLimit("view")));
+            chartExtRequest.setResultMode(ChartConstants.VIEW_RESULT_MODE.ALL);
+            chartExtRequest.setPageSize(ExportCenterUtils.getExportLimit("view"));
             result.put(entry.getKey(), chartExtRequest);
         }
         return result;

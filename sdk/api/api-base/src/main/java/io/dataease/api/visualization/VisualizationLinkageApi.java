@@ -35,12 +35,18 @@ public interface VisualizationLinkageApi {
     @Operation(summary = "保存联动信息")
     BaseRspModel saveLinkage(@RequestBody VisualizationLinkageRequest request);
 
-    @GetMapping("/getVisualizationAllLinkageInfo/{dvId}")
+    @GetMapping("/getVisualizationAllLinkageInfo/{dvId}/{resourceTable}")
     @Operation(summary = "根据资源ID查询联动信息")
-    Map<String, List<String>> getVisualizationAllLinkageInfo(@PathVariable Long dvId);
+    Map<String, List<String>> getVisualizationAllLinkageInfo(@PathVariable Long dvId,@PathVariable String resourceTable);
 
     @PostMapping("/updateLinkageActive")
     @Operation(summary = "修改联动信息可用状态")
     Map updateLinkageActive(@RequestBody VisualizationLinkageRequest request);
+
+
+    @PostMapping("/removeLinkage")
+    @Operation(summary = "删除图表联动信息")
+    void removeLinkage(@RequestBody VisualizationLinkageRequest request);
+
 
 }

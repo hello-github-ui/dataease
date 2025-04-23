@@ -13,6 +13,6 @@ import lombok.EqualsAndHashCode;
 public class RoleDetailVO extends RoleCreator {
 
     @Schema(description = "ID")
-    @JsonSerialize(using = ToStringSerializer.class)
+    @JsonSerialize(using= ToStringSerializer.class)
     private Long id;
 }

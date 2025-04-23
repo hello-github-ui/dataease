@@ -13,7 +13,7 @@ public class Configuration {
     private String keywordSuffix = "";
     private String aliasPrefix = "";
     private String aliasSuffix = "";
-    private String jdbc;
+    protected String jdbc;
     private String host;
     private String jdbcUrl;
     private String urlType;
@@ -43,18 +43,18 @@ public class Configuration {
     private String sshKeyPassword;
 
 
-    public String getLHost() {
-        if (useSSH) {
+    public String getLHost(){
+        if(useSSH){
             return "127.0.0.1";
-        } else {
+        }else {
             return this.host;
         }
     }
 
-    public Integer getLPort() {
-        if (useSSH && lPort != null) {
+    public Integer getLPort(){
+        if(useSSH && lPort != null){
             return lPort;
-        } else {
+        }else {
             return this.port;
         }
     }

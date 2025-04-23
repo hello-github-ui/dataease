@@ -25,7 +25,7 @@ public class MarketMetaDataVO {
         this.slug = value;
     }
 
-    public MarketMetaDataVO(String value, String label, String source) {
+    public MarketMetaDataVO(String value, String label,String source) {
         this.label = label;
         this.value = value;
         this.slug = value;

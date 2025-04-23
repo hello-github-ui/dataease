@@ -2,6 +2,8 @@ package io.dataease.api.permissions.user.api;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.github.xiaoymin.knife4j.annotations.ApiSupport;
+import io.dataease.api.permissions.login.dto.MfaLoginDTO;
+import io.dataease.api.permissions.login.vo.MfaQrVO;
 import io.dataease.api.permissions.role.dto.UserRequest;
 import io.dataease.api.permissions.user.dto.*;
 import io.dataease.api.permissions.user.vo.*;
@@ -9,7 +11,6 @@ import io.dataease.auth.DeApiPath;
 import io.dataease.auth.DePermit;
 import io.dataease.auth.vo.TokenVO;
 import io.dataease.model.KeywordRequest;
-import io.dataease.request.BaseGridRequest;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -32,13 +33,13 @@ public interface UserApi {
 
     @Operation(summary = "查询用户列表")
     @Parameters({
-        @Parameter(name = "goPage", description = "目标页码", required = true, in = ParameterIn.PATH),
-        @Parameter(name = "pageSize", description = "每页容量", required = true, in = ParameterIn.PATH),
-        @Parameter(name = "request", description = "过滤条件", required = true)
+            @Parameter(name = "goPage", description = "目标页码", required = true, in = ParameterIn.PATH),
+            @Parameter(name = "pageSize", description = "每页容量", required = true, in = ParameterIn.PATH),
+            @Parameter(name = "request", description = "过滤条件", required = true)
     })
     @DePermit("m:read")
     @PostMapping("/pager/{goPage}/{pageSize}")
-    IPage<UserGridVO> pager(@PathVariable("goPage") int goPage, @PathVariable("pageSize") int pageSize, @RequestBody BaseGridRequest request);
+    IPage<UserGridVO> pager(@PathVariable("goPage") int goPage, @PathVariable("pageSize") int pageSize, @RequestBody UserGridRequest request);
 
     @Operation(summary = "查询用户详情")
     @Parameter(name = "id", description = "ID", required = true, in = ParameterIn.PATH)
@@ -51,10 +52,19 @@ public interface UserApi {
     @GetMapping("/personInfo")
     UserFormVO personInfo();
 
+    @Operation(summary = "查询客户端IP信息")
+    @GetMapping("/ipInfo")
+    CurIpVO ipInfo();
+
     @Operation(summary = "创建")
     @DePermit("m:read")
     @PostMapping("/create")
     void create(@RequestBody UserCreator creator);
+
+    @Operation(summary = "创建第三方用户")
+    @DePermit("m:read")
+    @PostMapping("/createPlatform")
+    void createPlatform(@RequestBody PlatformUserCreator creator);
 
     @Operation(summary = "编辑")
     @DePermit({"m:read", "#p0.id + ':manage'"})
@@ -86,9 +96,9 @@ public interface UserApi {
 
     @Operation(summary = "角色已绑用户")
     @Parameters({
-        @Parameter(name = "goPage", description = "目标页码", required = true, in = ParameterIn.PATH),
-        @Parameter(name = "pageSize", description = "每页容量", required = true, in = ParameterIn.PATH),
-        @Parameter(name = "request", description = "过滤条件", required = true)
+            @Parameter(name = "goPage", description = "目标页码", required = true, in = ParameterIn.PATH),
+            @Parameter(name = "pageSize", description = "每页容量", required = true, in = ParameterIn.PATH),
+            @Parameter(name = "request", description = "过滤条件", required = true)
     })
     @PostMapping("/role/selected/{goPage}/{pageSize}")
     IPage<UserItemVO> selectedForRole(@PathVariable("goPage") int goPage, @PathVariable("pageSize") int pageSize, @RequestBody UserRequest request);
@@ -158,9 +168,9 @@ public interface UserApi {
     @GetMapping("/firstEchelon/{limit}")
     List<Long> firstEchelon(@PathVariable("limit") Long limit);
 
-    @Hidden
-    @GetMapping("/queryByAccount")
-    CurUserVO queryByAccount(String account);
+    @Operation(summary = "根据账号查询用户")
+    @GetMapping("/queryByAccount/{account}")
+    CurUserVO queryByAccount(@PathVariable("account") String account);
 
     @Hidden
     @PostMapping("/all")
@@ -187,7 +197,43 @@ public interface UserApi {
     boolean orgAdmin();
 
     @Hidden
-    @GetMapping("/invalidPwd")
-    InvalidPwdVO invalidPwd();
+    @GetMapping("/defaultOrgAdmin")
+    boolean defaultOrgAdmin();
+
+    @Hidden
+    @PostMapping("/subOrgUser")
+    List<UserItem> subOrgUser(@RequestBody List<Long> oidList);
+
+    List<Long> getRecipientUserIds(UserReciRequest request);
+
+    List<Long> getUserIdByAccount(String account);
+
+    List<Long> getUserIdByName(String name);
+
+    List<Map<String, Object>> listUserInfosByIds(List<Long> ids);
+
+    @Operation(summary = "MFA二维码信息")
+    @GetMapping("/mfaQr")
+    MfaQrVO mfaQr();
+
+    @Operation(summary = "MFA绑定状态")
+    @GetMapping("/mfabound")
+    Boolean mfaBound();
+
+    @Operation(summary = "绑定MFA")
+    @PostMapping("/mfaBind")
+    void mfaBind(@RequestBody MfaLoginDTO dto);
+
+    @Operation(summary = "解绑MFA")
+    @PostMapping("/mfaUnbind/{code}")
+    String mfaUnbind(@PathVariable("code") String code);
+
+    @Operation(summary = "重置MFA绑定状态")
+    @PostMapping("/mfaRest/{id}")
+    void resetBind(@PathVariable("id") Long id);
+
+    @Hidden
+    @GetMapping("/lang")
+    String userLang();
 
 }

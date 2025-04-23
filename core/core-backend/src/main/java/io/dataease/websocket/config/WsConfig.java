@@ -17,9 +17,9 @@ public class WsConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/websocket")
-            .setAllowedOriginPatterns("*")
-            .setHandshakeHandler(new PrincipalHandshakeHandler())
-            .withSockJS();
+                .setAllowedOriginPatterns("*")
+                .setHandshakeHandler(new PrincipalHandshakeHandler())
+                .withSockJS();
     }
 
     @Override
@@ -32,7 +32,7 @@ public class WsConfig implements WebSocketMessageBrokerConfigurer {
     public void configureWebSocketTransport(WebSocketTransportRegistration registry) {
         registry.addDecoratorFactory(new DeWsHandlerFactory());
         registry.setMessageSizeLimit(8192) //设置消息字节数大小
-            .setSendBufferSizeLimit(8192)//设置消息缓存大小
-            .setSendTimeLimit(10000); //设置消息发送时间限制毫秒
+                .setSendBufferSizeLimit(8192)//设置消息缓存大小
+                .setSendTimeLimit(10000); //设置消息发送时间限制毫秒
     }
 }

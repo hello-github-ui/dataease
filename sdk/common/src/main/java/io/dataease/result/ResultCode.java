@@ -27,6 +27,9 @@ public enum ResultCode {
     RESULE_DATA_NONE(50001, "数据未找到"),
     DATA_IS_WRONG(50002, "数据有误"),
     DATA_ALREADY_EXISTED(50003, "数据已存在"),
+    DS_RESOURCE_UNCHECKED(50004, "%s个数据集正在使用此数据源，无法删除"),
+
+    DV_RESOURCE_UNCHECKED(50004, "%s个仪表板或数据大屏正在使用此数据集，无法删除"),
 
     /* 接口错误：60001-69999 */
     INTERFACE_INNER_INVOKE_ERROR(60001, "内部系统接口调用异常"),
@@ -51,6 +54,14 @@ public enum ResultCode {
         this.message = message;
     }
 
+    public Integer code() {
+        return this.code;
+    }
+
+    public String message() {
+        return this.message;
+    }
+
     public static String getMessage(String name) {
         for (ResultCode item : ResultCode.values()) {
             if (item.name().equals(name)) {
@@ -67,14 +78,6 @@ public enum ResultCode {
             }
         }
         return null;
-    }
-
-    public Integer code() {
-        return this.code;
-    }
-
-    public String message() {
-        return this.message;
     }
 
     @Override

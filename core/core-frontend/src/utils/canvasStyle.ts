@@ -1,13 +1,15 @@
-import {cos, sin} from '@/utils/translate'
+import { cos, sin } from '@/utils/translate'
 import {
+  CHART_FONT_FAMILY_MAP,
+  CHART_FONT_FAMILY_MAP_TRANS,
   DEFAULT_COLOR_CASE,
-  DEFAULT_COLOR_CASE_DARK
+  DEFAULT_COLOR_CASE_DARK,
+  DEFAULT_INDICATOR_STYLE
 } from '@/views/chart/components/editor/util/chart'
 
-import {dvMainStoreWithOut} from '@/store/modules/data-visualization/dvMain'
-import {useEmitt} from '@/hooks/web/useEmitt'
-import {merge} from 'lodash-es'
-
+import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
+import { useEmitt } from '@/hooks/web/useEmitt'
+import { defaultTo, merge } from 'lodash-es'
 const dvMainStore = dvMainStoreWithOut()
 
 export const LIGHT_THEME_COLOR_MAIN = '#000000'
@@ -64,7 +66,7 @@ export function getStyle(style, filter = []) {
 
 // 获取一个组件旋转 rotate 后的样式
 export function getComponentRotatedStyle(style) {
-  style = {...style}
+  style = { ...style }
   if (style.rotate !== 0) {
     const newWidth = style.width * cos(style.rotate) + style.height * sin(style.rotate)
     const diffX = (style.width - newWidth) / 2 // 旋转后范围变小是正值，变大是负值
@@ -114,8 +116,20 @@ export function colorRgb(color, opacity) {
 }
 
 export const customAttrTrans = {
-  basicStyle: ['barWidth', 'lineWidth', 'lineSymbolSize'],
-  tableHeader: ['tableTitleFontSize', 'tableTitleHeight'],
+  basicStyle: [
+    'barWidth',
+    'lineWidth',
+    'lineSymbolSize',
+    'leftLineWidth',
+    'leftLineSymbolSize',
+    'tableColumnWidth'
+  ],
+  tableHeader: [
+    'tableTitleFontSize',
+    'tableTitleColFontSize',
+    'tableTitleCornerFontSize',
+    'tableTitleHeight'
+  ],
   tableCell: ['tableItemFontSize', 'tableItemHeight'],
   misc: [
     'nameFontSize',
@@ -128,7 +142,8 @@ export const customAttrTrans = {
   ],
   label: {
     fontSize: '',
-    seriesLabelFormatter: ['fontSize']
+    seriesLabelFormatter: ['fontSize'],
+    proportionSeriesFormatter: ['fontSize']
   },
   tooltip: {
     fontSize: '',
@@ -145,6 +160,9 @@ export const customStyleTrans = {
     axisLabel: ['fontSize'],
     splitLine: {
       lineStyle: ['width']
+    },
+    axisLine: {
+      lineStyle: ['width']
     }
   },
   yAxis: {
@@ -152,12 +170,18 @@ export const customStyleTrans = {
     axisLabel: ['fontSize'],
     splitLine: {
       lineStyle: ['width']
+    },
+    axisLine: {
+      lineStyle: ['width']
     }
   },
   yAxisExt: {
     fontSize: 'fontSize',
     axisLabel: ['fontSize'],
     splitLine: {
+      lineStyle: ['width']
+    },
+    axisLine: {
       lineStyle: ['width']
     }
   },
@@ -267,9 +291,18 @@ export const THEME_STYLE_TRANS_SLAVE1 = {
 }
 
 export const THEME_ATTR_TRANS_MAIN = {
-  label: ['color'],
+  label: {
+    color: 'color',
+    proportionSeriesFormatter: ['color']
+  },
   tooltip: ['color'],
-  indicatorName: ['color']
+  misc: {
+    bullet: {
+      bar: {
+        target: ['fill']
+      }
+    }
+  }
 }
 
 export const THEME_ATTR_TRANS_MAIN_SYMBOL = {
@@ -297,7 +330,6 @@ export function getScaleValue(propValue, scale) {
   const propValueTemp = Math.round(propValue * scale)
   return propValueTemp > 1 ? propValueTemp : 1
 }
-
 export const THEME_ATTR_TRANS_ARR_MAIN = {
   label: {
     seriesLabelFormatter: {
@@ -320,29 +352,32 @@ export function recursionTransObj(template, infoObj, scale, terminal) {
   for (const templateKey in template) {
     // 如果是数组 进行赋值计算
     if (template[templateKey] instanceof Array) {
-      template[templateKey].forEach(templateProp => {
-        if (
-          infoObj[templateKey] &&
-          (infoObj[templateKey][templateProp] || infoObj[templateKey].length)
-        ) {
-          // 移动端特殊属性值设置
-          if (terminal === 'mobile' && mobileSpecialProps[templateProp] !== undefined) {
-            infoObj[templateKey][templateProp] = mobileSpecialProps[templateProp]
-          } else {
-            // 数组依次设置
-            if (infoObj[templateKey] instanceof Array) {
-              infoObj[templateKey].forEach(v => {
-                v[templateProp] = getScaleValue(v[templateProp], scale)
-              })
+      // 词云图的大小区间，不需要缩放
+      template[templateKey]
+        .filter(field => field !== 'wordSizeRange')
+        .forEach(templateProp => {
+          if (
+            infoObj[templateKey] &&
+            (infoObj[templateKey][templateProp] || infoObj[templateKey].length)
+          ) {
+            // 移动端特殊属性值设置
+            if (terminal === 'mobile' && mobileSpecialProps[templateProp] !== undefined) {
+              infoObj[templateKey][templateProp] = mobileSpecialProps[templateProp]
             } else {
-              infoObj[templateKey][templateProp] = getScaleValue(
-                infoObj[templateKey][templateProp],
-                scale
-              )
+              // 数组依次设置
+              if (infoObj[templateKey] instanceof Array) {
+                infoObj[templateKey].forEach(v => {
+                  v[templateProp] = getScaleValue(v[templateProp], scale)
+                })
+              } else {
+                infoObj[templateKey][templateProp] = getScaleValue(
+                  infoObj[templateKey][templateProp],
+                  scale
+                )
+              }
             }
           }
-        }
-      })
+        })
     } else if (typeof template[templateKey] === 'string') {
       // 一级字段为字符串直接赋值
       infoObj[templateKey] = getScaleValue(infoObj[templateKey], scale)
@@ -418,6 +453,48 @@ export function adaptCurTheme(customStyle, customAttr) {
     remarkShow: customStyle['text']['remarkShow'],
     remark: customStyle['text']['remark']
   }
+}
+
+export function adaptTitleFontFamily(fontFamily, viewInfo) {
+  if (viewInfo) {
+    const _fontFamily = defaultTo(CHART_FONT_FAMILY_MAP_TRANS[fontFamily], fontFamily)
+    viewInfo.customStyle['text']['fontFamily'] = _fontFamily
+    //针对指标卡设置字体
+    if (viewInfo.type === 'indicator') {
+      viewInfo.customAttr['indicator']['fontFamily'] = fontFamily
+      viewInfo.customAttr['indicator']['suffixFontFamily'] = fontFamily
+      viewInfo.customAttr['indicatorName']['fontFamily'] = fontFamily
+    }
+  }
+}
+
+export function adaptTitleFontFamilyAll(fontFamily) {
+  const componentData = dvMainStore.componentData
+  componentData.forEach(item => {
+    if (item.component === 'UserView') {
+      const viewDetails = dvMainStore.canvasViewInfo[item.id]
+      adaptTitleFontFamily(fontFamily, viewDetails)
+      useEmitt().emitter.emit('renderChart-' + item.id, viewDetails)
+    } else if (item.component === 'Group') {
+      item.propValue.forEach(groupItem => {
+        if (groupItem.component === 'UserView') {
+          const viewDetails = dvMainStore.canvasViewInfo[groupItem.id]
+          adaptTitleFontFamily(fontFamily, viewDetails)
+          useEmitt().emitter.emit('renderChart-' + groupItem.id, viewDetails)
+        }
+      })
+    } else if (item.component === 'DeTabs') {
+      item.propValue.forEach(tabItem => {
+        tabItem.componentData.forEach(tabComponent => {
+          if (tabComponent.component === 'UserView') {
+            const viewDetails = dvMainStore.canvasViewInfo[tabComponent.id]
+            adaptTitleFontFamily(fontFamily, viewDetails)
+            useEmitt().emitter.emit('renderChart-' + tabComponent.id, viewDetails)
+          }
+        })
+      })
+    }
+  })
 }
 
 export function adaptCurThemeCommonStyle(component) {

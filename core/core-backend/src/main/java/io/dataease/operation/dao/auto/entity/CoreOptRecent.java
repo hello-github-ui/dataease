@@ -1,12 +1,11 @@
 package io.dataease.operation.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
  * <p>
- *
+ * 
  * </p>
  *
  * @author fit2cloud
@@ -111,13 +110,13 @@ public class CoreOptRecent implements Serializable {
     @Override
     public String toString() {
         return "CoreOptRecent{" +
-            "id = " + id +
-            ", resourceId = " + resourceId +
-            ", resourceName = " + resourceName +
-            ", uid = " + uid +
-            ", resourceType = " + resourceType +
-            ", optType = " + optType +
-            ", time = " + time +
-            "}";
+        "id = " + id +
+        ", resourceId = " + resourceId +
+        ", resourceName = " + resourceName +
+        ", uid = " + uid +
+        ", resourceType = " + resourceType +
+        ", optType = " + optType +
+        ", time = " + time +
+        "}";
     }
 }

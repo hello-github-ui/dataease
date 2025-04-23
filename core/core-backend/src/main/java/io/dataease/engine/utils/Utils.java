@@ -1,14 +1,16 @@
 package io.dataease.engine.utils;
 
+import io.dataease.constant.SQLConstants;
 import io.dataease.engine.constant.ExtFieldConstant;
-import io.dataease.engine.constant.SQLConstants;
 import io.dataease.exception.DEException;
+import io.dataease.extensions.datasource.api.PluginManageApi;
 import io.dataease.extensions.datasource.constant.SqlPlaceholderConstants;
-import io.dataease.extensions.datasource.dto.DatasetTableFieldDTO;
-import io.dataease.extensions.datasource.dto.DatasourceSchemaDTO;
+import io.dataease.extensions.datasource.dto.*;
 import io.dataease.extensions.datasource.model.SQLObj;
 import io.dataease.extensions.datasource.vo.DatasourceConfiguration;
+import io.dataease.extensions.datasource.vo.XpackPluginsDatasourceVO;
 import io.dataease.i18n.Translator;
+import io.dataease.utils.JsonUtil;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.util.CollectionUtils;
@@ -25,42 +27,43 @@ public class Utils {
     }
 
     // 解析计算字段
-    public static String calcFieldRegex(String originField, SQLObj tableObj, List<DatasetTableFieldDTO> originFields, boolean isCross, Map<Long, DatasourceSchemaDTO> dsMap) {
+    public static String calcFieldRegex(DatasetTableFieldDTO chartField, SQLObj tableObj, List<DatasetTableFieldDTO> originFields, boolean isCross, Map<Long, DatasourceSchemaDTO> dsMap, Map<String, String> paramMap, PluginManageApi pluginManage) {
         try {
             int i = 0;
-            DatasourceConfiguration.DatasourceType datasourceType = null;
+            DsTypeDTO datasourceType = null;
             if (dsMap != null && dsMap.entrySet().iterator().hasNext()) {
                 Map.Entry<Long, DatasourceSchemaDTO> next = dsMap.entrySet().iterator().next();
-                datasourceType = DatasourceConfiguration.DatasourceType.valueOf(next.getValue().getType());
+                datasourceType = getDs(pluginManage, next.getValue().getType());
             }
-            return buildCalcField(originField, tableObj, originFields, i, isCross, datasourceType);
+            return buildCalcField(chartField, tableObj, originFields, i, isCross, datasourceType, paramMap, true, chartField.getOriginName());
         } catch (Exception e) {
             DEException.throwException(Translator.get("i18n_field_circular_ref"));
         }
         return null;
     }
 
-    public static String calcSimpleFieldRegex(String originField, SQLObj tableObj, List<DatasetTableFieldDTO> originFields, boolean isCross, Map<Long, String> dsTypeMap) {
+    public static String calcSimpleFieldRegex(DatasetTableFieldDTO chartField, SQLObj tableObj, List<DatasetTableFieldDTO> originFields, boolean isCross, Map<Long, String> dsTypeMap, PluginManageApi pluginManage) {
         try {
             int i = 0;
-            DatasourceConfiguration.DatasourceType datasourceType = null;
+            DsTypeDTO datasourceType = null;
             if (dsTypeMap != null && dsTypeMap.entrySet().iterator().hasNext()) {
                 Map.Entry<Long, String> next = dsTypeMap.entrySet().iterator().next();
-                datasourceType = DatasourceConfiguration.DatasourceType.valueOf(next.getValue());
+                datasourceType = getDs(pluginManage, next.getValue());
             }
-            return buildCalcField(originField, tableObj, originFields, i, isCross, datasourceType);
+            return buildCalcField(chartField, tableObj, originFields, i, isCross, datasourceType, null, true, chartField.getOriginName());
         } catch (Exception e) {
             DEException.throwException(Translator.get("i18n_field_circular_ref"));
         }
         return null;
     }
 
-    public static String buildCalcField(String originField, SQLObj tableObj, List<DatasetTableFieldDTO> originFields, int i, boolean isCross, DatasourceConfiguration.DatasourceType datasourceType) throws Exception {
+    public static String buildCalcField(DatasetTableFieldDTO chartField, SQLObj tableObj, List<DatasetTableFieldDTO> originFields, int i, boolean isCross, DsTypeDTO datasourceType, Map<String, String> paramMap, boolean isFirst, String fieldExpression) throws Exception {
         try {
             i++;
             if (i > 100) {
                 DEException.throwException(Translator.get("i18n_field_circular_error"));
             }
+            String originField = getCalcField(chartField, originFields, isFirst, fieldExpression);
             originField = originField.replaceAll("[\\t\\n\\r]]", "");
             // 正则提取[xxx]
             String regex = "\\[(.*?)]";
@@ -74,6 +77,14 @@ public class Utils {
             if (CollectionUtils.isEmpty(ids)) {
                 return originField;
             }
+            // 替换参数
+            if (ObjectUtils.isNotEmpty(paramMap)) {
+                Set<Map.Entry<String, String>> entries = paramMap.entrySet();
+                for (Map.Entry<String, String> ele : entries) {
+                    originField = originField.replaceAll("\\[" + ele.getKey() + "]", ele.getValue());
+                }
+            }
+            // 替换字段引用
             for (DatasetTableFieldDTO ele : originFields) {
                 if (StringUtils.containsIgnoreCase(originField, ele.getId() + "")) {
                     // 计算字段允许二次引用，这里递归查询完整引用链
@@ -85,7 +96,7 @@ public class Utils {
                         }
                     } else {
                         originField = originField.replaceAll("\\[" + ele.getId() + "]", "(" + ele.getOriginName() + ")");
-                        originField = buildCalcField(originField, tableObj, originFields, i, isCross, datasourceType);
+                        originField = buildCalcField(chartField, tableObj, originFields, i, isCross, datasourceType, paramMap, false, originField);
                     }
                 }
             }
@@ -94,6 +105,19 @@ public class Utils {
             DEException.throwException(Translator.get("i18n_field_circular_error"));
         }
         return null;
+    }
+
+    public static String getCalcField(DatasetTableFieldDTO ele, List<DatasetTableFieldDTO> originFields, boolean isFirst, String fieldExpression) {
+        if (isFirst) {
+            for (DatasetTableFieldDTO field : originFields) {
+                if (Objects.equals(ele.getId(), field.getId())) {
+                    return field.getOriginName();
+                }
+            }
+            return "";
+        } else {
+            return fieldExpression;
+        }
     }
 
     public static String getLogic(String logic) {
@@ -133,8 +157,12 @@ public class Utils {
                 return "%Y" + split + "%u";
             case "y_M_d":
                 return "yyyy" + split + "MM" + split + "dd";
+            case "M_d":
+                return "MM" + split + "dd";
             case "H_m_s":
                 return "HH:mm:ss";
+            case "y_M_d_H":
+                return "yyyy" + split + "MM" + split + "dd" + " HH";
             case "y_M_d_H_m":
                 return "yyyy" + split + "MM" + split + "dd" + " HH:mm";
             case "y_M_d_H_m_s":
@@ -251,6 +279,10 @@ public class Utils {
 
     public static String replaceSchemaAlias(String sql, Map<Long, DatasourceSchemaDTO> dsMap) {
         DatasourceSchemaDTO value = dsMap.entrySet().iterator().next().getValue();
+        Map map = JsonUtil.parseObject(value.getConfiguration(), Map.class);
+        if (ObjectUtils.isNotEmpty(map.get("schema"))) {
+            return sql;
+        }
         return sql.replaceAll(SqlPlaceholderConstants.KEYWORD_PREFIX_REGEX + value.getSchemaAlias() + SqlPlaceholderConstants.KEYWORD_SUFFIX_REGEX + "\\.", "");
     }
 
@@ -400,5 +432,145 @@ public class Utils {
         map.put("startTime", startTime);
         map.put("endTime", endTime);
         return map;
+    }
+
+    public static String transLong2Str(Long ts) {
+        Date date = new Date(ts);
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        return simpleDateFormat.format(date);
+    }
+
+    public static String transLong2StrShort(Long ts) {
+        Date date = new Date(ts);
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        return simpleDateFormat.format(date);
+    }
+
+    public static List<CalParam> getParams(List<DatasetTableFieldDTO> list) {
+        if (ObjectUtils.isEmpty(list)) return Collections.emptyList();
+        List<CalParam> param = new ArrayList<>();
+        for (DatasetTableFieldDTO dto : list) {
+            if (Objects.equals(dto.getExtField(), ExtFieldConstant.EXT_CALC) && ObjectUtils.isNotEmpty(dto.getParams())) {
+                param.addAll(dto.getParams());
+            }
+        }
+        return param;
+    }
+
+    public static Map<String, String> mergeParam(List<CalParam> fieldParam, List<CalParam> chartParam) {
+        Map<String, String> map = new HashMap<>();
+        if (ObjectUtils.isNotEmpty(fieldParam)) {
+            for (CalParam param : fieldParam) {
+                map.put(param.getId(), param.getValue());
+            }
+        }
+        if (ObjectUtils.isNotEmpty(chartParam)) {
+            for (CalParam param : chartParam) {
+                map.put(param.getId(), param.getValue());
+            }
+        }
+        return map;
+    }
+
+    private static DsTypeDTO getDs(PluginManageApi pluginManage, String type) {
+        DsTypeDTO dto = new DsTypeDTO();
+        try {
+            DatasourceConfiguration.DatasourceType datasourceType = DatasourceConfiguration.DatasourceType.valueOf(type);
+            dto.setType(type);
+            dto.setName(datasourceType.getName());
+            dto.setCatalog(datasourceType.getCatalog());
+            dto.setPrefix(datasourceType.getPrefix());
+            dto.setSuffix(datasourceType.getSuffix());
+            return dto;
+        } catch (Exception e) {
+            List<XpackPluginsDatasourceVO> xpackPluginsDatasourceVOS = pluginManage.queryPluginDs();
+            for (XpackPluginsDatasourceVO vo : xpackPluginsDatasourceVOS) {
+                if (StringUtils.equalsIgnoreCase(vo.getType(), type)) {
+                    dto.setType(type);
+                    dto.setName(vo.getName());
+                    dto.setCatalog(vo.getCategory());
+                    dto.setPrefix(vo.getPrefix());
+                    dto.setSuffix(vo.getSuffix());
+                    return dto;
+                }
+            }
+        }
+        return null;
+    }
+
+    public static String transGroupFieldToSql(DatasetTableFieldDTO dto, List<DatasetTableFieldDTO> fields, boolean isCross, Map<Long, DatasourceSchemaDTO> dsMap, PluginManageApi pluginManage) {
+        // 从fields里取最新的dto
+        for (DatasetTableFieldDTO fieldDTO : fields) {
+            if (Objects.equals(dto.getId(), fieldDTO.getId())) {
+                dto.setGroupList(fieldDTO.getGroupList());
+                dto.setOtherGroup(fieldDTO.getOtherGroup());
+                break;
+            }
+        }
+        // get origin field
+        DatasetTableFieldDTO originField = null;
+        for (DatasetTableFieldDTO ele : fields) {
+            if (Objects.equals(ele.getId(), Long.valueOf(dto.getOriginName()))) {
+                originField = ele;
+                break;
+            }
+        }
+        if (originField == null) {
+            DEException.throwException("Field not exists");
+        }
+
+        DsTypeDTO datasourceType = null;
+        if (dsMap != null && dsMap.entrySet().iterator().hasNext()) {
+            Map.Entry<Long, DatasourceSchemaDTO> next = dsMap.entrySet().iterator().next();
+            datasourceType = getDs(pluginManage, next.getValue().getType());
+        }
+        if (datasourceType == null) {
+            DEException.throwException("Datasource not exists");
+        }
+
+        String fieldName;
+        if (isCross) {
+            fieldName = originField.getDataeaseName();
+        } else {
+            fieldName = datasourceType.getPrefix() + originField.getDataeaseName() + datasourceType.getSuffix();
+        }
+
+        StringBuilder exp = new StringBuilder();
+        exp.append(" (CASE ");
+        if (originField.getDeType() == 0) {
+            for (FieldGroupDTO fieldGroupDTO : dto.getGroupList()) {
+                exp.append(" WHEN ");
+                for (int i = 0; i < fieldGroupDTO.getText().size(); i++) {
+                    String value = fieldGroupDTO.getText().get(i);
+                    exp.append(fieldName).append(" = ").append("'").append(transValue(value)).append("'");
+                    if (i < fieldGroupDTO.getText().size() - 1) {
+                        exp.append(" OR ");
+                    }
+                }
+                exp.append(" THEN '").append(transValue(fieldGroupDTO.getName())).append("'");
+            }
+        } else if (originField.getDeType() == 1) {
+            for (FieldGroupDTO fieldGroupDTO : dto.getGroupList()) {
+                exp.append(" WHEN ");
+                exp.append(fieldName).append(" >= ").append("'").append(fieldGroupDTO.getStartTime()).append("'");
+                exp.append(" AND ");
+                exp.append(fieldName).append(" <= ").append("'").append(fieldGroupDTO.getEndTime()).append("'");
+                exp.append(" THEN '").append(transValue(fieldGroupDTO.getName())).append("'");
+            }
+        } else if (originField.getDeType() == 2 || originField.getDeType() == 3 || originField.getDeType() == 4) {
+            for (FieldGroupDTO fieldGroupDTO : dto.getGroupList()) {
+                exp.append(" WHEN ");
+                exp.append(fieldName).append(StringUtils.equalsIgnoreCase(fieldGroupDTO.getMinTerm(), "le") ? " >= " : " > ").append(fieldGroupDTO.getMin());
+                exp.append(" AND ");
+                exp.append(fieldName).append(StringUtils.equalsIgnoreCase(fieldGroupDTO.getMaxTerm(), "le") ? " <= " : " < ").append(fieldGroupDTO.getMax());
+                exp.append(" THEN '").append(transValue(fieldGroupDTO.getName())).append("'");
+            }
+        }
+        exp.append(" ELSE ").append("'").append(transValue(dto.getOtherGroup())).append("'").append(" END) ");
+        return exp.toString();
+    }
+
+    public static String transValue(String value) {
+        return value.replace("\\", "\\\\").replace("'", "''");
     }
 }

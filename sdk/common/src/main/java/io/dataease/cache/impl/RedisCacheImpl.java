@@ -1,10 +1,13 @@
 package io.dataease.cache.impl;
 
 import io.dataease.cache.DECacheService;
+import io.dataease.utils.CommonBeanFactory;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Component;
@@ -19,6 +22,15 @@ public class RedisCacheImpl implements DECacheService {
 
     @Resource
     private RedisTemplate redisTemplate;
+
+    private static CacheManager cacheManager;
+
+
+    private static CacheManager getCacheManager() {
+        if (cacheManager == null)
+            cacheManager = CommonBeanFactory.getBean(CacheManager.class);
+        return cacheManager;
+    }
 
 
     private ValueOperations ops() {
@@ -58,6 +70,10 @@ public class RedisCacheImpl implements DECacheService {
 
     @Override
     public void keyRemove(String cacheName, String key) {
+        Cache cache = getCacheManager().getCache(cacheName);
+        if (null == cache) return;
+        cache.evictIfPresent(key);
+        cache.clear();
         redisTemplate.delete(cacheName + SEPARATOR + key);
     }
 

@@ -14,9 +14,8 @@ public class StandaloneWsService implements WsService {
     @Resource
     private SimpMessagingTemplate messagingTemplate;
 
-    public void releaseMessage(WsMessage wsMessage) {
-        if (ObjectUtils.isEmpty(wsMessage) || ObjectUtils.isEmpty(wsMessage.getUserId()) || ObjectUtils.isEmpty(wsMessage.getTopic()))
-            return;
-        messagingTemplate.convertAndSendToUser(String.valueOf(wsMessage.getUserId()), wsMessage.getTopic(), wsMessage.getData());
+    public void releaseMessage(WsMessage wsMessage){
+        if(ObjectUtils.isEmpty(wsMessage) || ObjectUtils.isEmpty(wsMessage.getUserId()) ||  ObjectUtils.isEmpty(wsMessage.getTopic())) return;
+        messagingTemplate.convertAndSendToUser(String.valueOf(wsMessage.getUserId()), wsMessage.getTopic(),wsMessage.getData());
     }
 }

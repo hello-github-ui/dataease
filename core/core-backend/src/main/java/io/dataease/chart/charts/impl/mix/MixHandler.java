@@ -1,15 +1,19 @@
 package io.dataease.chart.charts.impl.mix;
 
+import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.chart.charts.impl.YoyChartHandler;
 import io.dataease.chart.utils.ChartDataBuild;
+import io.dataease.engine.trans.ExtWhere2Str;
 import io.dataease.engine.utils.Utils;
 import io.dataease.extensions.datasource.dto.DatasourceRequest;
 import io.dataease.extensions.datasource.dto.DatasourceSchemaDTO;
 import io.dataease.extensions.datasource.model.SQLMeta;
 import io.dataease.extensions.datasource.provider.Provider;
 import io.dataease.extensions.view.dto.*;
+import io.dataease.extensions.view.util.FieldUtil;
 import lombok.Getter;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
@@ -52,14 +56,22 @@ public class MixHandler extends YoyChartHandler {
     @Override
     public Map<String, Object> buildNormalResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data) {
         boolean isDrill = filterResult
-            .getFilterList()
-            .stream()
-            .anyMatch(ele -> ele.getFilterType() == 1);
+                .getFilterList()
+                .stream()
+                .anyMatch(ele -> ele.getFilterType() == 1) || filterResult.isDrill();
+        if (StringUtils.equals((String) formatResult.getContext().get("isRight"), "isRight")) {
+            var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
+            var xAxisExt = formatResult.getAxisMap().get(ChartAxis.xAxisExt);
+            var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);
+            var xAxisBase = xAxis.subList(0, xAxis.size() - xAxisExt.size());
+            return ChartDataBuild.transMixChartDataAntV(xAxisBase, xAxis, xAxisExt, yAxis, view, data, isDrill, true);
+        }
+
         var xAxisBase = (List<ChartViewFieldDTO>) formatResult.getContext().get("xAxisBase");
         var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
         var xAxisExt = formatResult.getAxisMap().get(ChartAxis.xAxisExt);
-        var result = ChartDataBuild.transMixChartDataAntV(xAxisBase, xAxis, xAxisExt, yAxis, view, data, isDrill);
+        var result = ChartDataBuild.transMixChartDataAntV(xAxisBase, xAxis, xAxisExt, yAxis, view, data, isDrill, false);
         return result;
     }
 
@@ -72,7 +84,7 @@ public class MixHandler extends YoyChartHandler {
             dsList.add(next.getValue().getType());
         }
         boolean needOrder = Utils.isNeedOrder(dsList);
-        boolean crossDs = Utils.isCrossDs(dsMap);
+        boolean crossDs = ((DatasetGroupInfoDTO) formatResult.getContext().get("dataset")).getIsCross();
         var leftResult = (T) super.calcChartResult(view, formatResult, filterResult, sqlMap, sqlMeta, provider);
         var dynamicAssistFields = getDynamicAssistFields(view);
         try {
@@ -83,13 +95,28 @@ public class MixHandler extends YoyChartHandler {
             var assistFields = getAssistFields(leftAssistFields, yAxis);
             if (CollectionUtils.isNotEmpty(assistFields)) {
                 var req = new DatasourceRequest();
+                req.setIsCross(crossDs);
                 req.setDsList(dsMap);
-                var assistSql = assistSQL(originSql, assistFields);
-                req.setQuery(assistSql);
-                logger.info("calcite assistSql sql: " + assistSql);
-                var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
-                leftResult.setAssistData(assistData);
-                leftResult.setDynamicAssistFields(leftAssistFields);
+
+                List<ChartSeniorAssistDTO> assists = leftAssistFields.stream().filter(ele -> !StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
+                if (ObjectUtils.isNotEmpty(assists)) {
+                    var assistSql = assistSQL(originSql, assistFields, dsMap, crossDs);
+                    req.setQuery(assistSql);
+                    logger.debug("calcite assistSql sql: " + assistSql);
+                    var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
+                    leftResult.setAssistData(assistData);
+                    leftResult.setDynamicAssistFields(assists);
+                }
+
+                List<ChartSeniorAssistDTO> assistsOriginList = leftAssistFields.stream().filter(ele -> StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
+                if (ObjectUtils.isNotEmpty(assistsOriginList)) {
+                    var assistSqlOriginList = assistSQLOriginList(originSql, assistFields, dsMap, crossDs);
+                    req.setQuery(assistSqlOriginList);
+                    logger.debug("calcite assistSql sql origin list: " + assistSqlOriginList);
+                    var assistDataOriginList = (List<String[]>) provider.fetchResultField(req).get("data");
+                    leftResult.setAssistDataOriginList(assistDataOriginList);
+                    leftResult.setDynamicAssistFieldsOriginList(assistsOriginList);
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -97,11 +124,6 @@ public class MixHandler extends YoyChartHandler {
 
         AxisFormatResult formatResult2 = new AxisFormatResult();
         var axisMap = new HashMap<ChartAxis, List<ChartViewFieldDTO>>();
-        axisMap.put(ChartAxis.xAxis, new ArrayList<>(formatResult.getAxisMap().get(ChartAxis.xAxis)));
-        axisMap.put(ChartAxis.extStack, new ArrayList<>());
-        axisMap.put(ChartAxis.xAxisExt, new ArrayList<>());
-        axisMap.put(ChartAxis.extBubble, new ArrayList<>(formatResult.getAxisMap().get(ChartAxis.extBubble)));
-        axisMap.put(ChartAxis.yAxisExt, new ArrayList<>(formatResult.getAxisMap().get(ChartAxis.yAxisExt)));
         axisMap.put(ChartAxis.extLabel, new ArrayList<>(formatResult.getAxisMap().get(ChartAxis.extLabel)));
         axisMap.put(ChartAxis.extTooltip, new ArrayList<>(formatResult.getAxisMap().get(ChartAxis.extTooltip)));
         axisMap.put(ChartAxis.drill, new ArrayList<>(formatResult.getAxisMap().get(ChartAxis.drill)));
@@ -110,25 +132,43 @@ public class MixHandler extends YoyChartHandler {
 
         // 计算右轴，包含 xAxis,xAxisExt,yAxisExt,需要去掉 group 和 stack
         var xAxis = new ArrayList<>(view.getXAxis());
-        var extStack = formatResult2.getAxisMap().get(ChartAxis.extStack);
-        var xAxisExt = formatResult2.getAxisMap().get(ChartAxis.xAxisExt);
-        //xAxis = xAxis.subList(0, xAxis.size() - extStack.size() - xAxisExt.size());
-        var extBubble = formatResult2.getAxisMap().get(ChartAxis.extBubble);
+        var extBubble = new ArrayList<>(formatResult.getAxisMap().get(ChartAxis.extBubble));
         xAxis.addAll(extBubble);
         var dillAxis = (ArrayList<ChartViewFieldDTO>) formatResult.getContext().get("dillAxis");
-        xAxis.addAll(dillAxis);
+        var fields = xAxis.stream().map(ChartViewFieldDTO::getId).collect(Collectors.toSet());
+        for (ChartViewFieldDTO dillAxi : dillAxis) {
+            if (!fields.contains(dillAxi.getId())) {
+                xAxis.add(dillAxi);
+            }
+        }
         formatResult2.getAxisMap().put(ChartAxis.xAxis, xAxis);
         formatResult2.getAxisMap().put(ChartAxis.xAxisExt, extBubble);
-        var yAxisExt = formatResult2.getAxisMap().get(ChartAxis.yAxisExt);
+        var yAxisExt = new ArrayList<>(formatResult.getAxisMap().get(ChartAxis.yAxisExt));
         formatResult2.getAxisMap().put(ChartAxis.yAxis, yAxisExt);
         formatResult2.getContext().remove("yoyFiltered");
+        formatResult2.getContext().put("isRight", "isRight");
 
+        CustomFilterResult originFilter = new CustomFilterResult();
+        originFilter.setContext(filterResult.getContext());
+        List<ChartExtFilterDTO> list = (List<ChartExtFilterDTO>) formatResult.getContext().get("originFilter");
+        originFilter.setFilterList(ObjectUtils.isEmpty(list) ? new ArrayList<>() : list);
 
         formatResult.getContext().put("subAxisMap", axisMap);
 
         // 右轴重新检测同环比过滤
-        customFilter(view, filterResult.getFilterList(), formatResult2);
-        var rightResult = (T) super.calcChartResult(view, formatResult2, filterResult, sqlMap, sqlMeta, provider);
+        customFilter(view, originFilter.getFilterList(), formatResult2);
+        var allFields = (List<ChartViewFieldDTO>) filterResult.getContext().get("allFields");
+        if (formatResult2.getContext().get("yoyFiltered") != null && (boolean) formatResult2.getContext().get("yoyFiltered") == true) {
+            ExtWhere2Str.extWhere2sqlOjb(sqlMeta, filterResult.getFilterList(), FieldUtil.transFields(allFields), crossDs, dsMap, Utils.getParams(FieldUtil.transFields(allFields)), view.getCalParams(), pluginManage);
+        } else {
+            ExtWhere2Str.extWhere2sqlOjb(sqlMeta, originFilter.getFilterList(), FieldUtil.transFields(allFields), crossDs, dsMap, Utils.getParams(FieldUtil.transFields(allFields)), view.getCalParams(), pluginManage);
+        }
+        originFilter.setDrill(filterResult
+                .getFilterList()
+                .stream()
+                .anyMatch(ele -> ele.getFilterType() == 1));
+        var rightResult = (T) super.calcChartResult(view, formatResult2, originFilter, sqlMap, sqlMeta, provider);
+
         try {
             //如果有同环比过滤,应该用原始sql
             var originSql = rightResult.getQuerySql();
@@ -137,12 +177,28 @@ public class MixHandler extends YoyChartHandler {
             var assistFields = getAssistFields(rightAssistFields, yAxis);
             if (CollectionUtils.isNotEmpty(assistFields)) {
                 var req = new DatasourceRequest();
+                req.setIsCross(crossDs);
                 req.setDsList(dsMap);
-                var assistSql = assistSQL(originSql, assistFields);
-                req.setQuery(assistSql);
-                var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
-                rightResult.setAssistData(assistData);
-                rightResult.setDynamicAssistFields(rightAssistFields);
+
+                List<ChartSeniorAssistDTO> assists = rightAssistFields.stream().filter(ele -> !StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
+                if (ObjectUtils.isNotEmpty(assists)) {
+                    var assistSql = assistSQL(originSql, assistFields, dsMap, crossDs);
+                    req.setQuery(assistSql);
+                    logger.debug("calcite assistSql sql: " + assistSql);
+                    var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
+                    rightResult.setAssistData(assistData);
+                    rightResult.setDynamicAssistFields(assists);
+                }
+
+                List<ChartSeniorAssistDTO> assistsOriginList = rightAssistFields.stream().filter(ele -> StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
+                if (ObjectUtils.isNotEmpty(assistsOriginList)) {
+                    var assistSqlOriginList = assistSQLOriginList(originSql, assistFields, dsMap, crossDs);
+                    req.setQuery(assistSqlOriginList);
+                    logger.debug("calcite assistSql sql origin list: " + assistSqlOriginList);
+                    var assistDataOriginList = (List<String[]>) provider.fetchResultField(req).get("data");
+                    rightResult.setAssistDataOriginList(assistDataOriginList);
+                    rightResult.setDynamicAssistFieldsOriginList(assistsOriginList);
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -163,12 +219,12 @@ public class MixHandler extends YoyChartHandler {
         var leftFields = new ArrayList<ChartViewFieldDTO>();
         leftFields.addAll(formatResult.getAxisMap().get(ChartAxis.xAxis));
         leftFields.addAll(formatResult.getAxisMap().get(ChartAxis.yAxis));
-        mergeAssistField(leftCalcResult.getDynamicAssistFields(), leftCalcResult.getAssistData());
+        List<ChartSeniorAssistDTO> chartSeniorAssistDTOSLeft = mergeAssistField(leftCalcResult.getDynamicAssistFields(), leftCalcResult.getAssistData(), leftCalcResult.getDynamicAssistFieldsOriginList(), leftCalcResult.getAssistDataOriginList());
         var leftOriginData = leftCalcResult.getOriginData();
         var leftTable = ChartDataBuild.transTableNormal(leftFields, view, leftOriginData, desensitizationList);
         var leftData = new HashMap<String, Object>(leftTable);
         leftData.putAll(leftCalcResult.getData());
-        leftData.put("dynamicAssistLines", leftCalcResult.getDynamicAssistFields());
+        leftData.put("dynamicAssistLines", chartSeniorAssistDTOSLeft);
 
         var rightCalcResult = (ChartCalcDataResult) calcResult.getData().get("right");
         var rightFields = new ArrayList<ChartViewFieldDTO>();
@@ -177,12 +233,12 @@ public class MixHandler extends YoyChartHandler {
         rightFields.addAll(subAxisMap.get(ChartAxis.xAxis));
         rightFields.addAll(subAxisMap.get(ChartAxis.yAxis));
 
-        mergeAssistField(rightCalcResult.getDynamicAssistFields(), rightCalcResult.getAssistData());
+        List<ChartSeniorAssistDTO> chartSeniorAssistDTOSRight = mergeAssistField(rightCalcResult.getDynamicAssistFields(), rightCalcResult.getAssistData(), rightCalcResult.getDynamicAssistFieldsOriginList(), rightCalcResult.getAssistDataOriginList());
         var rightOriginData = rightCalcResult.getOriginData();
         var rightTable = ChartDataBuild.transTableNormal(rightFields, view, rightOriginData, desensitizationList);
         var rightData = new HashMap<String, Object>(rightTable);
         rightData.putAll(rightCalcResult.getData());
-        rightData.put("dynamicAssistLines", rightCalcResult.getDynamicAssistFields());
+        rightData.put("dynamicAssistLines", chartSeniorAssistDTOSRight);
 
         // 构建结果
         Map<String, Object> chartData = new TreeMap<>();

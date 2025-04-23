@@ -3,10 +3,9 @@ package io.dataease.api.permissions.org.api;
 import com.github.xiaoymin.knife4j.annotations.ApiSupport;
 import io.dataease.api.permissions.org.dto.OrgCreator;
 import io.dataease.api.permissions.org.dto.OrgEditor;
+import io.dataease.api.permissions.org.dto.OrgLazyRequest;
 import io.dataease.api.permissions.org.dto.OrgRequest;
-import io.dataease.api.permissions.org.vo.MountedVO;
-import io.dataease.api.permissions.org.vo.OrgDetailVO;
-import io.dataease.api.permissions.org.vo.OrgPageVO;
+import io.dataease.api.permissions.org.vo.*;
 import io.dataease.auth.DeApiPath;
 import io.dataease.auth.DePermit;
 import io.dataease.model.KeywordRequest;
@@ -33,10 +32,15 @@ public interface OrgApi {
     @DePermit("m:read")
     List<OrgPageVO> pageTree(@RequestBody OrgRequest request);
 
+    @Operation(summary = "懒加载组织树")
+    @PostMapping("/page/lazyTree")
+    @DePermit("m:read")
+    LazyTreeVO lazyPageTree(@RequestBody OrgLazyRequest request);
+
     @Operation(summary = "创建")
     @DePermit({"m:read"})
     @PostMapping("/page/create")
-    void create(@RequestBody OrgCreator creator);
+    Long create(@RequestBody OrgCreator creator);
 
     @Operation(summary = "编辑")
     @DePermit({"m:read", "#p0.id+':manage'"})
@@ -53,6 +57,10 @@ public interface OrgApi {
     @PostMapping("/mounted")
     List<MountedVO> mounted(@RequestBody KeywordRequest request);
 
+    @Operation(summary = "查询权限内组织树(懒加载)")
+    @PostMapping("/lazyMounted")
+    LazyMountedVO lazyMounted(@RequestBody OrgLazyRequest request);
+
     @Operation(summary = "", hidden = true)
     @GetMapping("/resourceExist/{oid}")
     boolean resourceExist(@PathVariable("oid") Long oid);
@@ -60,4 +68,8 @@ public interface OrgApi {
     @Operation(hidden = true)
     @GetMapping("/detail/{oid}")
     OrgDetailVO detail(@PathVariable("oid") Long oid);
+
+    @Operation(hidden = true)
+    @GetMapping("/subOrgs")
+    List<String> subOrgs();
 }

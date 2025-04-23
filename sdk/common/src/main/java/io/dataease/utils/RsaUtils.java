@@ -8,9 +8,11 @@ import io.dataease.rsa.manage.RsaManage;
 import jakarta.annotation.Resource;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -24,17 +26,25 @@ import java.util.Base64;
 @Component
 public class RsaUtils {
 
-    private static final int MAX_ENCRYPT_BLOCK = 117;
-    private static final int MAX_DECRYPT_BLOCK = 128;
-    private static final String PK_SEPARATOR = "-pk_separator-";
-    private static final String IV_KEY = "0000000000000000";
-    private static RsaManage rsaManage;
-
     static {
         if (ObjectUtils.isNotEmpty(Security.getProvider("BC"))) {
             Security.removeProvider("BC");
         }
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+    }
+
+
+    private static final int MAX_ENCRYPT_BLOCK = 245;
+
+    private static final int MAX_DECRYPT_BLOCK = 256;
+
+    private static final String PK_SEPARATOR = "-pk_separator-";
+
+    private static RsaManage rsaManage;
+
+    @Resource
+    public void setRsaManage(RsaManage rsaManage) {
+        RsaUtils.rsaManage = rsaManage;
     }
 
     private static KeyPair getKeyPair() {
@@ -45,7 +55,7 @@ public class RsaUtils {
             LogUtil.error(e.getMessage(), e);
             DEException.throwException(e);
         }
-        generator.initialize(1024);
+        generator.initialize(2048);
         return generator.generateKeyPair();
     }
 
@@ -168,6 +178,8 @@ public class RsaUtils {
         return pk + separator + aesKey;
     }
 
+    public static final String IV_KEY = "0000000000000000";
+
     private static String generateAesKey() {
         return RandomStringUtils.randomAlphanumeric(16);
     }
@@ -191,8 +203,52 @@ public class RsaUtils {
 
     }
 
-    @Resource
-    public void setRsaManage(RsaManage rsaManage) {
-        RsaUtils.rsaManage = rsaManage;
+
+    private static final String ALGORITHM = "AES";
+    public static String symmetricKey = null;
+    private static final int KEY_SIZE = 128;
+
+
+    public static String generateSymmetricKey() {
+        try {
+            if (StringUtils.isEmpty(symmetricKey)) {
+                KeyGenerator keyGenerator = KeyGenerator.getInstance(ALGORITHM);
+                keyGenerator.init(KEY_SIZE, new SecureRandom());
+                SecretKey secretKey = keyGenerator.generateKey();
+                symmetricKey = Base64.getEncoder().encodeToString(secretKey.getEncoded());
+            }
+            return symmetricKey;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static String symmetricEncrypt(String data) {
+        try {
+            byte[] iv = IV_KEY.getBytes(StandardCharsets.UTF_8);
+            IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            SecretKeySpec secretKeySpec = new SecretKeySpec(Base64.getDecoder().decode(generateSymmetricKey()), ALGORITHM);
+            cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, ivParameterSpec);
+            byte[] ciphertext = cipher.doFinal(data.getBytes("UTF-8"));
+            return Base64.getEncoder().encodeToString(ciphertext);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static String symmetricDecrypt(String data) {
+        try {
+            byte[] iv = IV_KEY.getBytes(StandardCharsets.UTF_8);
+            IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
+            SecretKeySpec secretKeySpec = new SecretKeySpec(Base64.getDecoder().decode(generateSymmetricKey()), ALGORITHM);
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, ivParameterSpec);
+            byte[] decodedCiphertext = Base64.getDecoder().decode(data);
+            byte[] decryptedText = cipher.doFinal(decodedCiphertext);
+            return new String(decryptedText, "UTF-8");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

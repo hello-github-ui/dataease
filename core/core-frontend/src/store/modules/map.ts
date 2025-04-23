@@ -1,19 +1,25 @@
-import {defineStore} from 'pinia'
-import {store} from '@/store'
-import {FeatureCollection} from '@antv/l7plot/dist/esm/plots/choropleth/types'
-
+import { defineStore } from 'pinia'
+import { store } from '@/store'
+import { FeatureCollection } from '@antv/l7plot/dist/esm/plots/choropleth/types'
 interface MapStore {
   mapCache: Record<string, FeatureCollection>
-  mapKey: string
+  mapKey: {
+    key: string
+    securityCode: string
+    mapType: string
+  }
 }
-
 export const useMapStore = defineStore('map', {
   state: (): MapStore => ({
     mapCache: {},
-    mapKey: ''
+    mapKey: {
+      key: '',
+      securityCode: '',
+      mapType: ''
+    }
   }),
   actions: {
-    setMap({id, geoJson}) {
+    setMap({ id, geoJson }) {
       this.mapCache[id] = geoJson
     },
     setKey(key) {

@@ -30,7 +30,9 @@ public class StackMixHandler extends MixHandler {
         axisMap.put(ChartAxis.yAxisExt, view.getYAxisExt());
         //去除除了x轴以外的排序
         axisMap.forEach((k, v) -> {
-            v.forEach(x -> x.setSort("none"));
+            if (!ChartAxis.extStack.equals(k)) {
+                v.forEach(x -> x.setSort("none"));
+            }
         });
         axisMap.put(ChartAxis.extLabel, view.getExtLabel());
         axisMap.put(ChartAxis.extTooltip, view.getExtTooltip());
@@ -47,15 +49,18 @@ public class StackMixHandler extends MixHandler {
     @Override
     public Map<String, Object> buildNormalResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data) {
         boolean isDrill = filterResult
-            .getFilterList()
-            .stream()
-            .anyMatch(ele -> ele.getFilterType() == 1);
+                .getFilterList()
+                .stream()
+                .anyMatch(ele -> ele.getFilterType() == 1);
         var extStack = formatResult.getAxisMap().get(ChartAxis.extStack);
         var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);
         if (CollectionUtils.isNotEmpty(extStack)) {
             // 堆叠左轴
-            var xAxisBase = (List<ChartViewFieldDTO>) formatResult.getContext().get("xAxisBase");
-            return ChartDataBuild.transMixChartStackDataAntV(xAxisBase, xAxisBase, extStack, yAxis, view, data, isDrill);
+            var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
+            var drillAxis = xAxis.stream().filter(axis -> FieldSource.DRILL == axis.getSource()).toList();
+            var xAxisBase = xAxis.subList(0, xAxis.size() - extStack.size() - drillAxis.size());
+            //var xAxisBase = (List<ChartViewFieldDTO>) formatResult.getContext().get("xAxisBase");
+            return ChartDataBuild.transMixChartStackDataAntV(xAxisBase, xAxis, extStack, yAxis, view, data, isDrill);
         } else {
             //无堆叠左轴和右轴还是走原逻辑
             var xAxisBase = (List<ChartViewFieldDTO>) formatResult.getContext().get("xAxisBase");

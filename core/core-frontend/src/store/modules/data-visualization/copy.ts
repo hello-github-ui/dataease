@@ -1,18 +1,20 @@
-import {defineStore, storeToRefs} from 'pinia'
-import {dvMainStoreWithOut} from './dvMain'
-import {contextmenuStoreWithOut} from './contextmenu'
-import {generateID} from '@/utils/generateID'
-import {deepCopy} from '@/utils/utils'
-import {store} from '../../index'
+import { defineStore, storeToRefs } from 'pinia'
+import { dvMainStoreWithOut } from './dvMain'
+import { contextmenuStoreWithOut } from './contextmenu'
+import { generateID } from '@/utils/generateID'
+import { deepCopy } from '@/utils/utils'
+import { store } from '../../index'
 import eventBus from '@/utils/eventBus'
-import {adaptCurThemeCommonStyle} from '@/utils/canvasStyle'
-import {composeStoreWithOut} from '@/store/modules/data-visualization/compose'
-import {snapshotStoreWithOut} from '@/store/modules/data-visualization/snapshot'
+import { adaptCurThemeCommonStyle } from '@/utils/canvasStyle'
+import { composeStoreWithOut } from '@/store/modules/data-visualization/compose'
+import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
+import { maxYComponentCount } from '@/utils/canvasUtils'
 
 const dvMainStore = dvMainStoreWithOut()
 const composeStore = composeStoreWithOut()
 const contextmenuStore = contextmenuStoreWithOut()
 const {
+  multiplexingStyleAdapt,
   curComponent,
   curComponentIndex,
   curMultiplexingComponents,
@@ -21,7 +23,7 @@ const {
   canvasStyleData,
   componentData
 } = storeToRefs(dvMainStore)
-const {menuTop, menuLeft} = storeToRefs(contextmenuStore)
+const { menuTop, menuLeft } = storeToRefs(contextmenuStore)
 
 const snapshotStore = snapshotStoreWithOut()
 
@@ -38,11 +40,12 @@ export const copyStore = defineStore('copy', {
       canvasViewInfoPreview,
       outerMultiplexingComponents = curMultiplexingComponents.value,
       keepSize = false,
-      copyFrom = 'multiplexing'
+      copyFrom = 'multiplexing',
+      multiplexingScale = canvasStyleData.value?.scale
     ) {
       // eslint-disable-next-line @typescript-eslint/no-this-alias
       const _this = this
-      const {width, height, scale} = canvasStyleData.value
+      const { width, height, scale } = canvasStyleData.value
       Object.keys(outerMultiplexingComponents).forEach(function (componentId, index) {
         const newComponent = deepCopy(outerMultiplexingComponents[componentId])
         newComponent.canvasId = 'canvas-main'
@@ -52,13 +55,20 @@ export const copyStore = defineStore('copy', {
           // dashboard 平铺2个
           const xPositionOffset = index % 2
           const yPositionOffset = index % 2
-          newComponent.sizeX = pcMatrixCount.value.x / 2
-          newComponent.sizeY = 14
-          newComponent.x = newComponent.sizeX * xPositionOffset + 1
-          newComponent.y = 200
+          if (!(copyFrom === 'multiplexing' && !multiplexingStyleAdapt.value)) {
+            newComponent.sizeX = pcMatrixCount.value.x / 2
+            newComponent.sizeY = 14
+            // dataV 数据大屏
+            newComponent.style.width = ((canvasStyleData.value.width / 3) * scale) / 100
+            newComponent.style.height = ((canvasStyleData.value.height / 3) * scale) / 100
+          } else {
+            newComponent.style.width = (newComponent.style.width * scale) / multiplexingScale
+            newComponent.style.height = (newComponent.style.height * scale) / multiplexingScale
+          }
           // dataV 数据大屏
-          newComponent.style.width = (width * scale) / 400
-          newComponent.style.height = (height * scale) / 400
+          newComponent.x = newComponent.sizeX * xPositionOffset + 1
+          newComponent.y = maxYComponentCount() + 10
+          // dataV 数据大屏
           newComponent.style.left = 0
           newComponent.style.top = 0
         }
@@ -72,7 +82,7 @@ export const copyStore = defineStore('copy', {
       })
     },
     copy() {
-      if (curComponent.value) {
+      if (curComponent.value && curComponent.value.component !== 'GroupArea') {
         this.copyDataInfo([curComponent.value])
       } else if (composeStore.areaData.components.length) {
         this.copyDataInfo(composeStore.areaData.components)
@@ -128,10 +138,10 @@ export const copyStore = defineStore('copy', {
           i++
         }
       }, moveTime)
-      snapshotStore.recordSnapshotCache()
+      snapshotStore.recordSnapshotCache('paste')
     },
     cut(curComponentData = componentData.value) {
-      if (curComponent.value) {
+      if (curComponent.value && curComponent.value.component !== 'GroupArea') {
         this.copyDataInfo([curComponent.value])
         dvMainStore.deleteComponentById(curComponent.value.id, curComponentData)
       } else if (composeStore.areaData.components.length) {
@@ -149,7 +159,7 @@ export const copyStore = defineStore('copy', {
           components: []
         })
       }
-      snapshotStore.recordSnapshotCache()
+      snapshotStore.recordSnapshotCache('cut')
       this.isCut = true
     },
 
@@ -158,7 +168,7 @@ export const copyStore = defineStore('copy', {
       if (this.isCut && this.copyData) {
         const data = deepCopy(this.copyData.data)
         const index = this.copyData.index
-        dvMainStore.addComponent({component: data, index})
+        dvMainStore.addComponent({ component: data, index })
         if (curComponentIndex.value >= index) {
           // 如果当前组件索引大于等于插入索引，需要加一，因为当前组件往后移了一位
           curComponentIndex.value++
@@ -179,12 +189,30 @@ export const copyStore = defineStore('copy', {
   }
 })
 
+export function deepCopyTabItemHelper(newCanvasId, tabComponentData, idMap) {
+  const resultComponentData = []
+  tabComponentData.forEach(item => {
+    const newItem = deepCopyHelper(item, idMap)
+    newItem.canvasId = newCanvasId
+    resultComponentData.push(newItem)
+  })
+  return resultComponentData
+}
+
 function deepCopyHelper(data, idMap) {
   const result = deepCopy(data)
+  if (result.freeze) {
+    result.freeze = false
+  }
   const newComponentId = generateID()
   idMap[data.id] = newComponentId
   result.id = newComponentId
+  // 复制清理移动端样式
   result.inMobile = false
+  delete result.mStyle
+  delete result.mEvents
+  delete result.mPropValue
+  delete result.mCommonBackground
   if (result.component === 'Group') {
     result.propValue.forEach((component, i) => {
       result.propValue[i] = deepCopyHelper(component, idMap)

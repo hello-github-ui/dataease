@@ -14,9 +14,11 @@ import java.util.List;
 @NoArgsConstructor
 public class TemplateMarketPreviewInfoDTO {
 
-    List<TemplateMarketDTO> contents;
     private MarketMetaDataVO category;
+
     private Boolean showFlag = true;
+
+    List<TemplateMarketDTO> contents;
 
     public TemplateMarketPreviewInfoDTO(MarketMetaDataVO category, List<TemplateMarketDTO> contents) {
         this.category = category;

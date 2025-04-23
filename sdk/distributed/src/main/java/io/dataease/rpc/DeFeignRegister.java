@@ -1,6 +1,7 @@
 package io.dataease.rpc;
 
 import feign.Request;
+
 import io.dataease.feign.DeFeign;
 import org.springframework.aop.scope.ScopedProxyUtils;
 import org.springframework.beans.factory.FactoryBean;
@@ -47,7 +48,7 @@ public class DeFeignRegister implements ImportBeanDefinitionRegistrar, ResourceL
 
     static void validateFallbackFactory(final Class clazz) {
         Assert.isTrue(!clazz.isInterface(), "Fallback factory must produce instances "
-            + "of fallback classes that implement the interface annotated by @DeFeign");
+                + "of fallback classes that implement the interface annotated by @DeFeign");
     }
 
     static String getName(String name) {
@@ -134,7 +135,7 @@ public class DeFeignRegister implements ImportBeanDefinitionRegistrar, ResourceL
                 Assert.isTrue(annotationMetadata.isInterface(), "@DeFeign can only be specified on an interface");
 
                 Map<String, Object> attributes = annotationMetadata
-                    .getAnnotationAttributes(DeFeign.class.getCanonicalName());
+                        .getAnnotationAttributes(DeFeign.class.getCanonicalName());
 
                 registerDeFeign(registry, annotationMetadata, attributes);
             }
@@ -145,7 +146,7 @@ public class DeFeignRegister implements ImportBeanDefinitionRegistrar, ResourceL
                                  Map<String, Object> attributes) {
         String className = annotationMetadata.getClassName();
         if (String.valueOf(false).equals(
-            environment.getProperty("spring.cloud.openfeign.lazy-attributes-resolution", String.valueOf(false)))) {
+                environment.getProperty("spring.cloud.openfeign.lazy-attributes-resolution", String.valueOf(false)))) {
             eagerlyRegisterDeFeignBeanDefinition(className, attributes, registry);
         } else {
             lazilyRegisterDeFeignBeanDefinition(className, attributes, registry);
@@ -167,12 +168,12 @@ public class DeFeignRegister implements ImportBeanDefinitionRegistrar, ResourceL
         Object fallback = attributes.get("fallback");
         if (fallback != null) {
             definition.addPropertyValue("fallback",
-                (fallback instanceof Class ? fallback : ClassUtils.resolveClassName(fallback.toString(), null)));
+                    (fallback instanceof Class ? fallback : ClassUtils.resolveClassName(fallback.toString(), null)));
         }
         Object fallbackFactory = attributes.get("fallbackFactory");
         if (fallbackFactory != null) {
             definition.addPropertyValue("fallbackFactory", fallbackFactory instanceof Class ? fallbackFactory
-                : ClassUtils.resolveClassName(fallbackFactory.toString(), null));
+                    : ClassUtils.resolveClassName(fallbackFactory.toString(), null));
         }
         definition.addPropertyValue("fallbackFactory", attributes.get("fallbackFactory"));
         definition.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_BY_TYPE);
@@ -198,7 +199,7 @@ public class DeFeignRegister implements ImportBeanDefinitionRegistrar, ResourceL
     private void lazilyRegisterDeFeignBeanDefinition(String className, Map<String, Object> attributes,
                                                      BeanDefinitionRegistry registry) {
         ConfigurableBeanFactory beanFactory = registry instanceof ConfigurableBeanFactory
-            ? (ConfigurableBeanFactory) registry : null;
+                ? (ConfigurableBeanFactory) registry : null;
         Class clazz = ClassUtils.resolveClassName(className, null);
         String contextId = getContextId(beanFactory, attributes);
         String name = getName(attributes);
@@ -215,12 +216,12 @@ public class DeFeignRegister implements ImportBeanDefinitionRegistrar, ResourceL
             Object fallback = attributes.get("fallback");
             if (fallback != null) {
                 factoryBean.setFallback(fallback instanceof Class ? (Class<?>) fallback
-                    : ClassUtils.resolveClassName(fallback.toString(), null));
+                        : ClassUtils.resolveClassName(fallback.toString(), null));
             }
             Object fallbackFactory = attributes.get("fallbackFactory");
             if (fallbackFactory != null) {
                 factoryBean.setFallbackFactory(fallbackFactory instanceof Class ? (Class<?>) fallbackFactory
-                    : ClassUtils.resolveClassName(fallbackFactory.toString(), null));
+                        : ClassUtils.resolveClassName(fallbackFactory.toString(), null));
             }
             return factoryBean.getObject();
         });
@@ -329,7 +330,7 @@ public class DeFeignRegister implements ImportBeanDefinitionRegistrar, ResourceL
 
     protected Set<String> getBasePackages(AnnotationMetadata importingClassMetadata) {
         Map<String, Object> attributes = importingClassMetadata
-            .getAnnotationAttributes(EnableFeignClients.class.getCanonicalName());
+                .getAnnotationAttributes(EnableFeignClients.class.getCanonicalName());
 
         Set<String> basePackages = new HashSet<>();
         for (String pkg : (String[]) attributes.get("value")) {
@@ -397,7 +398,7 @@ public class DeFeignRegister implements ImportBeanDefinitionRegistrar, ResourceL
             definitionBuilder.setScope("refresh");
             definitionBuilder.addPropertyValue("contextId", contextId);
             BeanDefinitionHolder definitionHolder = new BeanDefinitionHolder(definitionBuilder.getBeanDefinition(),
-                beanName);
+                    beanName);
             definitionHolder = ScopedProxyUtils.createScopedProxy(definitionHolder, registry, true);
             BeanDefinitionReaderUtils.registerBeanDefinition(definitionHolder, registry);
         }

@@ -33,4 +33,4 @@ const eventList = [
   }
 ]
 
-export {mixins, events, eventList}
+export { mixins, events, eventList }

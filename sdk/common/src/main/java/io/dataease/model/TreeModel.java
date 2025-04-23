@@ -5,7 +5,7 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class TreeModel<T> {
+public class TreeModel<T>{
 
     private TreeBaseModel<T> data;
 

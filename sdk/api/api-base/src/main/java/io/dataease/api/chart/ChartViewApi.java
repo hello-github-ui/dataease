@@ -1,6 +1,7 @@
 package io.dataease.api.chart;
 
 import com.github.xiaoymin.knife4j.annotations.ApiSupport;
+import io.dataease.api.chart.vo.ChartBaseVO;
 import io.dataease.api.chart.vo.ViewSelectorVO;
 import io.dataease.extensions.view.dto.ChartViewDTO;
 import io.dataease.extensions.view.dto.ChartViewFieldDTO;
@@ -37,8 +38,8 @@ public interface ChartViewApi {
     String checkSameDataSet(@PathVariable String viewIdSource, @PathVariable String viewIdTarget);
 
     @Operation(summary = "查询图表详情")
-    @PostMapping("getDetail/{id}")
-    ChartViewDTO getDetail(@PathVariable Long id);
+    @PostMapping("getDetail/{id}/{resourceTable}")
+    ChartViewDTO getDetail(@PathVariable Long id, @PathVariable String resourceTable);
 
     @Operation(summary = "查询仪表板下视图项")
     @GetMapping("/viewOption/{resourceId}")
@@ -55,4 +56,8 @@ public interface ChartViewApi {
     @Operation(summary = "清空当前视图计算字段")
     @PostMapping("deleteFieldByChart/{chartId}")
     void deleteFieldByChart(@PathVariable Long chartId);
+
+    @Operation(summary = "视图头部信息")
+    @GetMapping("/chartBaseInfo/{id}/{resourceTable}")
+    ChartBaseVO chartBaseInfo(@PathVariable("id") Long id, @PathVariable String resourceTable);
 }

@@ -1,6 +1,7 @@
 package io.dataease.chart.charts.impl.table;
 
 import io.dataease.api.chart.dto.PageInfo;
+import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.chart.charts.impl.DefaultChartHandler;
 import io.dataease.engine.sql.SQLProvider;
 import io.dataease.engine.trans.Dimension2SQLObj;
@@ -12,14 +13,15 @@ import io.dataease.extensions.datasource.provider.Provider;
 import io.dataease.extensions.view.dto.*;
 import io.dataease.extensions.view.util.ChartDataUtil;
 import io.dataease.extensions.view.util.FieldUtil;
+import io.dataease.utils.BeanUtils;
 import lombok.Getter;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 public class TableInfoHandler extends DefaultChartHandler {
@@ -40,7 +42,7 @@ public class TableInfoHandler extends DefaultChartHandler {
         Map<String, Object> mapSize = (Map<String, Object>) mapAttr.get("basicStyle");
         var tablePageMode = (String) mapSize.get("tablePageMode");
         formatResult.getContext().put("tablePageMode", tablePageMode);
-        if (StringUtils.equalsIgnoreCase(tablePageMode, "page") && !view.getIsExcelExport()) {
+        if (StringUtils.equalsIgnoreCase(tablePageMode, "page")) {
             if (chartExtRequest.getGoPage() == null) {
                 chartExtRequest.setGoPage(1L);
             }
@@ -72,8 +74,9 @@ public class TableInfoHandler extends DefaultChartHandler {
         for (Map.Entry<Long, DatasourceSchemaDTO> next : dsMap.entrySet()) {
             dsList.add(next.getValue().getType());
         }
-        boolean crossDs = Utils.isCrossDs(dsMap);
+        boolean crossDs = ((DatasetGroupInfoDTO) formatResult.getContext().get("dataset")).getIsCross();
         DatasourceRequest datasourceRequest = new DatasourceRequest();
+        datasourceRequest.setIsCross(crossDs);
         datasourceRequest.setDsList(dsMap);
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
         var allFields = (List<ChartViewFieldDTO>) filterResult.getContext().get("allFields");
@@ -84,18 +87,32 @@ public class TableInfoHandler extends DefaultChartHandler {
         } else {
             pageInfo.setPageSize(chartExtRequest.getPageSize());
         }
-        Dimension2SQLObj.dimension2sqlObj(sqlMeta, xAxis, FieldUtil.transFields(allFields), crossDs, dsMap);
-        String originSql = SQLProvider.createQuerySQL(sqlMeta, false, true, view);// 明细表强制加排序
-        String limit = ((pageInfo.getGoPage() != null && pageInfo.getPageSize() != null) ? " LIMIT " + pageInfo.getPageSize() + " OFFSET " + (pageInfo.getGoPage() - 1) * pageInfo.getPageSize() : "");
+        Dimension2SQLObj.dimension2sqlObj(sqlMeta, xAxis, FieldUtil.transFields(allFields), crossDs, dsMap, Utils.getParams(FieldUtil.transFields(allFields)), view.getCalParams(), pluginManage);
+        if (view.getIsExcelExport()) {
+            for (int i = 0; i < xAxis.size(); i++) {
+                ChartViewFieldDTO fieldDTO = null;
+                for (ChartViewFieldDTO allField : allFields) {
+                    if (allField.getId().equals(xAxis.get(i).getId())) {
+                        fieldDTO = allField;
+                    }
+                }
+                if (fieldDTO != null && fieldDTO.isAgg()) {
+                    sqlMeta.getXFields().get(i).setFieldName("'-'");
+                }
+            }
+        }
+
+        String originSql = SQLProvider.createQuerySQL(sqlMeta, false, !StringUtils.equalsIgnoreCase(dsMap.entrySet().iterator().next().getValue().getType(), "es"), view);// 明细表强制加排序
+        String limit = ((pageInfo.getGoPage() != null && pageInfo.getPageSize() != null) ? " LIMIT " + pageInfo.getPageSize() + " OFFSET " + (pageInfo.getGoPage() - 1) * chartExtRequest.getPageSize() : "");
         var querySql = originSql + limit;
 
         var tablePageMode = (String) filterResult.getContext().get("tablePageMode");
-        var totalPageSql = "SELECT COUNT(*) FROM (" + SQLProvider.createQuerySQL(sqlMeta, false, false, view) + ") COUNT_TEMP";
+        var totalPageSql = "SELECT COUNT(*) FROM (" + SQLProvider.createQuerySQLNoSort(sqlMeta, false, view) + ") COUNT_TEMP";
         if (StringUtils.isNotEmpty(totalPageSql) && StringUtils.equalsIgnoreCase(tablePageMode, "page")) {
             totalPageSql = provider.rebuildSQL(totalPageSql, sqlMeta, crossDs, dsMap);
             datasourceRequest.setQuery(totalPageSql);
             datasourceRequest.setTotalPageFlag(true);
-            logger.info("calcite total sql: " + totalPageSql);
+            logger.debug("calcite total sql: " + totalPageSql);
             List<String[]> tmpData = (List<String[]>) provider.fetchResultField(datasourceRequest).get("data");
             var totalItems = ObjectUtils.isEmpty(tmpData) ? 0 : Long.valueOf(tmpData.get(0)[0]);
             if (StringUtils.equalsIgnoreCase(view.getResultMode(), "custom")) {
@@ -108,10 +125,10 @@ public class TableInfoHandler extends DefaultChartHandler {
 
         querySql = provider.rebuildSQL(querySql, sqlMeta, crossDs, dsMap);
         datasourceRequest.setQuery(querySql);
-        logger.info("calcite chart sql: " + querySql);
+        logger.debug("calcite chart sql: " + querySql);
         List<String[]> data = (List<String[]>) provider.fetchResultField(datasourceRequest).get("data");
         //自定义排序
-        data = ChartDataUtil.resultCustomSort(xAxis, data);
+        data = ChartDataUtil.resultCustomSort(xAxis, Collections.emptyList(), view.getSortPriority(), data);
         //数据重组逻辑可重载
         var result = this.buildResult(view, formatResult, filterResult, data);
         T calcResult = (T) new ChartCalcDataResult();
@@ -119,6 +136,48 @@ public class TableInfoHandler extends DefaultChartHandler {
         calcResult.setContext(filterResult.getContext());
         calcResult.setQuerySql(querySql);
         calcResult.setOriginData(data);
+        try {
+            var dynamicAssistFields = getDynamicThresholdFields(view);
+            Set<Long> fieldIds = xAxis.stream().map(ChartViewFieldDTO::getId).collect(Collectors.toSet());
+            List<ChartViewFieldDTO> finalXAxis = xAxis;
+            dynamicAssistFields.forEach(i -> {
+                if (!fieldIds.contains(i.getFieldId())) {
+                    ChartViewFieldDTO fieldDTO = new ChartViewFieldDTO();
+                    BeanUtils.copyBean(fieldDTO, i.getCurField());
+                    finalXAxis.add(fieldDTO);
+                }
+            });
+            var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);
+            var assistFields = getAssistFields(dynamicAssistFields, yAxis, xAxis);
+            if (CollectionUtils.isNotEmpty(assistFields)) {
+                var req = new DatasourceRequest();
+                req.setDsList(dsMap);
+
+                List<ChartSeniorAssistDTO> assists = dynamicAssistFields.stream().filter(ele -> !StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
+                if (ObjectUtils.isNotEmpty(assists)) {
+                    var assistSql = assistSQL(originSql, assistFields, dsMap, crossDs);
+                    var tmpSql = provider.rebuildSQL(assistSql, sqlMeta, crossDs, dsMap);
+                    req.setQuery(tmpSql);
+                    logger.debug("calcite assistSql sql: " + tmpSql);
+                    var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
+                    calcResult.setAssistData(assistData);
+                    calcResult.setDynamicAssistFields(assists);
+                }
+
+                List<ChartSeniorAssistDTO> assistsOriginList = dynamicAssistFields.stream().filter(ele -> StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
+                if (ObjectUtils.isNotEmpty(assistsOriginList)) {
+                    var assistSqlOriginList = assistSQLOriginList(originSql, assistFields, dsMap, crossDs);
+                    var tmpSql = provider.rebuildSQL(assistSqlOriginList, sqlMeta, crossDs, dsMap);
+                    req.setQuery(tmpSql);
+                    logger.debug("calcite assistSql sql origin list: " + tmpSql);
+                    var assistDataOriginList = (List<String[]>) provider.fetchResultField(req).get("data");
+                    calcResult.setAssistDataOriginList(assistDataOriginList);
+                    calcResult.setDynamicAssistFieldsOriginList(assistsOriginList);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return calcResult;
     }
 }

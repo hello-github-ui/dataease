@@ -12,7 +12,7 @@ import java.io.Serializable;
 public class ApiKeyVO implements Serializable {
 
     @Schema(description = "ID")
-    @JsonSerialize(using = ToStringSerializer.class)
+    @JsonSerialize(using= ToStringSerializer.class)
     private Long id;
 
     @Schema(description = "accessKey")

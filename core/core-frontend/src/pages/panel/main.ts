@@ -53,46 +53,59 @@ document.querySelector('head').appendChild = <T extends Node>(node: T) => {
   cb(newNode)
   return newNode
 }
-import {App, createApp} from 'vue'
-import '../../assets/font/index.css'
+import { App, createApp } from 'vue'
 import '@/style/index.less'
 import 'normalize.css/normalize.css'
 import '@antv/s2/dist/style.min.css'
 import AppElement from './App.vue'
-import {setupI18n} from '@/plugins/vue-i18n'
-import {setupStore} from '@/store'
-import {useEmbedded} from '@/store/modules/embedded'
-import {setupElementPlus, setupElementPlusIcons} from '@/plugins/element-plus'
-import {setupRouter} from '@/router/embedded'
+import { setupStore } from '@/store'
+import { useEmbedded } from '@/store/modules/embedded'
+import { setupElementPlus, setupElementPlusIcons } from '@/plugins/element-plus'
+import { setupRouter } from '@/router/embedded'
+import { useCache } from '@/hooks/web/useCache'
 
 const setupAll = async (
   dom: string,
   type: string,
   busiFlag: string,
   outerParams: string,
+  suffixId: string,
   token: string,
   baseUrl: string,
   dvId: string,
   pid: string,
   chartId: string,
-  resourceId: string
+  resourceId: string,
+  dfId: string
 ): Promise<App<Element>> => {
-  const app = createApp(AppElement, {componentName: type})
-  await setupI18n(app)
+  const app = createApp(AppElement, { componentName: type })
+  app.provide('embeddedParams', {
+    chartId,
+    resourceId,
+    dfId,
+    dvId,
+    pid,
+    busiFlag,
+    outerParams,
+    suffixId
+  })
   setupStore(app)
-  setupRouter(app)
-  setupElementPlus(app)
-  setupElementPlusIcons(app)
   const embeddedStore = useEmbedded()
   embeddedStore.setType(type)
   embeddedStore.setBusiFlag(busiFlag)
   embeddedStore.setOuterParams(outerParams)
+  embeddedStore.setSuffixId(suffixId)
   embeddedStore.setToken(token)
   embeddedStore.setBaseUrl(baseUrl)
   embeddedStore.setDvId(dvId)
   embeddedStore.setPid(pid)
-  embeddedStore.setChartId(chartId)
   embeddedStore.setResourceId(resourceId)
+  embeddedStore.setDfId(dfId)
+  const i18 = await import('@/plugins/vue-i18n')
+  await i18.setupI18n(app)
+  setupRouter(app)
+  setupElementPlus(app)
+  setupElementPlusIcons(app)
   const directive = await import('@/directive')
   directive.installDirective(app)
   const res = await import('@/store/modules/user')
@@ -104,6 +117,11 @@ const setupAll = async (
   const appearanceRes = await import('@/store/modules/appearance')
   const appearanceStore = appearanceRes.useAppearanceStoreWithOut()
   appearanceStore.setAppearance(true)
+  const getDefaultSort = await import('@/api/common')
+  const defaultSort = await getDefaultSort.getDefaultSettings()
+  const { wsCache } = useCache()
+  wsCache.set('TreeSort-backend', defaultSort['basic.defaultSort'] ?? '1')
+  wsCache.set('open-backend', defaultSort['basic.defaultOpen'] ?? '0')
   app.mount(dom)
   return app
 }
@@ -130,10 +148,13 @@ class DataEaseBi {
     | 'Dashboard'
     | 'ScreenPanel'
     | 'DashboardPanel'
+    | 'DataFilling'
   dvId: string
   busiFlag: 'dashboard' | 'dataV'
   outerParams: string
+  suffixId: string
   resourceId: string
+  dfId: string
   pid: string
   chartId: string
   deOptions: Options
@@ -144,54 +165,53 @@ class DataEaseBi {
     this.token = options.token
     this.busiFlag = options.busiFlag
     this.outerParams = options.outerParams
+    this.suffixId = options.suffixId
     this.baseUrl = options.baseUrl
     this.dvId = options.dvId
     this.pid = options.pid
     this.chartId = options.chartId
     this.resourceId = options.resourceId
+    this.dfId = options.dfId
   }
 
   async initialize(options: Options) {
-    this.deOptions = {...defaultOptions, ...options}
+    this.deOptions = { ...defaultOptions, ...options }
     this.vm = await setupAll(
       this.deOptions.container,
       this.type,
       this.busiFlag,
       this.outerParams,
+      this.suffixId,
       this.token,
       this.baseUrl,
       this.dvId,
       this.pid,
       this.chartId,
-      this.resourceId
+      this.resourceId,
+      this.dfId
     )
   }
 
   destroy() {
-    import('@/store/modules/user').then(res => {
-      const userStore = res.userStore()
-      userStore.setUser()
-    })
     const embeddedStore = useEmbedded()
     embeddedStore.setType(null)
     embeddedStore.setBusiFlag(null)
     embeddedStore.setOuterParams(null)
+    embeddedStore.setSuffixId(null)
     embeddedStore.setToken(null)
-    embeddedStore.setBaseUrl(null)
-    embeddedStore.setDvId(null)
-    embeddedStore.setPid(null)
     embeddedStore.setChartId(null)
-    embeddedStore.setResourceId(null)
+    embeddedStore.clearState()
     this.vm.unmount()
     this.type = null
     this.token = null
     this.busiFlag = null
     this.outerParams = null
-    this.baseUrl = null
+    this.suffixId = null
     this.dvId = null
     this.pid = null
     this.chartId = null
     this.resourceId = null
+    this.dfId = null
     this.vm = null
   }
 }

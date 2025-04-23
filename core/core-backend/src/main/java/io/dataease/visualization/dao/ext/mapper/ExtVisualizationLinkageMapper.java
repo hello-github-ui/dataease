@@ -17,13 +17,21 @@ public interface ExtVisualizationLinkageMapper {
 
     List<LinkageInfoDTO> getPanelAllLinkageInfo(@Param("dvId") Long dvId);
 
+    List<VisualizationLinkageDTO> getViewLinkageGatherSnapshot(@Param("dvId") Long dvId, @Param("sourceViewId") Long sourceViewId, @Param("targetViewIds") List<String> targetViewIds);
+
+    List<LinkageInfoDTO> getPanelAllLinkageInfoSnapshot(@Param("dvId") Long dvId);
+
     List<DatasetTableFieldDTO> queryTableField(@Param("table_id") Long tableId);
 
     List<DatasetTableFieldDTO> queryTableFieldWithViewId(@Param("viewId") Long viewId);
 
-    void deleteViewLinkage(@Param("dvId") Long dvId, @Param("sourceViewId") Long sourceViewId);
+    void deleteViewLinkage(@Param("dvId") Long dvId,@Param("sourceViewId") Long sourceViewId);
 
-    void deleteViewLinkageField(@Param("dvId") Long dvId, @Param("sourceViewId") Long sourceViewId);
+    void deleteViewLinkageField(@Param("dvId") Long dvId,@Param("sourceViewId") Long sourceViewId);
+
+    void deleteViewLinkageSnapshot(@Param("dvId") Long dvId,@Param("sourceViewId") Long sourceViewId);
+
+    void deleteViewLinkageFieldSnapshot(@Param("dvId") Long dvId,@Param("sourceViewId") Long sourceViewId);
 
     void copyViewLinkage(@Param("copyId") Long copyId);
 

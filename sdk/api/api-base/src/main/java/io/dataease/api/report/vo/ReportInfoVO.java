@@ -27,6 +27,8 @@ public class ReportInfoVO implements Serializable {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long rid;
 
+    private Boolean showWatermark;
+
     private Integer format;
 
     private List<String> viewIdList;
@@ -44,6 +46,8 @@ public class ReportInfoVO implements Serializable {
     private List<String> emailList;
 
     private List<String> larkGroupList;
+
+    private List<String> larksuiteGroupList;
 
     private Integer extWaitTime;
 

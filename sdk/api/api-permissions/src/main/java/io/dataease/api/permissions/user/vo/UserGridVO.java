@@ -12,7 +12,7 @@ import java.util.List;
 public class UserGridVO {
 
     @Schema(description = "ID")
-    @JsonSerialize(using = ToStringSerializer.class)
+    @JsonSerialize(using= ToStringSerializer.class)
     private Long id;
     @Schema(description = "账号")
     private String account;
@@ -22,7 +22,11 @@ public class UserGridVO {
     private List<UserGridRoleItem> roleItems;
     @Schema(description = "邮箱")
     private String email;
+    @Schema(description = "电话前缀")
+    private String phonePrefix;
     @Schema(description = "电话")
+    private String phone;
+    @Schema(description = "状态")
     private Boolean enable;
     @Schema(description = "创建时间")
     private Long createTime;

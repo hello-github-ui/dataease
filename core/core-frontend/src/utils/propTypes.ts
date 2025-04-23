@@ -1,5 +1,5 @@
-import {toType, createTypes, VueTypesInterface, VueTypeValidableDef} from 'vue-types'
-import {CSSProperties} from 'vue'
+import { toType, createTypes, VueTypesInterface, VueTypeValidableDef } from 'vue-types'
+import { CSSProperties } from 'vue'
 
 // 自定义扩展vue-types
 type PropTypes = VueTypesInterface & {
@@ -24,4 +24,4 @@ class propTypes extends ProjectTypes {
   }
 }
 
-export {propTypes}
+export { propTypes }

@@ -4,6 +4,7 @@ import lombok.Data;
 import org.springframework.util.StringUtils;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -11,10 +12,11 @@ import java.util.regex.Pattern;
 @Data
 public class DatasourceRequest implements Serializable {
     private final String REG_WITH_SQL_FRAGMENT = "((?i)WITH[\\s\\S]+(?i)AS?\\s*\\([\\s\\S]+\\))\\s*(?i)SELECT";
+    private Pattern WITH_SQL_FRAGMENT = Pattern.compile("((?i)WITH[\\s\\S]+(?i)AS?\\s*\\([\\s\\S]+\\))\\s*(?i)SELECT");
     protected String query;
     protected String table;
     protected DatasourceDTO datasource;
-    private Pattern WITH_SQL_FRAGMENT = Pattern.compile("((?i)WITH[\\s\\S]+(?i)AS?\\s*\\([\\s\\S]+\\))\\s*(?i)SELECT");
+    private Integer dsVersion;
     private Integer pageSize;
     private Integer page;
     private Integer realSize;
@@ -23,6 +25,9 @@ public class DatasourceRequest implements Serializable {
     private boolean previewData = false;
     private boolean totalPageFlag;
     private Map<Long, DatasourceSchemaDTO> dsList;
+    private List<TableFieldWithValue> tableFieldWithValues;
+    private  String token;
+    private Boolean isCross;
 
     public DatasourceRequest() {
     }

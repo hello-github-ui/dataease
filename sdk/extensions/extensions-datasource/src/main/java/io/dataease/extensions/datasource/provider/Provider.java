@@ -25,16 +25,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @Author Junjun
  */
 public abstract class Provider {
 
-    @Getter
-    private static final Map<Long, Integer> lPorts = new HashMap<>();
-    @Getter
-    private static final Map<Long, Session> sessions = new HashMap<>();
     public static Logger logger = LoggerFactory.getLogger(Provider.class);
 
     /**
@@ -96,6 +93,20 @@ public abstract class Provider {
      */
     public abstract void hidePW(DatasourceDTO datasourceDTO);
 
+    public void exec(DatasourceRequest datasourceRequest) {
+
+    }
+
+    public ExecuteResult executeUpdate(DatasourceRequest datasourceRequest, String autoIncrementPkName) {
+        return new ExecuteResult();
+    }
+
+
+    @Getter
+    private static final Map<Long, Integer> lPorts = new HashMap<>();
+    @Getter
+    private static final Map<Long, Session> sessions = new HashMap<>();
+
     public Statement getStatement(Connection connection, int queryTimeout) {
         if (connection == null) {
             DEException.throwException("Failed to get connection!");
@@ -111,7 +122,7 @@ public abstract class Provider {
     }
 
     public String rebuildSQL(String sql, SQLMeta sqlMeta, boolean crossDs, Map<Long, DatasourceSchemaDTO> dsMap) {
-        logger.info("calcite sql: " + sql);
+        logger.debug("calcite sql: " + sql);
         if (crossDs) {
             return sql;
         }
@@ -119,13 +130,17 @@ public abstract class Provider {
         String s = transSqlDialect(sql, dsMap);
         String tableDialect = sqlMeta.getTableDialect();
         s = replaceTablePlaceHolder(s, tableDialect);
-        return replaceCalcFieldPlaceHolder(s, sqlMeta);
+        s = replaceCalcFieldPlaceHolder(s, sqlMeta);
+        return replaceMssqlN(s);
     }
 
     public String transSqlDialect(String sql, Map<Long, DatasourceSchemaDTO> dsMap) throws DEException {
-        try {
-            DatasourceSchemaDTO value = dsMap.entrySet().iterator().next().getValue();
-
+        DatasourceSchemaDTO value = dsMap.entrySet().iterator().next().getValue();
+        try (ConnectionObj connection = getConnection(value)) {
+            // 获取数据库version
+            if (connection != null) {
+                value.setDsVersion(connection.getConnection().getMetaData().getDatabaseMajorVersion());
+            }
             SqlParser parser = SqlParser.create(sql, SqlParser.Config.DEFAULT.withLex(Lex.JAVA));
             SqlNode sqlNode = parser.parseStmt();
             return sqlNode.toSqlString(getDialect(value)).toString();
@@ -137,10 +152,20 @@ public abstract class Provider {
 
     public String replaceTablePlaceHolder(String s, String placeholder) {
         s = s.replaceAll("\r\n", " ")
-            .replaceAll("\n", " ")
-            .replaceAll(SqlPlaceholderConstants.TABLE_PLACEHOLDER_REGEX, Matcher.quoteReplacement(placeholder))
-            .replaceAll("ASYMMETRIC", "")
-            .replaceAll("SYMMETRIC", "");
+                .replaceAll("\n", " ")
+                .replaceAll(SqlPlaceholderConstants.TABLE_PLACEHOLDER_REGEX, Matcher.quoteReplacement(placeholder))
+                .replaceAll("ASYMMETRIC", "")
+                .replaceAll("SYMMETRIC", "");
+        return s;
+    }
+
+    public String replaceMssqlN(String s) {
+        Pattern compile = Pattern.compile("'-DENS-.*?'");
+        Matcher matcher = compile.matcher(s);
+        while (matcher.find()) {
+            String v = matcher.group();
+            s = s.replaceAll(v, "N" + v.replace("-DENS-", ""));
+        }
         return s;
     }
 
@@ -170,6 +195,11 @@ public abstract class Provider {
         return s;
     }
 
+    public String replaceComment(String s) {
+        String regex = "/\\*[\\s\\S]*?\\*/|-- .*";
+        return s.replaceAll(regex, " ");
+    }
+
     public SqlDialect getDialect(DatasourceSchemaDTO coreDatasource) {
         SqlDialect sqlDialect = null;
         DatasourceConfiguration.DatasourceType datasourceType = DatasourceConfiguration.DatasourceType.valueOf(coreDatasource.getType());
@@ -188,10 +218,10 @@ public abstract class Provider {
                 sqlDialect = ImpalaSqlDialect.DEFAULT;
                 break;
             case sqlServer:
-                sqlDialect = MssqlSqlDialect.DEFAULT;
+                sqlDialect = new MssqlSqlDialect(MssqlSqlDialect.DEFAULT_CONTEXT, coreDatasource.getDsVersion());
                 break;
             case oracle:
-                sqlDialect = OracleSqlDialect.DEFAULT;
+                sqlDialect = new OracleSqlDialect(OracleSqlDialect.DEFAULT_CONTEXT, coreDatasource.getDsVersion());
                 break;
             case db2:
                 sqlDialect = Db2SqlDialect.DEFAULT;
@@ -203,10 +233,13 @@ public abstract class Provider {
                 sqlDialect = RedshiftSqlDialect.DEFAULT;
                 break;
             case ck:
-                sqlDialect = ClickHouseSqlDialect.DEFAULT;
+                sqlDialect = new ClickHouseSqlDialect(ClickHouseSqlDialect.DEFAULT_CONTEXT, coreDatasource.getDsVersion());
                 break;
             case h2:
                 sqlDialect = H2SqlDialect.DEFAULT;
+                break;
+            case es:
+                sqlDialect = EsSqlDialect.DEFAULT;
                 break;
             default:
                 sqlDialect = MysqlSqlDialect.DEFAULT;
@@ -238,28 +271,28 @@ public abstract class Provider {
         }
     }
 
-    public void startSshSession(DatasourceConfiguration configuration, ConnectionObj connectionObj, Long datacourseId) throws Exception {
+    public void startSshSession(DatasourceConfiguration configuration, ConnectionObj connectionObj, Long datasourceId) throws Exception {
         if (configuration.isUseSSH()) {
-            if (datacourseId == null) {
+            if (datasourceId == null) {
                 configuration.setLPort(getLport(null));
                 connectionObj.setLPort(configuration.getLPort());
                 connectionObj.setConfiguration(configuration);
                 Session session = initSession(configuration);
                 connectionObj.setSession(session);
             } else {
-                Integer lport = Provider.getLPorts().get(datacourseId);
-                configuration.setLPort(lport);
+                Integer lport = Provider.getLPorts().get(datasourceId);
                 if (lport != null) {
-                    if (Provider.getSessions().get(datacourseId) == null || !Provider.getSessions().get(datacourseId).isConnected()) {
+                    configuration.setLPort(lport);
+                        if (Provider.getSessions().get(datasourceId) == null || !Provider.getSessions().get(datasourceId).isConnected()) {
                         Session session = initSession(configuration);
-                        Provider.getSessions().put(datacourseId, session);
+                        Provider.getSessions().put(datasourceId, session);
                     }
                 } else {
-                    configuration.setLPort(getLport(datacourseId));
+                    lport = getLport(datasourceId);
+                    configuration.setLPort(lport);
                     Session session = initSession(configuration);
-                    Provider.getSessions().put(datacourseId, session);
+                    Provider.getSessions().put(datasourceId, session);
                 }
-                configuration.setLPort(lport);
             }
         }
     }

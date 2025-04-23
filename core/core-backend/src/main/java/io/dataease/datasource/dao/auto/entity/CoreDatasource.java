@@ -3,16 +3,15 @@ package io.dataease.datasource.dao.auto.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
  * <p>
- *
+ * 数据源表
  * </p>
  *
  * @author fit2cloud
- * @since 2023-09-26
+ * @since 2024-07-09
  */
 @TableName("core_datasource")
 public class CoreDatasource implements Serializable {
@@ -89,6 +88,11 @@ public class CoreDatasource implements Serializable {
      * 任务状态
      */
     private String taskStatus;
+
+    /**
+     * 开启数据填报
+     */
+    private Boolean enableDataFill;
 
     public Long getId() {
         return id;
@@ -202,23 +206,32 @@ public class CoreDatasource implements Serializable {
         this.taskStatus = taskStatus;
     }
 
+    public Boolean getEnableDataFill() {
+        return enableDataFill;
+    }
+
+    public void setEnableDataFill(Boolean enableDataFill) {
+        this.enableDataFill = enableDataFill;
+    }
+
     @Override
     public String toString() {
         return "CoreDatasource{" +
-            "id = " + id +
-            ", name = " + name +
-            ", description = " + description +
-            ", type = " + type +
-            ", pid = " + pid +
-            ", editType = " + editType +
-            ", configuration = " + configuration +
-            ", createTime = " + createTime +
-            ", updateTime = " + updateTime +
-            ", updateBy = " + updateBy +
-            ", createBy = " + createBy +
-            ", status = " + status +
-            ", qrtzInstance = " + qrtzInstance +
-            ", taskStatus = " + taskStatus +
-            "}";
+        "id = " + id +
+        ", name = " + name +
+        ", description = " + description +
+        ", type = " + type +
+        ", pid = " + pid +
+        ", editType = " + editType +
+        ", configuration = " + configuration +
+        ", createTime = " + createTime +
+        ", updateTime = " + updateTime +
+        ", updateBy = " + updateBy +
+        ", createBy = " + createBy +
+        ", status = " + status +
+        ", qrtzInstance = " + qrtzInstance +
+        ", taskStatus = " + taskStatus +
+        ", enableDataFill = " + enableDataFill +
+        "}";
     }
 }

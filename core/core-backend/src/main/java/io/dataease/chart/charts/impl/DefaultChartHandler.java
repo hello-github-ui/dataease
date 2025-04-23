@@ -1,25 +1,32 @@
 package io.dataease.chart.charts.impl;
 
+import com.beust.jcommander.Strings;
+import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.chart.charts.ChartHandlerManager;
 import io.dataease.chart.constant.ChartConstants;
 import io.dataease.chart.manage.ChartDataManage;
 import io.dataease.chart.manage.ChartViewManege;
 import io.dataease.chart.utils.ChartDataBuild;
+import io.dataease.constant.SQLConstants;
 import io.dataease.dataset.manage.DatasetTableFieldManage;
-import io.dataease.engine.constant.SQLConstants;
 import io.dataease.engine.sql.SQLProvider;
 import io.dataease.engine.trans.Dimension2SQLObj;
 import io.dataease.engine.trans.Quota2SQLObj;
 import io.dataease.engine.utils.Utils;
+import io.dataease.exception.DEException;
+import io.dataease.extensions.datasource.api.PluginManageApi;
 import io.dataease.extensions.datasource.dto.DatasetTableFieldDTO;
 import io.dataease.extensions.datasource.dto.DatasourceRequest;
 import io.dataease.extensions.datasource.dto.DatasourceSchemaDTO;
 import io.dataease.extensions.datasource.model.SQLMeta;
 import io.dataease.extensions.datasource.provider.Provider;
+import io.dataease.extensions.datasource.vo.DatasourceConfiguration;
+import io.dataease.extensions.datasource.vo.XpackPluginsDatasourceVO;
 import io.dataease.extensions.view.dto.*;
 import io.dataease.extensions.view.plugin.AbstractChartPlugin;
 import io.dataease.extensions.view.util.ChartDataUtil;
 import io.dataease.extensions.view.util.FieldUtil;
+import io.dataease.license.utils.LicenseUtil;
 import io.dataease.utils.BeanUtils;
 import io.dataease.utils.JsonUtil;
 import jakarta.annotation.PostConstruct;
@@ -31,12 +38,14 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @Component
@@ -52,6 +61,8 @@ public class DefaultChartHandler extends AbstractChartPlugin {
     private String render = "antv";
     @Getter
     private String type = "*";
+    @Autowired(required = false)
+    public PluginManageApi pluginManage;
 
     @PostConstruct
     public void init() {
@@ -82,9 +93,9 @@ public class DefaultChartHandler extends AbstractChartPlugin {
 
     public Map<String, Object> buildResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data) {
         boolean isDrill = filterResult
-            .getFilterList()
-            .stream()
-            .anyMatch(ele -> ele.getFilterType() == 1);
+                .getFilterList()
+                .stream()
+                .anyMatch(ele -> ele.getFilterType() == 1);
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
         var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);
         Map<String, Object> result = ChartDataBuild.transChartData(xAxis, yAxis, view, data, isDrill);
@@ -99,23 +110,26 @@ public class DefaultChartHandler extends AbstractChartPlugin {
             dsList.add(next.getValue().getType());
         }
         boolean needOrder = Utils.isNeedOrder(dsList);
-        boolean crossDs = Utils.isCrossDs(dsMap);
+        boolean crossDs = ((DatasetGroupInfoDTO) formatResult.getContext().get("dataset")).getIsCross();
         DatasourceRequest datasourceRequest = new DatasourceRequest();
+        datasourceRequest.setIsCross(crossDs);
         datasourceRequest.setDsList(dsMap);
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
         var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);
         var allFields = (List<ChartViewFieldDTO>) filterResult.getContext().get("allFields");
-        Dimension2SQLObj.dimension2sqlObj(sqlMeta, xAxis, FieldUtil.transFields(allFields), crossDs, dsMap);
-        Quota2SQLObj.quota2sqlObj(sqlMeta, yAxis, FieldUtil.transFields(allFields), crossDs, dsMap);
+        Dimension2SQLObj.dimension2sqlObj(sqlMeta, xAxis, FieldUtil.transFields(allFields), crossDs, dsMap, Utils.getParams(FieldUtil.transFields(allFields)), view.getCalParams(), pluginManage);
+        Quota2SQLObj.quota2sqlObj(sqlMeta, yAxis, FieldUtil.transFields(allFields), crossDs, dsMap, Utils.getParams(FieldUtil.transFields(allFields)), view.getCalParams(), pluginManage);
         String querySql = SQLProvider.createQuerySQL(sqlMeta, true, needOrder, view);
         querySql = provider.rebuildSQL(querySql, sqlMeta, crossDs, dsMap);
         datasourceRequest.setQuery(querySql);
-        logger.info("calcite chart sql: " + querySql);
+        logger.debug("calcite chart sql: " + querySql);
         List<String[]> data = (List<String[]>) provider.fetchResultField(datasourceRequest).get("data");
         //自定义排序
-        data = ChartDataUtil.resultCustomSort(xAxis, data);
+        data = ChartDataUtil.resultCustomSort(xAxis, yAxis, view.getSortPriority(), data);
         //快速计算
-        quickCalc(xAxis, yAxis, data);
+        var extStack = formatResult.getAxisMap().get(ChartAxis.extStack);
+        var xAxisExt = formatResult.getAxisMap().get(ChartAxis.xAxisExt);
+        quickCalc(xAxis, yAxis, xAxisExt, extStack, view.getType(), data);
         //数据重组逻辑可重载
         var result = this.buildResult(view, formatResult, filterResult, data);
         T calcResult = (T) new ChartCalcDataResult();
@@ -158,8 +172,8 @@ public class DefaultChartHandler extends AbstractChartPlugin {
         dataMap.putAll(calcResult.getData());
         dataMap.putAll(mapTableNormal);
         dataMap.put("sourceFields", allFields);
-        mergeAssistField(calcResult.getDynamicAssistFields(), calcResult.getAssistData());
-        dataMap.put("dynamicAssistLines", calcResult.getDynamicAssistFields());
+        List<ChartSeniorAssistDTO> chartSeniorAssistDTOS = mergeAssistField(calcResult.getDynamicAssistFields(), calcResult.getAssistData(), calcResult.getDynamicAssistFieldsOriginList(), calcResult.getAssistDataOriginList());
+        dataMap.put("dynamicAssistLines", chartSeniorAssistDTOS);
         view.setData(dataMap);
         view.setSql(Base64.getEncoder().encodeToString(calcResult.getQuerySql().getBytes()));
         view.setDrill(isDrill);
@@ -167,18 +181,30 @@ public class DefaultChartHandler extends AbstractChartPlugin {
         return view;
     }
 
-
-    protected void mergeAssistField(List<ChartSeniorAssistDTO> dynamicAssistFields, List<String[]> assistData) {
-        if (ObjectUtils.isEmpty(assistData)) {
-            return;
-        }
-        String[] strings = assistData.get(0);
-        for (int i = 0; i < dynamicAssistFields.size(); i++) {
-            if (i < strings.length) {
-                ChartSeniorAssistDTO chartSeniorAssistDTO = dynamicAssistFields.get(i);
-                chartSeniorAssistDTO.setValue(strings[i]);
+    protected List<ChartSeniorAssistDTO> mergeAssistField(List<ChartSeniorAssistDTO> dynamicAssistFields, List<String[]> assistData, List<ChartSeniorAssistDTO> dynamicAssistFieldsOriginList, List<String[]> assistDataOriginList) {
+        List<ChartSeniorAssistDTO> list = new ArrayList<>();
+        if (ObjectUtils.isNotEmpty(assistData)) {
+            String[] strings = assistData.getFirst();
+            for (int i = 0; i < dynamicAssistFields.size(); i++) {
+                if (i < strings.length) {
+                    ChartSeniorAssistDTO chartSeniorAssistDTO = dynamicAssistFields.get(i);
+                    chartSeniorAssistDTO.setValue(strings[i]);
+                    list.add(chartSeniorAssistDTO);
+                }
             }
         }
+
+        if (ObjectUtils.isNotEmpty(assistDataOriginList)) {
+            String[] stringsOriginList = assistDataOriginList.getLast();// 取最后一项，如果有其他运算逻辑需要取明细数据可增加逻辑
+            for (int i = 0; i < dynamicAssistFieldsOriginList.size(); i++) {
+                if (i < stringsOriginList.length) {
+                    ChartSeniorAssistDTO chartSeniorAssistDTO = dynamicAssistFieldsOriginList.get(i);
+                    chartSeniorAssistDTO.setValue(stringsOriginList[i]);
+                    list.add(chartSeniorAssistDTO);
+                }
+            }
+        }
+        return list;
     }
 
     protected List<ChartSeniorAssistDTO> getDynamicAssistFields(ChartViewDTO view) {
@@ -246,20 +272,208 @@ public class DefaultChartHandler extends AbstractChartPlugin {
         return res;
     }
 
-    protected String assistSQL(String sql, List<ChartViewFieldDTO> assistFields) {
-        StringBuilder stringBuilder = new StringBuilder();
-        for (int i = 0; i < assistFields.size(); i++) {
-            ChartViewFieldDTO dto = assistFields.get(i);
-            if (i == (assistFields.size() - 1)) {
-                stringBuilder.append(dto.getSummary() + "(" + dto.getOriginName() + ")");
-            } else {
-                stringBuilder.append(dto.getSummary() + "(" + dto.getOriginName() + "),");
+    protected List<ChartViewFieldDTO> getAssistFields(List<ChartSeniorAssistDTO> list, List<ChartViewFieldDTO> yAxis, List<ChartViewFieldDTO> xAxis) {
+        List<ChartViewFieldDTO> res = new ArrayList<>();
+        for (ChartSeniorAssistDTO dto : list) {
+            DatasetTableFieldDTO curField = dto.getCurField();
+            ChartViewFieldDTO field = null;
+            String alias = "";
+            for (int i = 0; i < yAxis.size(); i++) {
+                ChartViewFieldDTO yField = yAxis.get(i);
+                if (Objects.equals(yField.getId(), curField.getId())) {
+                    field = yField;
+                    alias = String.format(SQLConstants.FIELD_ALIAS_Y_PREFIX, i);
+                    break;
+                }
             }
+            if (ObjectUtils.isEmpty(field) && CollectionUtils.isNotEmpty(xAxis)) {
+                for (int i = 0; i < xAxis.size(); i++) {
+                    ChartViewFieldDTO xField = xAxis.get(i);
+                    if (StringUtils.equalsIgnoreCase(String.valueOf(xField.getId()), String.valueOf(curField.getId()))) {
+                        field = xField;
+                        alias = String.format(SQLConstants.FIELD_ALIAS_X_PREFIX, i);
+                        break;
+                    }
+                }
+            }
+            if (ObjectUtils.isEmpty(field)) {
+                continue;
+            }
+
+            ChartViewFieldDTO chartViewFieldDTO = new ChartViewFieldDTO();
+            BeanUtils.copyBean(chartViewFieldDTO, curField);
+            chartViewFieldDTO.setSummary(dto.getSummary());
+            chartViewFieldDTO.setOriginName(alias);// yAxis的字段别名，就是查找的字段名
+            res.add(chartViewFieldDTO);
         }
-        return "SELECT " + stringBuilder + " FROM (" + sql + ") tmp";
+        return res;
     }
 
-    protected void quickCalc(List<ChartViewFieldDTO> xAxis, List<ChartViewFieldDTO> yAxis, List<String[]> data) {
+    public List<ChartSeniorAssistDTO> getDynamicThresholdFields(ChartViewDTO view) {
+        List<ChartSeniorAssistDTO> list = new ArrayList<>();
+        Map<String, Object> senior = view.getSenior();
+        if (ObjectUtils.isEmpty(senior)) {
+            return list;
+        }
+        ChartSeniorThresholdCfgDTO thresholdCfg = JsonUtil.parseObject((String) JsonUtil.toJSONString(senior.get("threshold")), ChartSeniorThresholdCfgDTO.class);
+
+        if (null == thresholdCfg || !thresholdCfg.isEnable()) {
+            return list;
+        }
+        List<TableThresholdDTO> tableThreshold = thresholdCfg.getTableThreshold();
+
+        if (ObjectUtils.isEmpty(tableThreshold)) {
+            return list;
+        }
+
+        List<ChartSeniorThresholdDTO> conditionsList = tableThreshold.stream()
+                .filter(item -> !ObjectUtils.isEmpty(item))
+                .map(TableThresholdDTO::getConditions)
+                .flatMap(List::stream)
+                .filter(condition -> StringUtils.equalsAnyIgnoreCase(condition.getType(), "dynamic"))
+                .toList();
+
+        List<ChartSeniorAssistDTO> assistDTOs = conditionsList.stream()
+                .flatMap(condition -> getConditionFields(condition).stream())
+                .filter(this::solveThresholdCondition)
+                .toList();
+
+        list.addAll(assistDTOs);
+
+        return list;
+    }
+
+    private boolean solveThresholdCondition(ChartSeniorAssistDTO fieldDTO) {
+        Long fieldId = fieldDTO.getFieldId();
+        String summary = fieldDTO.getValue();
+        if (ObjectUtils.isEmpty(fieldId) || StringUtils.isEmpty(summary)) {
+            return false;
+        }
+
+        DatasetTableFieldDTO datasetTableFieldDTO = datasetTableFieldManage.selectById(fieldId);
+        if (ObjectUtils.isEmpty(datasetTableFieldDTO)) {
+            return false;
+        }
+        ChartViewFieldDTO datasetTableField = new ChartViewFieldDTO();
+        BeanUtils.copyBean(datasetTableField, datasetTableFieldDTO);
+        fieldDTO.setCurField(datasetTableField);
+        fieldDTO.setSummary(summary);
+        return true;
+    }
+
+    private List<ChartSeniorAssistDTO> getConditionFields(ChartSeniorThresholdDTO condition) {
+        List<ChartSeniorAssistDTO> list = new ArrayList<>();
+        if ("between".equals(condition.getTerm())) {
+            if (!StringUtils.equalsIgnoreCase(condition.getDynamicMaxField().getSummary(), "value")) {
+                list.add(of(condition.getDynamicMaxField()));
+            }
+            if (!StringUtils.equalsIgnoreCase(condition.getDynamicMinField().getSummary(), "value")) {
+                list.add(of(condition.getDynamicMinField()));
+            }
+        } else {
+            if (!StringUtils.equalsIgnoreCase(condition.getDynamicField().getSummary(), "value")) {
+                list.add(of(condition.getDynamicField()));
+            }
+        }
+
+        return list;
+    }
+
+    private ChartSeniorAssistDTO of(ThresholdDynamicFieldDTO dynamicField) {
+        ChartSeniorAssistDTO conditionField = new ChartSeniorAssistDTO();
+        conditionField.setFieldId(Long.parseLong(dynamicField.getFieldId()));
+        conditionField.setValue(dynamicField.getSummary());
+        return conditionField;
+    }
+
+    protected String assistSQL(String sql, List<ChartViewFieldDTO> assistFields, Map<Long, DatasourceSchemaDTO> dsMap, boolean crossDs) {
+        // get datasource prefix and suffix
+        String dsType = dsMap.entrySet().iterator().next().getValue().getType();
+        String prefix = "";
+        String suffix = "";
+        if (Arrays.stream(DatasourceConfiguration.DatasourceType.values()).map(DatasourceConfiguration.DatasourceType::getType).toList().contains(dsType)) {
+            DatasourceConfiguration.DatasourceType datasourceType = DatasourceConfiguration.DatasourceType.valueOf(dsType);
+            prefix = datasourceType.getPrefix();
+            suffix = datasourceType.getSuffix();
+        } else {
+            if (LicenseUtil.licenseValid()) {
+                List<XpackPluginsDatasourceVO> xpackPluginsDatasourceVOS = pluginManage.queryPluginDs();
+                List<XpackPluginsDatasourceVO> list = xpackPluginsDatasourceVOS.stream().filter(ele -> StringUtils.equals(ele.getType(), dsType)).toList();
+                if (ObjectUtils.isNotEmpty(list)) {
+                    XpackPluginsDatasourceVO first = list.getFirst();
+                    prefix = first.getPrefix();
+                    suffix = first.getSuffix();
+                } else {
+                    DEException.throwException("当前数据源插件不存在");
+                }
+            }
+        }
+
+        List<String> fieldList = new ArrayList<>();
+        for (int i = 0; i < assistFields.size(); i++) {
+            ChartViewFieldDTO dto = assistFields.get(i);
+            if (StringUtils.equalsIgnoreCase(dto.getSummary(), "last_item")) {
+                continue;
+            }
+            if (crossDs) {
+                fieldList.add(dto.getSummary() + "(" + dto.getOriginName() + ")");
+            } else {
+                fieldList.add(dto.getSummary() + "(" + prefix + dto.getOriginName() + suffix + ")");
+            }
+        }
+        return "SELECT " + Strings.join(",", fieldList) + " FROM (" + sql + ") tmp";
+    }
+
+    protected String assistSQLOriginList(String sql, List<ChartViewFieldDTO> assistFields, Map<Long, DatasourceSchemaDTO> dsMap, boolean crossDs) {
+        // get datasource prefix and suffix
+        String dsType = dsMap.entrySet().iterator().next().getValue().getType();
+        String prefix = "";
+        String suffix = "";
+        if (Arrays.stream(DatasourceConfiguration.DatasourceType.values()).map(DatasourceConfiguration.DatasourceType::getType).toList().contains(dsType)) {
+            DatasourceConfiguration.DatasourceType datasourceType = DatasourceConfiguration.DatasourceType.valueOf(dsType);
+            prefix = datasourceType.getPrefix();
+            suffix = datasourceType.getSuffix();
+        } else {
+            if (LicenseUtil.licenseValid()) {
+                List<XpackPluginsDatasourceVO> xpackPluginsDatasourceVOS = pluginManage.queryPluginDs();
+                List<XpackPluginsDatasourceVO> list = xpackPluginsDatasourceVOS.stream().filter(ele -> StringUtils.equals(ele.getType(), dsType)).toList();
+                if (ObjectUtils.isNotEmpty(list)) {
+                    XpackPluginsDatasourceVO first = list.getFirst();
+                    prefix = first.getPrefix();
+                    suffix = first.getSuffix();
+                } else {
+                    DEException.throwException("当前数据源插件不存在");
+                }
+            }
+        }
+
+        List<String> fieldList = new ArrayList<>();
+        for (int i = 0; i < assistFields.size(); i++) {
+            ChartViewFieldDTO dto = assistFields.get(i);
+            if (StringUtils.equalsIgnoreCase(dto.getSummary(), "last_item")) {
+                if (crossDs) {
+                    fieldList.add(dto.getOriginName());
+                } else {
+                    fieldList.add(prefix + dto.getOriginName() + suffix);
+                }
+            }
+        }
+        return "SELECT " + Strings.join(",", fieldList) + " FROM (" + sql + ") tmp";
+    }
+
+    protected List<String> mergeIds(List<ChartViewFieldDTO> xAxisExt, List<ChartViewFieldDTO> extStack) {
+        Set<String> idSet = new HashSet<>();
+        if (xAxisExt != null) {
+            xAxisExt.forEach(field -> idSet.add(String.valueOf(field.getId())));
+        }
+        if (extStack != null) {
+            extStack.forEach(field -> idSet.add(String.valueOf(field.getId())));
+        }
+        return new ArrayList<>(idSet);
+    }
+
+    protected void quickCalc(List<ChartViewFieldDTO> xAxis, List<ChartViewFieldDTO> yAxis
+            , List<ChartViewFieldDTO> xAxisExt, List<ChartViewFieldDTO> extStack, String chartType, List<String[]> data) {
         for (int i = 0; i < yAxis.size(); i++) {
             ChartViewFieldDTO chartViewFieldDTO = yAxis.get(i);
             ChartFieldCompareDTO compareCalc = chartViewFieldDTO.getCompareCalc();
@@ -267,7 +481,7 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                 continue;
             }
             if (StringUtils.isNotEmpty(compareCalc.getType())
-                && !StringUtils.equalsIgnoreCase(compareCalc.getType(), "none")) {
+                    && !StringUtils.equalsIgnoreCase(compareCalc.getType(), "none")) {
                 Long compareFieldId = compareCalc.getField();// 选中字段
                 // 数据字段下标
                 int dataIndex = xAxis.size() + i;
@@ -319,11 +533,13 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                                         item[dataIndex] = null;
                                     } else {
                                         item[dataIndex] = new BigDecimal(cValue)
-                                            .divide(new BigDecimal(lastValue).abs(), 8, RoundingMode.HALF_UP)
-                                            .subtract(new BigDecimal(1))
-                                            .setScale(8, RoundingMode.HALF_UP)
-                                            .toString();
+                                                .divide(new BigDecimal(lastValue).abs(), 8, RoundingMode.HALF_UP)
+                                                .subtract(new BigDecimal(1))
+                                                .setScale(8, RoundingMode.HALF_UP)
+                                                .toString();
                                     }
+                                } else if (StringUtils.equalsIgnoreCase(resultData, "pre")) {
+                                    item[dataIndex] = new BigDecimal(lastValue).toString();
                                 }
                             }
                         }
@@ -347,8 +563,105 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                             continue;
                         }
                         item[dataIndex] = new BigDecimal(cValue)
-                            .divide(sum, 8, RoundingMode.HALF_UP)
-                            .toString();
+                                .divide(sum, 8, RoundingMode.HALF_UP)
+                                .toString();
+                    }
+                } else if (StringUtils.equalsIgnoreCase(compareCalc.getType(), "accumulate")) {
+                    // 累加
+                    if (CollectionUtils.isEmpty(data)) {
+                        break;
+                    }
+                    if (Objects.isNull(extStack)) {
+                        extStack = Arrays.asList();
+                    }
+                    if (Objects.isNull(xAxisExt)) {
+                        xAxisExt = Arrays.asList();
+                    }
+                    boolean isStack = StringUtils.containsIgnoreCase(chartType, "stack") && CollectionUtils.isNotEmpty(extStack);
+                    boolean isGroup = StringUtils.containsIgnoreCase(chartType, "group")
+                            || (CollectionUtils.isNotEmpty(xAxisExt));
+                    if (isStack || isGroup) {
+                        if (CollectionUtils.isEmpty(xAxis)) {
+                            break;
+                        }
+                        final Map<String, Integer> mainIndexMap = new HashMap<>();
+                        final List<List<String[]>> mainMatrix = new ArrayList<>();
+                        // 排除group和stack的字段
+                        List<String> groupStackAxisIds = mergeIds(xAxisExt, extStack);
+                        List<ChartViewFieldDTO> xAxisBase = xAxis.stream().filter(ele -> !groupStackAxisIds.contains(String.valueOf(ele.getId()))).collect(Collectors.toList());
+                        if (CollectionUtils.isEmpty(xAxisBase) && CollectionUtils.isNotEmpty(xAxis)) {
+                            xAxisBase.add(xAxis.get(0));
+                        }
+                        data.forEach(item -> {
+                            String[] mainAxisArr = Arrays.copyOfRange(item, 0, xAxisBase.size());
+                            String mainAxis = StringUtils.join(mainAxisArr, '-');
+                            Integer index = mainIndexMap.get(mainAxis);
+                            if (index == null) {
+                                mainIndexMap.put(mainAxis, mainMatrix.size());
+                                List<String[]> tmp = new ArrayList<>();
+                                tmp.add(item);
+                                mainMatrix.add(tmp);
+                            } else {
+                                List<String[]> tmp = mainMatrix.get(index);
+                                tmp.add(item);
+                            }
+                        });
+                        int finalDataIndex = dataIndex;
+                        int subEndIndex = xAxisBase.size();
+                        if (CollectionUtils.isNotEmpty(xAxisExt)
+                                || StringUtils.containsIgnoreCase(chartType, "group")
+                                || StringUtils.containsIgnoreCase(chartType, "-mix")) {
+                            subEndIndex += xAxisExt.size();
+                        }
+                        if (StringUtils.containsIgnoreCase(chartType, "stack")) {
+                            subEndIndex += extStack.size();
+                        }
+                        int finalSubEndIndex = subEndIndex;
+                        // 存储上次的值
+                        Map<String, BigDecimal> preDataMap = new HashMap<>();
+                        //滑动累加
+                        for (int k = 1; k < mainMatrix.size(); k++) {
+                            List<String[]> preDataItems = mainMatrix.get(k - 1);
+                            List<String[]> curDataItems = mainMatrix.get(k);
+                            preDataItems.forEach(preDataItem -> {
+                                String[] groupStackAxisArr = Arrays.copyOfRange(preDataItem, xAxisBase.size(), finalSubEndIndex);
+                                String groupStackAxis = StringUtils.join(groupStackAxisArr, '-');
+                                String preVal = preDataItem[finalDataIndex];
+                                if (StringUtils.isBlank(preVal)) {
+                                    preVal = "0";
+                                }
+                                preDataMap.put(groupStackAxis, new BigDecimal(preVal));
+                            });
+                            curDataItems.forEach(curDataItem -> {
+                                String[] groupStackAxisArr = Arrays.copyOfRange(curDataItem, xAxisBase.size(), finalSubEndIndex);
+                                String groupStackAxis = StringUtils.join(groupStackAxisArr, '-');
+                                BigDecimal preValue = preDataMap.get(groupStackAxis);
+                                if (preValue != null) {
+                                    curDataItem[finalDataIndex] = new BigDecimal(curDataItem[finalDataIndex])
+                                            .add(preValue)
+                                            .toString();
+                                } else {
+                                    if (preDataMap.containsKey(groupStackAxis)) {
+                                        curDataItem[finalDataIndex] = new BigDecimal(curDataItem[finalDataIndex])
+                                                .add(preDataMap.get(groupStackAxis))
+                                                .toString();
+                                    }
+                                }
+                            });
+                        }
+                    } else {
+                        final int index = dataIndex;
+                        final AtomicReference<BigDecimal> accumValue = new AtomicReference<>(new BigDecimal(0));
+                        data.forEach(item -> {
+                            String val = item[index];
+                            BigDecimal curAccumValue = accumValue.get();
+                            if (!StringUtils.isBlank(val)) {
+                                BigDecimal curVal = new BigDecimal(val);
+                                curAccumValue = curAccumValue.add(curVal);
+                                accumValue.set(curAccumValue);
+                            }
+                            item[index] = curAccumValue.toString();
+                        });
                     }
                 }
             }
@@ -438,11 +751,11 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                 return StringUtils.equalsIgnoreCase(calcType, "year_mom");
             case "y_M":
                 return StringUtils.equalsIgnoreCase(calcType, "month_mom")
-                    || StringUtils.equalsIgnoreCase(calcType, "year_yoy");
+                        || StringUtils.equalsIgnoreCase(calcType, "year_yoy");
             case "y_M_d":
                 return StringUtils.equalsIgnoreCase(calcType, "day_mom")
-                    || StringUtils.equalsIgnoreCase(calcType, "month_yoy")
-                    || StringUtils.equalsIgnoreCase(calcType, "year_yoy");
+                        || StringUtils.equalsIgnoreCase(calcType, "month_yoy")
+                        || StringUtils.equalsIgnoreCase(calcType, "year_yoy");
         }
         return false;
     }
@@ -456,9 +769,10 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                     continue;
                 }
                 if (StringUtils.isNotEmpty(compareCalc.getType())
-                    && !StringUtils.equalsIgnoreCase(compareCalc.getType(), "none")) {
+                        && !StringUtils.equalsIgnoreCase(compareCalc.getType(), "none")) {
                     if (Arrays.asList(ChartConstants.M_Y).contains(compareCalc.getType())) {
-                        if (StringUtils.equalsIgnoreCase(compareCalc.getField() + "", filterDTO.getFieldId()) && filterDTO.getFilterType() == 0) {
+                        if (StringUtils.equalsIgnoreCase(compareCalc.getField() + "", filterDTO.getFieldId())
+                                && (filterDTO.getFilterType() == 0 || filterDTO.getFilterType() == 2)) {
                             // -1 year
                             try {
                                 Calendar calendar = Calendar.getInstance();

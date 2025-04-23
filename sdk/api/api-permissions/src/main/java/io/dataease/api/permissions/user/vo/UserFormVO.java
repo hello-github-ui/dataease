@@ -14,7 +14,7 @@ import java.util.List;
 public class UserFormVO implements Serializable {
 
     @Schema(description = "ID")
-    @JsonSerialize(using = ToStringSerializer.class)
+    @JsonSerialize(using= ToStringSerializer.class)
     private Long id;
 
     @Schema(description = "账号")
@@ -43,6 +43,9 @@ public class UserFormVO implements Serializable {
 
     @Schema(description = "模式")
     private String model;
+
+    @Schema(description = "MFA状态")
+    private Boolean mfaEnable = false;
 
     @Schema(description = "系统变量")
     private List<SysVariableValueItem> variables;

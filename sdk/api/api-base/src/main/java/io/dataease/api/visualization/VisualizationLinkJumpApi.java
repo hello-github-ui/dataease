@@ -32,9 +32,9 @@ public interface VisualizationLinkJumpApi {
     @Operation(summary = "根据图表ID查询跳转信息")
     VisualizationLinkJumpDTO queryWithViewId(@PathVariable Long dvId, @PathVariable Long viewId);
 
-    @GetMapping("/queryVisualizationJumpInfo/{dvId}")
+    @GetMapping("/queryVisualizationJumpInfo/{dvId}/{resourceTable}")
     @Operation(summary = "根据可视化资源ID查询跳转信息")
-    VisualizationLinkJumpBaseResponse queryVisualizationJumpInfo(@PathVariable Long dvId);
+    VisualizationLinkJumpBaseResponse queryVisualizationJumpInfo(@PathVariable Long dvId, @PathVariable String resourceTable);
 
     @PostMapping("/updateJumpSet")
     @Operation(summary = "更新跳转信息")
@@ -51,4 +51,9 @@ public interface VisualizationLinkJumpApi {
     @PostMapping("/updateJumpSetActive")
     @Operation(summary = "更新跳转信息可用状态")
     VisualizationLinkJumpBaseResponse updateJumpSetActive(@RequestBody VisualizationLinkJumpBaseRequest request);
+
+    @PostMapping("/removeJumpSet")
+    @Operation(summary = "删除跳转信息")
+    void removeJumpSet(@RequestBody VisualizationLinkJumpDTO jumpDTO);
+
 }

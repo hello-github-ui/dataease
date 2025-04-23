@@ -1,5 +1,5 @@
-import {defineStore} from 'pinia'
-import {store} from '@/store/index'
+import { defineStore } from 'pinia'
+import { store } from '@/store/index'
 
 interface LinkState {
   linkToken: string

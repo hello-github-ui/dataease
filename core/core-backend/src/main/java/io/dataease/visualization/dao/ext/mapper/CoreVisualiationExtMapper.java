@@ -14,21 +14,21 @@ import java.util.Set;
 public interface CoreVisualiationExtMapper {
 
     @Select("""
-        select id, name, pid, node_type, mobile_layout as extraFlag from data_visualization_info
-        ${ew.customSqlSegment}
-        """)
+            select id, name, pid, node_type, mobile_layout as extraFlag, status as extraFlag1 from data_visualization_info
+            ${ew.customSqlSegment}
+            """)
     List<VisualizationNodePO> queryNodes(@Param("ew") QueryWrapper<Object> queryWrapper);
 
     @Select("select id from data_visualization_info where pid = #{pid} and delete_flag = 0")
     List<Long> queryChildrenId(@Param("pid") Long pid);
 
     @Update("""
-        <script>
-        update data_visualization_info set delete_flag = 1, delete_time = #{time}, delete_by = #{uid} where id in
-        <foreach item='id' index='index' collection='ids' open='(' separator=',' close=')'>
-        #{id}
-        </foreach>
-        </script>
-        """)
+            <script>
+            update data_visualization_info set delete_flag = 1, delete_time = #{time}, delete_by = #{uid} where id in
+            <foreach item='id' index='index' collection='ids' open='(' separator=',' close=')'>
+            #{id}
+            </foreach>
+            </script>
+            """)
     void batchDel(@Param("ids") Set<Long> ids, @Param("time") Long time, @Param("uid") Long uid);
 }

@@ -11,7 +11,7 @@ import java.io.Serial;
 @Schema(description = "用户过滤器")
 @EqualsAndHashCode(callSuper = true)
 @Data
-public class UserRequest extends KeywordRequest {
+public class UserRequest extends KeywordRequest  {
 
     @Serial
     private static final long serialVersionUID = -2740015284392981297L;

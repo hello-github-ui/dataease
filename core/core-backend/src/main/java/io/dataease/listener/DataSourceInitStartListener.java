@@ -1,6 +1,7 @@
 package io.dataease.listener;
 
 import io.dataease.datasource.dao.auto.entity.CoreDatasourceTask;
+import io.dataease.datasource.manage.DataSourceManage;
 import io.dataease.datasource.manage.DatasourceSyncManage;
 import io.dataease.datasource.manage.EngineManage;
 import io.dataease.datasource.provider.CalciteProvider;
@@ -26,6 +27,8 @@ public class DataSourceInitStartListener implements ApplicationListener<Applicat
     @Resource
     private DatasourceServer datasourceServer;
     @Resource
+    private DataSourceManage dataSourceManage;
+    @Resource
     private DatasourceTaskServer datasourceTaskServer;
     @Resource
     private CalciteProvider calciteProvider;
@@ -50,13 +53,11 @@ public class DataSourceInitStartListener implements ApplicationListener<Applicat
         for (CoreDatasourceTask task : list) {
             try {
                 if (!StringUtils.equalsIgnoreCase(task.getSyncRate(), DatasourceTaskServer.ScheduleType.RIGHTNOW.toString())) {
-                    if (StringUtils.equalsIgnoreCase(task.getEndLimit(), "1")) {
-                        if (task.getEndTime() != null && task.getEndTime() > 0) {
-                            if (task.getEndTime() > System.currentTimeMillis()) {
-                                datasourceSyncManage.addSchedule(task);
-                            }
-                        } else {
+                    if (task.getEndTime() != null && task.getEndTime() > 0) {
+                        if (task.getEndTime() > System.currentTimeMillis()) {
                             datasourceSyncManage.addSchedule(task);
+                        } else {
+                            datasourceSyncManage.deleteSchedule(task);
                         }
                     } else {
                         datasourceSyncManage.addSchedule(task);
@@ -73,7 +74,7 @@ public class DataSourceInitStartListener implements ApplicationListener<Applicat
         } catch (Exception e) {
             e.printStackTrace();
         }
-
+        dataSourceManage.encryptDsConfig();
     }
 
 

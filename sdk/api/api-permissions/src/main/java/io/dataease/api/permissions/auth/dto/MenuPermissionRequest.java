@@ -5,7 +5,6 @@ import lombok.Data;
 
 import java.io.Serial;
 import java.io.Serializable;
-
 @Schema(description = "菜单权限查询条件")
 @Data
 public class MenuPermissionRequest implements Serializable {

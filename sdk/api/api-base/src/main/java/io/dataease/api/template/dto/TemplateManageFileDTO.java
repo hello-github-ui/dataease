@@ -4,6 +4,8 @@ package io.dataease.api.template.dto;
 import io.dataease.api.template.vo.VisualizationTemplateVO;
 import lombok.Data;
 
+import java.util.List;
+
 
 @Data
 public class TemplateManageFileDTO extends VisualizationTemplateVO {

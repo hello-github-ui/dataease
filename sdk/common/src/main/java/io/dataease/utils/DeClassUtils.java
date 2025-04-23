@@ -2,15 +2,6 @@ package io.dataease.utils;
 
 public class DeClassUtils {
 
-    private static final Class<?>[] primitiveWrappers = {
-        Boolean.class, Character.class, Byte.class, Short.class,
-        Integer.class, Long.class, Float.class, Double.class
-    };
-    private static final String[] primitiveTypeNames = {
-        "boolean", "char", "byte", "short",
-        "int", "long", "float", "double"
-    };
-
     public static boolean isPrimitiveOrWrapper(Object obj) {
         if (obj == null) {
             return false;
@@ -40,5 +31,15 @@ public class DeClassUtils {
 
         return false;
     }
+
+    private static final Class<?>[] primitiveWrappers = {
+            Boolean.class, Character.class, Byte.class, Short.class,
+            Integer.class, Long.class, Float.class, Double.class
+    };
+
+    private static final String[] primitiveTypeNames = {
+            "boolean", "char", "byte", "short",
+            "int", "long", "float", "double"
+    };
 
 }

@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 import static io.dataease.constant.AuthResourceEnum.PANEL;
 
@@ -52,18 +53,34 @@ public interface DataVisualizationApi {
     @Operation(summary = "应用名称检查")
     String appCanvasNameCheck(@RequestBody DataVisualizationBaseRequest request) throws Exception;
 
+    @PostMapping("/checkCanvasChange")
+    @DePermit(value = {"#p0.id + ':manage'"}, busiFlag = "#p0.type")
+    @Operation(summary = "画布变动校验")
+    String checkCanvasChange(@RequestBody DataVisualizationBaseRequest request);
+
 
     @PostMapping("/updateCanvas")
     @DePermit(value = {"#p0.id + ':manage'"}, busiFlag = "#p0.type")
     @Operation(summary = "画布更新")
-    void updateCanvas(@RequestBody DataVisualizationBaseRequest request);
+    DataVisualizationVO updateCanvas(@RequestBody DataVisualizationBaseRequest request);
+
+
+    @PostMapping("/updatePublishStatus")
+    @DePermit(value = {"#p0.id + ':manage'"}, busiFlag = "#p0.type")
+    @Operation(summary = "发布状态更新")
+    void updatePublishStatus(@RequestBody DataVisualizationBaseRequest request);
+
+    @PostMapping("/recoverToPublished")
+    @DePermit(value = {"#p0.id + ':manage'"}, busiFlag = "#p0.type")
+    @Operation(summary = "恢复到发布状态")
+    void recoverToPublished(@RequestBody DataVisualizationBaseRequest request);
 
     @PostMapping("/updateBase")
     @DePermit(value = {"#p0.id + ':manage'"}, busiFlag = "#p0.type")
     @Operation(summary = "可视化资源基础信息更新")
     void updateBase(@RequestBody DataVisualizationBaseRequest request);
 
-    @DeleteMapping("/deleteLogic/{dvId}/{busiFlag}")
+    @PostMapping("/deleteLogic/{dvId}/{busiFlag}")
     @DePermit(value = {"#p0+':manage'"}, busiFlag = "#p1")
     @Operation(summary = "可视化资源删除")
     void deleteLogic(@PathVariable("dvId") Long dvId, @PathVariable("busiFlag") String busiFlag);
@@ -71,6 +88,10 @@ public interface DataVisualizationApi {
     @PostMapping("/tree")
     @Operation(summary = "查询可视化资源树")
     List<BusiNodeVO> tree(@RequestBody BusiNodeRequest request);
+
+    @PostMapping("/interactiveTree")
+    @Operation(summary = "查询业务资源树")
+    Map<String, List<BusiNodeVO>> interactiveTree(@RequestBody Map<String, BusiNodeRequest> requestMap);
 
     @PostMapping("/move")
     @DePermit(value = {"#p0.id+':manage'", "#p0.pid+':manage'"}, busiFlag = "#p0.type")
@@ -94,6 +115,12 @@ public interface DataVisualizationApi {
     @GetMapping("/findDvType/{dvId}")
     @Operation(summary = "查询可视化资源类型")
     String findDvType(@PathVariable("dvId") Long dvId);
+
+
+    @GetMapping("/updateCheckVersion/{dvId}")
+    @Operation(summary = "更新校验版本")
+    String updateCheckVersion(@PathVariable("dvId") Long dvId);
+
 
     /**
      * 从模板解压可视化资源 模板来源包括 模板市场、内部模板管理

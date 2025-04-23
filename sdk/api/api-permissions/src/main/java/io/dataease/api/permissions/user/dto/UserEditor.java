@@ -9,7 +9,7 @@ import java.io.Serial;
 @EqualsAndHashCode(callSuper = true)
 @Schema(description = "用户编辑器")
 @Data
-public class UserEditor extends UserCreator {
+public class UserEditor extends UserCreator{
 
     @Serial
     private static final long serialVersionUID = 1580870660998152922L;

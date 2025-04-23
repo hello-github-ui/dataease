@@ -1,21 +1,27 @@
-import {defineStore} from 'pinia'
-import {store} from '@/store/index'
-import {uiLoadApi} from '@/api/login'
-import {useCache} from '@/hooks/web/useCache'
+import { defineStore } from 'pinia'
+import { store } from '@/store/index'
+import { defaultFont, list } from '@/api/font'
+import { uiLoadApi } from '@/api/login'
+import { useCache } from '@/hooks/web/useCache'
 import colorFunctions from 'less/lib/less/functions/color.js'
 import colorTree from 'less/lib/less/tree/color.js'
+import { useEmbedded } from '@/store/modules/embedded'
+import { setTitle } from '@/utils/utils'
 
+const embeddedStore = useEmbedded()
 const basePath = import.meta.env.VITE_API_BASEPATH
 const baseUrl = basePath + '/appearance/image/'
-import {isBtnShow} from '@/utils/utils'
-
+import { isBtnShow } from '@/utils/utils'
 interface AppearanceState {
   themeColor?: string
   customColor?: string
   navigateBg?: string
   navigate?: string
+  mobileLogin?: string
+  mobileLoginBg?: string
   help?: string
   showAi?: string
+  showCopilot?: string
   showDoc?: string
   showAbout?: string
   bg?: string
@@ -29,9 +35,9 @@ interface AppearanceState {
   showDemoTips?: boolean
   demoTipsContent?: string
   community: boolean
+  fontList: Array<{ name: string; id: string; isDefault: boolean }>
 }
-
-const {wsCache} = useCache()
+const { wsCache } = useCache()
 export const useAppearanceStore = defineStore('appearanceStore', {
   state: (): AppearanceState => {
     return {
@@ -39,9 +45,12 @@ export const useAppearanceStore = defineStore('appearanceStore', {
       customColor: '',
       navigateBg: '',
       navigate: '',
+      mobileLogin: '',
+      mobileLoginBg: '',
       help: '',
       showDoc: '0',
       showAi: '0',
+      showCopilot: '0',
       showAbout: '0',
       bg: '',
       login: '',
@@ -53,13 +62,26 @@ export const useAppearanceStore = defineStore('appearanceStore', {
       loaded: false,
       showDemoTips: false,
       demoTipsContent: '',
-      community: true
+      community: true,
+      fontList: []
     }
   },
   getters: {
     getNavigate(): string {
       if (this.navigate) {
         return baseUrl + this.navigate
+      }
+      return null
+    },
+    getMobileLogin(): string {
+      if (this.mobileLogin) {
+        return baseUrl + this.mobileLogin
+      }
+      return null
+    },
+    getMobileLoginBg(): string {
+      if (this.mobileLoginBg) {
+        return baseUrl + this.mobileLoginBg
       }
       return null
     },
@@ -120,6 +142,9 @@ export const useAppearanceStore = defineStore('appearanceStore', {
     getShowAi(): boolean {
       return isBtnShow(this.showAi)
     },
+    getShowCopilot(): boolean {
+      return isBtnShow(this.showCopilot)
+    },
     getShowDoc(): boolean {
       return isBtnShow(this.showDoc)
     },
@@ -130,6 +155,37 @@ export const useAppearanceStore = defineStore('appearanceStore', {
   actions: {
     setNavigate(data: string) {
       this.navigate = data
+    },
+    setMobileLogin(data: string) {
+      this.mobileLogin = data
+    },
+    async setFontList() {
+      const res = await list()
+      this.fontList = res || []
+    },
+    setCurrentFont(name) {
+      const currentFont = this.fontList.find(ele => ele.name === name)
+      if (currentFont) {
+        let fontStyleElement = document.querySelector(`#de-custom_font${name}`)
+        if (!fontStyleElement) {
+          fontStyleElement = document.createElement('style')
+          fontStyleElement.setAttribute('id', `de-custom_font${name}`)
+          document.querySelector('head').appendChild(fontStyleElement)
+        }
+        fontStyleElement.innerHTML = `@font-face {
+            font-family: '${name}';
+            src: url(${
+              embeddedStore.baseUrl
+                ? (embeddedStore.baseUrl + basePath).replace('/./', '/')
+                : basePath
+            }/typeface/download/${currentFont.fileTransName});
+            font-weight: normal;
+            font-style: normal;
+            }`
+      }
+    },
+    setMobileLoginBg(data: string) {
+      this.mobileLoginBg = data
     },
     setHelp(data: string) {
       this.help = data
@@ -155,15 +211,51 @@ export const useAppearanceStore = defineStore('appearanceStore', {
       if (this.loaded) {
         return
       }
-      document.title = ''
+      defaultFont().then(res => {
+        const [font] = res || []
+        setDefaultFont(
+          `${
+            embeddedStore.baseUrl
+              ? (embeddedStore.baseUrl + basePath).replace('/./', '/')
+              : basePath
+          }/typeface/download/${font?.fileTransName}`,
+          font?.name,
+          font?.fileTransName
+        )
+        function setDefaultFont(url, name, fileTransName) {
+          let fontStyleElement = document.querySelector('#de-custom_font')
+          if (!fontStyleElement) {
+            fontStyleElement = document.createElement('style')
+            fontStyleElement.setAttribute('id', 'de-custom_font')
+            document.querySelector('head').appendChild(fontStyleElement)
+          }
+          fontStyleElement.innerHTML =
+            name && fileTransName
+              ? `@font-face {
+                font-family: '${name}';
+                src: url(${url});
+                font-weight: normal;
+                font-style: normal;
+                }`
+              : ''
+          document.documentElement.style.setProperty('--de-custom_font', `${name}`)
+          document.documentElement.style.setProperty('--van-base-font', `${name}`)
+        }
+      })
+      if (!isDataEaseBi) {
+        document.title = ''
+      }
       const res = await uiLoadApi()
       this.loaded = true
       const resData = res.data
       if (!resData?.length) {
-        document.title = 'DataEase'
+        if (!isDataEaseBi) {
+          document.title = 'DataEase'
+          setLinkIcon()
+        }
         return
       }
-      const data: AppearanceState = {loaded: false, community: true}
+      const data: AppearanceState = { loaded: false, community: true }
       let isCommunity = false
       resData.forEach(item => {
         data[item.pkey] = item.pval
@@ -177,11 +269,15 @@ export const useAppearanceStore = defineStore('appearanceStore', {
         this.showDemoTips = data.showDemoTips
         this.demoTipsContent = data.demoTipsContent
         this.loaded = true
+        setLinkIcon()
         return
       }
       this.navigate = data.navigate
+      this.mobileLogin = data.mobileLogin
+      this.mobileLoginBg = data.mobileLoginBg
       this.help = data.help
       this.showAi = data.showAi
+      this.showCopilot = data.showCopilot
       this.showDoc = data.showDoc
       this.showAbout = data.showAbout
       this.navigateBg = data.navigateBg
@@ -189,16 +285,17 @@ export const useAppearanceStore = defineStore('appearanceStore', {
       this.customColor = data.customColor
       if (this.themeColor === 'custom' && this.customColor) {
         document.documentElement.style.setProperty('--ed-color-primary', this.customColor)
+        document.documentElement.style.setProperty('--van-blue', this.customColor)
         document.documentElement.style.setProperty(
           '--ed-color-primary-light-5',
           colorFunctions
-            .mix(new colorTree('ffffff'), new colorTree(this.customColor.substr(1)), {value: 40})
+            .mix(new colorTree('ffffff'), new colorTree(this.customColor.substr(1)), { value: 40 })
             .toRGB()
         )
         document.documentElement.style.setProperty(
           '--ed-color-primary-light-3',
           colorFunctions
-            .mix(new colorTree('ffffff'), new colorTree(this.customColor.substr(1)), {value: 15})
+            .mix(new colorTree('ffffff'), new colorTree(this.customColor.substr(1)), { value: 15 })
             .toRGB()
         )
         document.documentElement.style.setProperty('--ed-color-primary-1a', `${this.customColor}1a`)
@@ -207,7 +304,7 @@ export const useAppearanceStore = defineStore('appearanceStore', {
         document.documentElement.style.setProperty(
           '--ed-color-primary-dark-2',
           colorFunctions
-            .mix(new colorTree('000000'), new colorTree(this.customColor.substr(1)), {value: 15})
+            .mix(new colorTree('000000'), new colorTree(this.customColor.substr(1)), { value: 15 })
             .toRGB()
         )
       } else if (document.documentElement.style.getPropertyValue('--ed-color-primary')) {
@@ -226,23 +323,29 @@ export const useAppearanceStore = defineStore('appearanceStore', {
       this.name = data.name
       this.foot = data.foot
       this.footContent = data.footContent
+      if (isDataEaseBi) return
       if (this.name) {
         document.title = this.name
+        setTitle(this.name)
       } else {
         document.title = 'DataEase'
+        setTitle('DataEase')
       }
-      if (isDataEaseBi) return
-      const link = document.querySelector('link[rel="icon"]')
-      if (link) {
-        if (this.web) {
-          link['href'] = baseUrl + this.web
-        } else {
-          link['href'] = '/dataease.svg'
-        }
-      }
+      setLinkIcon(this.web)
     }
   }
 })
+
+const setLinkIcon = (linkWeb?: string) => {
+  const link = document.querySelector('link[rel="icon"]')
+  if (link) {
+    if (linkWeb) {
+      link['href'] = baseUrl + linkWeb
+    } else {
+      link['href'] = '/dataease.svg'
+    }
+  }
+}
 
 export const useAppearanceStoreWithOut = () => {
   return useAppearanceStore(store)
