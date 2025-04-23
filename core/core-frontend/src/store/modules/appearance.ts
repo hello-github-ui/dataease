@@ -1,12 +1,14 @@
-import { defineStore } from 'pinia'
-import { store } from '@/store/index'
-import { uiLoadApi } from '@/api/login'
-import { useCache } from '@/hooks/web/useCache'
+import {defineStore} from 'pinia'
+import {store} from '@/store/index'
+import {uiLoadApi} from '@/api/login'
+import {useCache} from '@/hooks/web/useCache'
 import colorFunctions from 'less/lib/less/functions/color.js'
 import colorTree from 'less/lib/less/tree/color.js'
+
 const basePath = import.meta.env.VITE_API_BASEPATH
 const baseUrl = basePath + '/appearance/image/'
-import { isBtnShow } from '@/utils/utils'
+import {isBtnShow} from '@/utils/utils'
+
 interface AppearanceState {
   themeColor?: string
   customColor?: string
@@ -28,7 +30,8 @@ interface AppearanceState {
   demoTipsContent?: string
   community: boolean
 }
-const { wsCache } = useCache()
+
+const {wsCache} = useCache()
 export const useAppearanceStore = defineStore('appearanceStore', {
   state: (): AppearanceState => {
     return {
@@ -160,7 +163,7 @@ export const useAppearanceStore = defineStore('appearanceStore', {
         document.title = 'DataEase'
         return
       }
-      const data: AppearanceState = { loaded: false, community: true }
+      const data: AppearanceState = {loaded: false, community: true}
       let isCommunity = false
       resData.forEach(item => {
         data[item.pkey] = item.pval
@@ -189,13 +192,13 @@ export const useAppearanceStore = defineStore('appearanceStore', {
         document.documentElement.style.setProperty(
           '--ed-color-primary-light-5',
           colorFunctions
-            .mix(new colorTree('ffffff'), new colorTree(this.customColor.substr(1)), { value: 40 })
+            .mix(new colorTree('ffffff'), new colorTree(this.customColor.substr(1)), {value: 40})
             .toRGB()
         )
         document.documentElement.style.setProperty(
           '--ed-color-primary-light-3',
           colorFunctions
-            .mix(new colorTree('ffffff'), new colorTree(this.customColor.substr(1)), { value: 15 })
+            .mix(new colorTree('ffffff'), new colorTree(this.customColor.substr(1)), {value: 15})
             .toRGB()
         )
         document.documentElement.style.setProperty('--ed-color-primary-1a', `${this.customColor}1a`)
@@ -204,7 +207,7 @@ export const useAppearanceStore = defineStore('appearanceStore', {
         document.documentElement.style.setProperty(
           '--ed-color-primary-dark-2',
           colorFunctions
-            .mix(new colorTree('000000'), new colorTree(this.customColor.substr(1)), { value: 15 })
+            .mix(new colorTree('000000'), new colorTree(this.customColor.substr(1)), {value: 15})
             .toRGB()
         )
       } else if (document.documentElement.style.getPropertyValue('--ed-color-primary')) {

@@ -1,7 +1,8 @@
-import { BusiTreeNode } from '@/models/tree/TreeNode'
-import { useCache } from '@/hooks/web/useCache'
+import {BusiTreeNode} from '@/models/tree/TreeNode'
+import {useCache} from '@/hooks/web/useCache'
 
-const { wsCache } = useCache()
+const {wsCache} = useCache()
+
 export function deepCopy(target) {
   if (target === null || target === undefined) {
     return target
@@ -36,6 +37,7 @@ export function $(selector) {
 }
 
 const components = ['VText', 'RectShape', 'CircleShape']
+
 export function isPreventDrop(component) {
   return !components.includes(component) && !component.startsWith('SVG')
 }
@@ -124,6 +126,7 @@ export const isBtnShow = (val: string) => {
     return !isInIframe()
   }
 }
+
 export function isMobile() {
   return (
     navigator.userAgent.match(
@@ -137,6 +140,7 @@ export function isTablet() {
   const tabletRegex = /iPad|Silk|Galaxy Tab|PlayBook|BlackBerry|(tablet|ipad|playbook)/i
   return tabletRegex.test(userAgent)
 }
+
 export function cutTargetTree(tree: BusiTreeNode[], targetId: string | number) {
   tree.forEach((node, index) => {
     if (node.id === targetId) {

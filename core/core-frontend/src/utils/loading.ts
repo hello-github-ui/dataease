@@ -1,4 +1,5 @@
-import { useRequestStoreWithOut } from '@/store/modules/request'
+import {useRequestStoreWithOut} from '@/store/modules/request'
+
 const requestStore = useRequestStoreWithOut()
 
 export const tryShowLoading = identification => {

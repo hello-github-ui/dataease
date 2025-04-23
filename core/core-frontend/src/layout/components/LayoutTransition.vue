@@ -1,7 +1,8 @@
 <script lang="ts" setup>
-import { useRoute } from 'vue-router'
+import {useRoute} from 'vue-router'
+
 const route = useRoute()
 </script>
 <template>
-  <router-view :key="route.path" />
+    <router-view :key="route.path"/>
 </template>

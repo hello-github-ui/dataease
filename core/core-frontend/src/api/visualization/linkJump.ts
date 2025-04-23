@@ -5,6 +5,7 @@ export function getTableFieldWithViewId(viewId) {
     url: '/linkJump/getTableFieldWithViewId/' + viewId
   })
 }
+
 export function queryWithViewId(dvId, viewId) {
   return request.get({
     url: '/linkJump/queryWithViewId/' + dvId + '/' + viewId
@@ -18,6 +19,7 @@ export function updateJumpSet(requestInfo) {
     loading: true
   })
 }
+
 export function queryTargetVisualizationJumpInfo(requestInfo) {
   return request.post({
     url: '/linkJump/queryTargetVisualizationJumpInfo',

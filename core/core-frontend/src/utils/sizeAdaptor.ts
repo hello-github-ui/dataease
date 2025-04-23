@@ -1,4 +1,4 @@
-import { getScaleValue, mobileSpecialProps } from '@/utils/canvasStyle'
+import {getScaleValue, mobileSpecialProps} from '@/utils/canvasStyle'
 
 export const customAttrTrans = {
   size: [

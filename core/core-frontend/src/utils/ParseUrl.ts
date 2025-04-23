@@ -14,4 +14,4 @@ function parseUrl(url) {
   }
 }
 
-export { parseUrl }
+export {parseUrl}

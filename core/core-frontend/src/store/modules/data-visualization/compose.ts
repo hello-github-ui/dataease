@@ -1,19 +1,19 @@
-import { defineStore, storeToRefs } from 'pinia'
-import { store } from '../../index'
-import { dvMainStoreWithOut } from './dvMain'
-import { $, deepCopy } from '@/utils/utils'
+import {defineStore, storeToRefs} from 'pinia'
+import {store} from '../../index'
+import {dvMainStoreWithOut} from './dvMain'
+import {$, deepCopy} from '@/utils/utils'
 import decomposeComponent from '@/utils/decomposeComponent'
-import { generateID } from '@/utils/generateID'
+import {generateID} from '@/utils/generateID'
 import {
   commonStyle,
   commonAttr,
   COMMON_COMPONENT_BACKGROUND_MAP
 } from '@/custom-component/component-list'
-import { createGroupStyle, getComponentRotatedStyle, groupStyleRevert } from '@/utils/style'
+import {createGroupStyle, getComponentRotatedStyle, groupStyleRevert} from '@/utils/style'
 import eventBus from '@/utils/eventBus'
 
 const dvMainStore = dvMainStoreWithOut()
-const { curComponent, componentData, curOriginThemes } = storeToRefs(dvMainStore)
+const {curComponent, componentData, curOriginThemes} = storeToRefs(dvMainStore)
 
 export const composeStore = defineStore('compose', {
   state: () => {
@@ -59,7 +59,7 @@ export const composeStore = defineStore('compose', {
         const sourceGroupComponent = componentData.value.filter(ele => ele.id === groupId)[0]
         const sourceSubComponents = sourceGroupComponent.propValue
         // 2. 还原分组内部组件再主画布位置
-        const sourceParentStyle = { ...sourceGroupComponent.style }
+        const sourceParentStyle = {...sourceGroupComponent.style}
         sourceSubComponents.forEach(subcomponent => {
           decomposeComponent(subcomponent, null, sourceParentStyle)
         })
@@ -88,7 +88,7 @@ export const composeStore = defineStore('compose', {
     },
 
     alignment: function (params) {
-      const { areaData } = this
+      const {areaData} = this
       if (areaData.components.length === 1) {
         // 一个组件不进行组合直接释放
         areaData.components = []
@@ -98,7 +98,7 @@ export const composeStore = defineStore('compose', {
         // 计算组合区域
         this.calcComposeArea()
       }
-      const { left, top, width, height } = areaData.style
+      const {left, top, width, height} = areaData.style
       const areaRight = left + width
       const areaTransverseCenter = left + width / 2 // 横向中心点
       const areaBottom = top + height
@@ -129,7 +129,7 @@ export const composeStore = defineStore('compose', {
 
     compose: function (canvasId = 'canvas-main') {
       const editor = this.editorMap[canvasId]
-      const { areaData } = this
+      const {areaData} = this
       if (areaData.components.length === 1) {
         // 一个组件不进行组合直接释放
         areaData.components = []
@@ -146,7 +146,7 @@ export const composeStore = defineStore('compose', {
           components.push(component)
         } else {
           // 如果要组合的组件中，已经存在组合数据，则需要提前拆分
-          const parentStyle = { ...component.style }
+          const parentStyle = {...component.style}
           const subComponents = component.propValue
           const editorRect = editor.getBoundingClientRect()
 
@@ -213,13 +213,13 @@ export const composeStore = defineStore('compose', {
 
     decompose(canvasId = 'canvas-main') {
       const editor = this.editorMap[canvasId]
-      const parentStyle = { ...curComponent.value.style }
+      const parentStyle = {...curComponent.value.style}
       const components = curComponent.value.propValue
       const editorRect = editor.getBoundingClientRect()
       dvMainStore.deleteComponentById(curComponent.value.id)
       components.forEach(component => {
         decomposeComponent(component, editorRect, parentStyle)
-        dvMainStore.addComponent({ component: component, index: undefined, isFromGroup: true })
+        dvMainStore.addComponent({component: component, index: undefined, isFromGroup: true})
       })
     },
     calcComposeArea(areaDataValue = this.areaData) {
@@ -233,7 +233,7 @@ export const composeStore = defineStore('compose', {
       let right = -Infinity,
         bottom = -Infinity
       areaDataValue.components.forEach(component => {
-        let style = { left: 0, top: 0, right: 0, bottom: 0 }
+        let style = {left: 0, top: 0, right: 0, bottom: 0}
         style = getComponentRotatedStyle(component.style)
 
         if (style.left < left) left = style.left

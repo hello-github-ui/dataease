@@ -1,3 +1,3 @@
 import DrawerMain from './src/DrawerMain.vue'
 
-export { DrawerMain }
+export {DrawerMain}

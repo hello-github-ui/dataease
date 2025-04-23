@@ -1,13 +1,13 @@
-import { defineStore, storeToRefs } from 'pinia'
-import { dvMainStoreWithOut } from './dvMain'
-import { contextmenuStoreWithOut } from './contextmenu'
-import { generateID } from '@/utils/generateID'
-import { deepCopy } from '@/utils/utils'
-import { store } from '../../index'
+import {defineStore, storeToRefs} from 'pinia'
+import {dvMainStoreWithOut} from './dvMain'
+import {contextmenuStoreWithOut} from './contextmenu'
+import {generateID} from '@/utils/generateID'
+import {deepCopy} from '@/utils/utils'
+import {store} from '../../index'
 import eventBus from '@/utils/eventBus'
-import { adaptCurThemeCommonStyle } from '@/utils/canvasStyle'
-import { composeStoreWithOut } from '@/store/modules/data-visualization/compose'
-import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
+import {adaptCurThemeCommonStyle} from '@/utils/canvasStyle'
+import {composeStoreWithOut} from '@/store/modules/data-visualization/compose'
+import {snapshotStoreWithOut} from '@/store/modules/data-visualization/snapshot'
 
 const dvMainStore = dvMainStoreWithOut()
 const composeStore = composeStoreWithOut()
@@ -21,7 +21,7 @@ const {
   canvasStyleData,
   componentData
 } = storeToRefs(dvMainStore)
-const { menuTop, menuLeft } = storeToRefs(contextmenuStore)
+const {menuTop, menuLeft} = storeToRefs(contextmenuStore)
 
 const snapshotStore = snapshotStoreWithOut()
 
@@ -42,7 +42,7 @@ export const copyStore = defineStore('copy', {
     ) {
       // eslint-disable-next-line @typescript-eslint/no-this-alias
       const _this = this
-      const { width, height, scale } = canvasStyleData.value
+      const {width, height, scale} = canvasStyleData.value
       Object.keys(outerMultiplexingComponents).forEach(function (componentId, index) {
         const newComponent = deepCopy(outerMultiplexingComponents[componentId])
         newComponent.canvasId = 'canvas-main'
@@ -158,7 +158,7 @@ export const copyStore = defineStore('copy', {
       if (this.isCut && this.copyData) {
         const data = deepCopy(this.copyData.data)
         const index = this.copyData.index
-        dvMainStore.addComponent({ component: data, index })
+        dvMainStore.addComponent({component: data, index})
         if (curComponentIndex.value >= index) {
           // 如果当前组件索引大于等于插入索引，需要加一，因为当前组件往后移了一位
           curComponentIndex.value++

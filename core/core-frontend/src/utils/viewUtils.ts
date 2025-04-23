@@ -1,13 +1,13 @@
-import { getRange } from '@/utils/timeUitils'
-import { union } from 'lodash-es'
+import {getRange} from '@/utils/timeUitils'
+import {union} from 'lodash-es'
 
 export function viewFieldTimeTrans(viewDataInfo, params) {
   if (viewDataInfo && params && params.dimensionList) {
     const fields = viewDataInfo.fields
       ? viewDataInfo.fields
       : viewDataInfo.left?.fields || viewDataInfo.right?.fields
-      ? union(viewDataInfo.left?.fields, viewDataInfo.right?.fields)
-      : []
+        ? union(viewDataInfo.left?.fields, viewDataInfo.right?.fields)
+        : []
 
     const idNameMap = fields.reduce((pre, next) => {
       pre[next['id']] = next['dataeaseName']

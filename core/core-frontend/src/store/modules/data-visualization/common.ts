@@ -1,7 +1,8 @@
-import { storeToRefs } from 'pinia'
-import { dvMainStoreWithOut } from './dvMain'
+import {storeToRefs} from 'pinia'
+import {dvMainStoreWithOut} from './dvMain'
+
 const dvMainStore = dvMainStoreWithOut()
-const { curComponent, componentData } = storeToRefs(dvMainStore)
+const {curComponent, componentData} = storeToRefs(dvMainStore)
 
 export const getCurInfo = () => {
   if (curComponent.value) {

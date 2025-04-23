@@ -1,19 +1,19 @@
-import { defineStore, storeToRefs } from 'pinia'
-import { store } from '../../index'
-import { dvMainStoreWithOut } from './dvMain'
-import { swap } from '@/utils/utils'
-import { useEmitt } from '@/hooks/web/useEmitt'
-import { getCurInfo } from '@/store/modules/data-visualization/common'
+import {defineStore, storeToRefs} from 'pinia'
+import {store} from '../../index'
+import {dvMainStoreWithOut} from './dvMain'
+import {swap} from '@/utils/utils'
+import {useEmitt} from '@/hooks/web/useEmitt'
+import {getCurInfo} from '@/store/modules/data-visualization/common'
 
 const dvMainStore = dvMainStoreWithOut()
-const { curComponentIndex, curComponent } = storeToRefs(dvMainStore)
+const {curComponentIndex, curComponent} = storeToRefs(dvMainStore)
 
 export const layerStore = defineStore('layer', {
   actions: {
     upComponent() {
       const curInfo = getCurInfo()
       if (curInfo) {
-        const { index, componentData } = curInfo
+        const {index, componentData} = curInfo
         // 上移图层 index，表示元素在数组中越往后
         if (index < componentData.length - 1) {
           swap(componentData, index, index + 1)
@@ -25,7 +25,7 @@ export const layerStore = defineStore('layer', {
     downComponent() {
       const curInfo = getCurInfo()
       if (curInfo) {
-        const { index, componentData } = curInfo
+        const {index, componentData} = curInfo
         // 下移图层 index，表示元素在数组中越往前
         if (index > 0) {
           swap(componentData, index, index - 1)
@@ -38,7 +38,7 @@ export const layerStore = defineStore('layer', {
       // 置顶
       const curInfo = getCurInfo()
       if (curInfo) {
-        const { index, componentData } = curInfo
+        const {index, componentData} = curInfo
         if (index < componentData.length - 1) {
           componentData.splice(curComponentIndex.value, 1)
           componentData.push(curComponent.value)
@@ -51,7 +51,7 @@ export const layerStore = defineStore('layer', {
       // 置底
       const curInfo = getCurInfo()
       if (curInfo) {
-        const { index, componentData } = curInfo
+        const {index, componentData} = curInfo
         if (index > 0) {
           componentData.splice(index, 1)
           componentData.unshift(curComponent.value)

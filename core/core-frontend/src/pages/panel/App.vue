@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { shallowRef, defineAsyncComponent } from 'vue'
-import { propTypes } from '@/utils/propTypes'
-import { useEmitt } from '@/hooks/web/useEmitt'
+import {shallowRef, defineAsyncComponent} from 'vue'
+import {propTypes} from '@/utils/propTypes'
+import {useEmitt} from '@/hooks/web/useEmitt'
 
 const VisualizationEditor = defineAsyncComponent(
   () => import('@/views/data-visualization/index.vue')

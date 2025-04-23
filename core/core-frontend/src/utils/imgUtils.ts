@@ -1,21 +1,23 @@
 import html2canvas from 'html2canvas'
 import JsPDF from 'jspdf'
-import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
-import { useEmbedded } from '@/store/modules/embedded'
-import { storeToRefs } from 'pinia'
-import { findResourceAsBase64 } from '@/api/staticResource'
+import {dvMainStoreWithOut} from '@/store/modules/data-visualization/dvMain'
+import {useEmbedded} from '@/store/modules/embedded'
+import {storeToRefs} from 'pinia'
+import {findResourceAsBase64} from '@/api/staticResource'
 import FileSaver from 'file-saver'
-import { deepCopy } from '@/utils/utils'
-import { toPng } from 'html-to-image'
+import {deepCopy} from '@/utils/utils'
+import {toPng} from 'html-to-image'
+
 const embeddedStore = useEmbedded()
 const dvMainStore = dvMainStoreWithOut()
-const { canvasStyleData, componentData, canvasViewInfo, canvasViewDataInfo, dvInfo } =
+const {canvasStyleData, componentData, canvasViewInfo, canvasViewDataInfo, dvInfo} =
   storeToRefs(dvMainStore)
 const basePath = import.meta.env.VITE_API_BASEPATH
 
 export function formatterUrl(url: string) {
   return url.replace('//de2api', '/de2api')
 }
+
 export function imgUrlTrans(url) {
   if (url) {
     if (typeof url === 'string' && url.indexOf('static-resource') > -1) {
@@ -25,8 +27,8 @@ export function imgUrlTrans(url) {
       return formatterUrl(
         embeddedStore.baseUrl
           ? `${embeddedStore.baseUrl}${
-              rawUrl.startsWith('/api') ? rawUrl.slice(5) : rawUrl
-            }`.replace('com//', 'com/')
+            rawUrl.startsWith('/api') ? rawUrl.slice(5) : rawUrl
+          }`.replace('com//', 'com/')
           : rawUrl
       )
     } else {
@@ -58,7 +60,7 @@ export function download2AppTemplate(downloadType, canvasDom, name, attachParams
             staticResource: JSON.stringify(staticResource || {}),
             appData: attachParams ? JSON.stringify(attachParams) : null
           }
-          const blob = new Blob([JSON.stringify(templateInfo)], { type: '' })
+          const blob = new Blob([JSON.stringify(templateInfo)], {type: ''})
           if (downloadType === 'template') {
             FileSaver.saveAs(blob, name + '-TEMPLATE.DET2')
           } else if (downloadType === 'app') {
@@ -156,7 +158,7 @@ export function dataURLToBlob(dataUrl) {
   while (n--) {
     u8arr[n] = bStr.charCodeAt(n)
   }
-  return new Blob([u8arr], { type: mime })
+  return new Blob([u8arr], {type: mime})
 }
 
 // 解析静态文件
@@ -187,7 +189,7 @@ export function findStaticSource(callBack) {
   })
   if (staticResource.length > 0) {
     try {
-      findResourceAsBase64({ resourcePathList: staticResource }).then(rsp => {
+      findResourceAsBase64({resourcePathList: staticResource}).then(rsp => {
         callBack(rsp.data)
       })
     } catch (e) {

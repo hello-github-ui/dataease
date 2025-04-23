@@ -53,17 +53,17 @@ document.querySelector('head').appendChild = <T extends Node>(node: T) => {
   cb(newNode)
   return newNode
 }
-import { App, createApp } from 'vue'
+import {App, createApp} from 'vue'
 import '../../assets/font/index.css'
 import '@/style/index.less'
 import 'normalize.css/normalize.css'
 import '@antv/s2/dist/style.min.css'
 import AppElement from './App.vue'
-import { setupI18n } from '@/plugins/vue-i18n'
-import { setupStore } from '@/store'
-import { useEmbedded } from '@/store/modules/embedded'
-import { setupElementPlus, setupElementPlusIcons } from '@/plugins/element-plus'
-import { setupRouter } from '@/router/embedded'
+import {setupI18n} from '@/plugins/vue-i18n'
+import {setupStore} from '@/store'
+import {useEmbedded} from '@/store/modules/embedded'
+import {setupElementPlus, setupElementPlusIcons} from '@/plugins/element-plus'
+import {setupRouter} from '@/router/embedded'
 
 const setupAll = async (
   dom: string,
@@ -77,7 +77,7 @@ const setupAll = async (
   chartId: string,
   resourceId: string
 ): Promise<App<Element>> => {
-  const app = createApp(AppElement, { componentName: type })
+  const app = createApp(AppElement, {componentName: type})
   await setupI18n(app)
   setupStore(app)
   setupRouter(app)
@@ -152,7 +152,7 @@ class DataEaseBi {
   }
 
   async initialize(options: Options) {
-    this.deOptions = { ...defaultOptions, ...options }
+    this.deOptions = {...defaultOptions, ...options}
     this.vm = await setupAll(
       this.deOptions.container,
       this.type,

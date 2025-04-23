@@ -1,4 +1,4 @@
-import { cloneDeep } from 'lodash-es'
+import {cloneDeep} from 'lodash-es'
 import componentList, {
   ACTION_SELECTION,
   BASE_EVENTS,
@@ -6,7 +6,7 @@ import componentList, {
   COMMON_COMPONENT_BACKGROUND_LIGHT
 } from '@/custom-component/component-list'
 import eventBus from '@/utils/eventBus'
-import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
+import {dvMainStoreWithOut} from '@/store/modules/data-visualization/dvMain'
 import {
   appCanvasNameCheck,
   decompression,
@@ -16,18 +16,19 @@ import {
   saveCanvas,
   updateCanvas
 } from '@/api/visualization/dataVisualization'
-import { storeToRefs } from 'pinia'
-import { getPanelAllLinkageInfo } from '@/api/visualization/linkage'
-import { queryVisualizationJumpInfo } from '@/api/visualization/linkJump'
+import {storeToRefs} from 'pinia'
+import {getPanelAllLinkageInfo} from '@/api/visualization/linkage'
+import {queryVisualizationJumpInfo} from '@/api/visualization/linkJump'
 import {
   getViewConfig,
   SENIOR_STYLE_SETTING_LIGHT
 } from '@/views/chart/components/editor/util/chart'
-import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
-import { deepCopy } from '@/utils/utils'
-import { ElMessage } from 'element-plus-secondary'
+import {snapshotStoreWithOut} from '@/store/modules/data-visualization/snapshot'
+import {deepCopy} from '@/utils/utils'
+import {ElMessage} from 'element-plus-secondary'
+
 const dvMainStore = dvMainStoreWithOut()
-const { curBatchOptComponents, dvInfo, canvasStyleData, componentData, canvasViewInfo, appData } =
+const {curBatchOptComponents, dvInfo, canvasStyleData, componentData, canvasViewInfo, appData} =
   storeToRefs(dvMainStore)
 const snapshotStore = snapshotStoreWithOut()
 
@@ -89,6 +90,7 @@ export function commonHandleDragStart(e, dvModel) {
     e.dataTransfer.setData('id', componentInfo)
   }
 }
+
 export function commonHandleDragEnd(e, dvModel) {
   if (dvModel === 'dashboard') {
     // 仪表板结束消息传输方式(用来清理未移入的组件)
@@ -200,9 +202,9 @@ export function initCanvasDataPrepare(dvId, busiFlag, callBack) {
   const copyFlag = busiFlag != null && busiFlag.includes('-copy')
   const busiFlagCustom = copyFlag ? busiFlag.split('-')[0] : busiFlag
   const method = copyFlag ? findCopyResource : findById
-  let attachInfo = { source: 'main' }
+  let attachInfo = {source: 'main'}
   if (dvMainStore.canvasAttachInfo && !!dvMainStore.canvasAttachInfo.taskId) {
-    attachInfo = { source: 'report', taskId: dvMainStore.canvasAttachInfo.taskId }
+    attachInfo = {source: 'report', taskId: dvMainStore.canvasAttachInfo.taskId}
   }
   method(dvId, busiFlagCustom, attachInfo).then(res => {
     const canvasInfo = res.data
@@ -239,7 +241,7 @@ export function initCanvasDataPrepare(dvId, busiFlag, callBack) {
       dvInfo.type === 'dashboard' && canvasStyleResult['dashboard'].gap === 'yes'
         ? canvasStyleResult['dashboard'].gapSize
         : 0
-    callBack({ canvasDataResult, canvasStyleResult, dvInfo, canvasViewInfoPreview, curPreviewGap })
+    callBack({canvasDataResult, canvasStyleResult, dvInfo, canvasViewInfoPreview, curPreviewGap})
   })
 }
 
@@ -247,7 +249,7 @@ export async function initCanvasData(dvId, busiFlag, callBack) {
   initCanvasDataPrepare(
     dvId,
     busiFlag,
-    function ({ canvasDataResult, canvasStyleResult, dvInfo, canvasViewInfoPreview }) {
+    function ({canvasDataResult, canvasStyleResult, dvInfo, canvasViewInfoPreview}) {
       dvMainStore.setComponentData(canvasDataResult)
       dvMainStore.setCanvasStyle(canvasStyleResult)
       dvMainStore.updateCurDvInfo(dvInfo)
@@ -260,19 +262,19 @@ export async function initCanvasData(dvId, busiFlag, callBack) {
       queryVisualizationJumpInfo(dvInfo.id).then(rsp => {
         dvMainStore.setNowPanelJumpInfo(rsp.data)
       })
-      callBack({ canvasDataResult, canvasStyleResult, dvInfo, canvasViewInfoPreview })
+      callBack({canvasDataResult, canvasStyleResult, dvInfo, canvasViewInfoPreview})
     }
   )
 }
 
 export async function backCanvasData(dvId, busiFlag, callBack) {
-  initCanvasDataPrepare(dvId, busiFlag, function ({ canvasDataResult, canvasStyleResult }) {
+  initCanvasDataPrepare(dvId, busiFlag, function ({canvasDataResult, canvasStyleResult}) {
     const componentDataCopy = canvasDataResult.filter(ele => !!ele.inMobile)
     const componentDataId = componentDataCopy.map(ele => ele.id)
     componentData.value.forEach(ele => {
       ele.inMobile = componentDataId.includes(ele.id)
       if (ele.inMobile) {
-        const { mx, my, mSizeX, mSizeY } = componentDataCopy.find(itx => itx.id === ele.id)
+        const {mx, my, mSizeX, mSizeY} = componentDataCopy.find(itx => itx.id === ele.id)
         ele.mx = mx
         ele.my = my
         ele.mSizeX = mSizeX
@@ -311,10 +313,10 @@ export function initCanvasDataMobile(dvId, busiFlag, callBack) {
   initCanvasDataPrepare(
     dvId,
     busiFlag,
-    function ({ canvasDataResult, canvasStyleResult, dvInfo, canvasViewInfoPreview }) {
+    function ({canvasDataResult, canvasStyleResult, dvInfo, canvasViewInfoPreview}) {
       const componentData = canvasDataResult.filter(ele => !!ele.inMobile)
       canvasDataResult.forEach(ele => {
-        const { mx, my, mSizeX, mSizeY } = ele
+        const {mx, my, mSizeX, mSizeY} = ele
         ele.x = mx
         ele.y = my
         ele.sizeX = mSizeX
@@ -600,9 +602,10 @@ export function isDashboard() {
 }
 
 export function trackBarStyleCheck(element, trackbarStyle, _scale, trackMenuNumber) {
-  const { width, height } = element.style
+  const {width, height} = element.style
   const widthReal = width
   const heightReal = height
+
   // 浮窗高度
   function calculateTrackHeight(trackMenuNumber) {
     if (trackMenuNumber === 2) {
@@ -612,6 +615,7 @@ export function trackBarStyleCheck(element, trackbarStyle, _scale, trackMenuNumb
       return 75 + increment
     }
   }
+
   if (trackbarStyle.left < 0) {
     trackbarStyle.left = 0
   } else if (widthReal - trackbarStyle.left < 60) {

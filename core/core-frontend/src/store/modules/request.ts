@@ -1,5 +1,5 @@
-import { defineStore } from 'pinia'
-import { store } from '../index'
+import {defineStore} from 'pinia'
+import {store} from '../index'
 
 interface RequestState {
   loadingMap: {

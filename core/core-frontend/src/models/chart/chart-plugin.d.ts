@@ -1,4 +1,4 @@
 declare interface ChartPlugin {
-  isPlugin: boolean
-  staticMap?: object
+    isPlugin: boolean
+    staticMap?: object
 }

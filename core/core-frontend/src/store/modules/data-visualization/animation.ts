@@ -1,9 +1,9 @@
-import { defineStore, storeToRefs } from 'pinia'
-import { store } from '../../index'
-import { dvMainStoreWithOut } from './dvMain'
+import {defineStore, storeToRefs} from 'pinia'
+import {store} from '../../index'
+import {dvMainStoreWithOut} from './dvMain'
 
 const dvMainStore = dvMainStoreWithOut()
-const { curComponent } = storeToRefs(dvMainStore)
+const {curComponent} = storeToRefs(dvMainStore)
 
 export const animationStore = defineStore('animation', {
   actions: {
@@ -15,10 +15,10 @@ export const animationStore = defineStore('animation', {
       curComponent.value.animations.splice(index, 1)
     },
 
-    alterAnimation({ index, data = {} }) {
+    alterAnimation({index, data = {}}) {
       if (typeof index === 'number') {
         const original = curComponent.value.animations[index]
-        curComponent.value.animations[index] = { ...original, ...data }
+        curComponent.value.animations[index] = {...original, ...data}
       }
     }
   }

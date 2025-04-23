@@ -1,8 +1,10 @@
-import { sin, cos } from '@/utils/translate'
-import { imgUrlTrans } from '@/utils/imgUtils'
-import { hexColorToRGBA } from '@/views/chart/components/js/util'
-import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
+import {sin, cos} from '@/utils/translate'
+import {imgUrlTrans} from '@/utils/imgUtils'
+import {hexColorToRGBA} from '@/views/chart/components/js/util'
+import {dvMainStoreWithOut} from '@/store/modules/data-visualization/dvMain'
+
 const dvMainStore = dvMainStoreWithOut()
+
 export function getShapeStyle(style) {
   const result = {}
   ;['width', 'height', 'top', 'left', 'rotate'].forEach(attr => {
@@ -16,7 +18,7 @@ export function getShapeStyle(style) {
   return result
 }
 
-export function getShapeItemStyle(item, { dvModel, cellWidth, cellHeight, curGap }) {
+export function getShapeItemStyle(item, {dvModel, cellWidth, cellHeight, curGap}) {
   let result = {}
   if (dvModel === 'dashboard' && !item['isPlayer']) {
     result = {
@@ -159,7 +161,7 @@ export function getStyle(style, filter = []) {
 
 // 获取一个组件旋转 rotate 后的样式
 export function getComponentRotatedStyle(style) {
-  style = { ...style }
+  style = {...style}
   if (style.rotate != 0) {
     const newWidth = style.width * cos(style.rotate) + style.height * sin(style.rotate)
     const diffX = (style.width - newWidth) / 2 // 旋转后范围变小是正值，变大是负值
@@ -190,7 +192,7 @@ export function getCanvasStyle(canvasStyleData) {
     fontSize,
     mobileSetting
   } = canvasStyleData
-  const style = { fontSize: fontSize + 'px', color: canvasStyleData.color }
+  const style = {fontSize: fontSize + 'px', color: canvasStyleData.color}
   // 仪表板默认色#f5f6f7 大屏默认配色 #1a1a1a
   let colorRGBA = dvMainStore.dvInfo.type === 'dashboard' ? '#f5f6f7' : '#1a1a1a'
   if (backgroundColorSelect && backgroundColor) {
@@ -203,7 +205,7 @@ export function getCanvasStyle(canvasStyleData) {
   }
 
   if (dvMainStore.mobileInPc && mobileSetting?.customSetting) {
-    const { backgroundColorSelect, color, backgroundImageEnable, background } = mobileSetting
+    const {backgroundColorSelect, color, backgroundImageEnable, background} = mobileSetting
     if (backgroundColorSelect && backgroundImageEnable && typeof background === 'string') {
       style['background'] = `url(${imgUrlTrans(background)}) no-repeat ${color}`
     } else if (backgroundColorSelect) {
@@ -221,7 +223,7 @@ export function createGroupStyle(groupComponent) {
     // 分组计算逻辑
     // 1.groupStyle记录left top width height 在出现分组缩放的时候进行等比例变更（缩放来源有两种a.整个大屏的缩放 b.分组尺寸的调整）
     // 2.component 内部进行位移或者尺寸的变更 要同步到这个比例中
-    const style = { ...component.style }
+    const style = {...component.style}
     component.groupStyle.left = (style.left - parentStyle.left) / parentStyle.width
     component.groupStyle.top = (style.top - parentStyle.top) / parentStyle.height
     component.groupStyle.width = style.width / parentStyle.width
@@ -246,7 +248,7 @@ export function groupSizeStyleAdaptor(groupComponent) {
 }
 
 export function groupStyleRevert(innerComponent, parentStyle) {
-  const innerStyle = { ...innerComponent.style }
+  const innerStyle = {...innerComponent.style}
   innerComponent.groupStyle.left = innerStyle.left / parentStyle.width
   innerComponent.groupStyle.top = innerStyle.top / parentStyle.height
   innerComponent.groupStyle.width = innerStyle.width / parentStyle.width

@@ -1,18 +1,19 @@
-import { defineStore } from 'pinia'
-import { store } from '../index'
-import { useCache } from '@/hooks/web/useCache'
-import type { LocaleDropdownType } from 'types/localeDropdown'
+import {defineStore} from 'pinia'
+import {store} from '../index'
+import {useCache} from '@/hooks/web/useCache'
+import type {LocaleDropdownType} from 'types/localeDropdown'
 import zhCn from 'element-plus-secondary/es/locale/lang/zh-cn'
 import en from 'element-plus-secondary/es/locale/lang/en'
 import tw from 'element-plus-secondary/es/locale/lang/zh-tw'
 
-const { wsCache } = useCache()
+const {wsCache} = useCache()
 
 const elLocaleMap = {
   'zh-CN': zhCn,
   en: en,
   tw: tw
 }
+
 interface LocaleState {
   currentLocale: LocaleDropdownType
   localeMap: LocaleDropdownType[]

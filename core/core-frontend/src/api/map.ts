@@ -1,8 +1,8 @@
 import request from '@/config/axios'
-import { FeatureCollection } from '@antv/l7plot/dist/esm/plots/choropleth/types'
+import {FeatureCollection} from '@antv/l7plot/dist/esm/plots/choropleth/types'
 
 export const getWorldTree = (): Promise<IResponse<AreaNode>> => {
-  return request.get({ url: '/map/worldTree' })
+  return request.get({url: '/map/worldTree'})
 }
 
 export const getGeoJson = (areaId: string): Promise<IResponse<FeatureCollection>> => {
@@ -14,7 +14,7 @@ export const getGeoJson = (areaId: string): Promise<IResponse<FeatureCollection>
   }
   const realCountry = areaCode.substring(0, 3)
   const url = `${prefix}/${realCountry}/${areaCode}.json`
-  return request.get({ url })
+  return request.get({url})
 }
 
 const isCustomGeo = (id: string) => {

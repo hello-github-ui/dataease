@@ -1,9 +1,10 @@
-import { useUserStoreWithOut } from '@/store/modules/user'
+import {useUserStoreWithOut} from '@/store/modules/user'
 import router from '@/router'
-import { usePermissionStoreWithOut } from '@/store/modules/permission'
-import { interactiveStoreWithOut } from '@/store/modules/interactive'
-import { useCache } from '@/hooks/web/useCache'
-const { wsCache } = useCache()
+import {usePermissionStoreWithOut} from '@/store/modules/permission'
+import {interactiveStoreWithOut} from '@/store/modules/interactive'
+import {useCache} from '@/hooks/web/useCache'
+
+const {wsCache} = useCache()
 const permissionStore = usePermissionStoreWithOut()
 const userStore = useUserStoreWithOut()
 const interactiveStore = interactiveStoreWithOut()

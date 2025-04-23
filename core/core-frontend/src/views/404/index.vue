@@ -6,9 +6,10 @@
 </template>
 
 <script lang="ts" setup>
-import { Icon } from '@/components/icon-custom'
-import { useI18n } from '@/hooks/web/useI18n'
-const { t } = useI18n()
+import {Icon} from '@/components/icon-custom'
+import {useI18n} from '@/hooks/web/useI18n'
+
+const {t} = useI18n()
 </script>
 <style lang="less">
 .page-not-found {
@@ -17,6 +18,7 @@ const { t } = useI18n()
   position: absolute;
   text-align: center;
 }
+
 .span-403 {
   display: block;
   margin: 0;

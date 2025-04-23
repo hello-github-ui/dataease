@@ -1,8 +1,10 @@
-import { defineStore } from 'pinia'
-import { store } from '../index'
-import { useCache } from '@/hooks/web/useCache'
-const { wsCache } = useCache()
-import { modelApi } from '@/api/login'
+import {defineStore} from 'pinia'
+import {store} from '../index'
+import {useCache} from '@/hooks/web/useCache'
+
+const {wsCache} = useCache()
+import {modelApi} from '@/api/login'
+
 interface AppState {
   size: boolean
   pageLoading: boolean

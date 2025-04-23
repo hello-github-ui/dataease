@@ -35,6 +35,7 @@ import ScrollText from '@/custom-component/scroll-text/Component.vue'
 import ScrollTextAttr from '@/custom-component/scroll-text/Attr.vue'
 import PopArea from '@/custom-component/pop-area/Component.vue'
 import PopAreaAttr from '@/custom-component/pop-area/Attr.vue'
+
 export const componentsMap = {
   VText: VText,
   VQuery,

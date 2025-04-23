@@ -1,14 +1,16 @@
-import { defineStore } from 'pinia'
-import { store } from '../index'
-import { queryTreeApi } from '@/api/visualization/dataVisualization'
-import { getDatasetTree } from '@/api/dataset'
-import { listDatasources } from '@/api/datasource'
-import type { BusiTreeRequest, BusiTreeNode } from '@/models/tree/TreeNode'
-import { pathValid } from '@/store/modules/permission'
-import { useCache } from '@/hooks/web/useCache'
-import { useAppStoreWithOut } from '@/store/modules/app'
+import {defineStore} from 'pinia'
+import {store} from '../index'
+import {queryTreeApi} from '@/api/visualization/dataVisualization'
+import {getDatasetTree} from '@/api/dataset'
+import {listDatasources} from '@/api/datasource'
+import type {BusiTreeRequest, BusiTreeNode} from '@/models/tree/TreeNode'
+import {pathValid} from '@/store/modules/permission'
+import {useCache} from '@/hooks/web/useCache'
+import {useAppStoreWithOut} from '@/store/modules/app'
+
 const appStore = useAppStoreWithOut()
-const { wsCache } = useCache()
+const {wsCache} = useCache()
+
 export interface InnerInteractive {
   rootManage: boolean
   anyManage: boolean
@@ -148,7 +150,7 @@ const convertLocalStorage = (data?: InnerInteractive) => {
   while (stack.length) {
     const node = stack.pop()
     if (node.leaf) {
-      const { id, weight } = node
+      const {id, weight} = node
       result[id] = weight
     }
     if (node.children?.length) {

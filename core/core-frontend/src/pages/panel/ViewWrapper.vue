@@ -1,23 +1,24 @@
 <script lang="ts" setup>
-import { ref, onBeforeMount, reactive } from 'vue'
-import { initCanvasData } from '@/utils/canvasUtils'
-import { interactiveStoreWithOut } from '@/store/modules/interactive'
-import { useEmbedded } from '@/store/modules/embedded'
-import { check } from '@/utils/CrossPermission'
-import { useCache } from '@/hooks/web/useCache'
-import { getOuterParamsInfo } from '@/api/visualization/outerParams'
-import { ElMessage } from 'element-plus-secondary'
-import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
-import { useI18n } from '@/hooks/web/useI18n'
-import { XpackComponent } from '@/components/plugin'
-const { wsCache } = useCache()
+import {ref, onBeforeMount, reactive} from 'vue'
+import {initCanvasData} from '@/utils/canvasUtils'
+import {interactiveStoreWithOut} from '@/store/modules/interactive'
+import {useEmbedded} from '@/store/modules/embedded'
+import {check} from '@/utils/CrossPermission'
+import {useCache} from '@/hooks/web/useCache'
+import {getOuterParamsInfo} from '@/api/visualization/outerParams'
+import {ElMessage} from 'element-plus-secondary'
+import {dvMainStoreWithOut} from '@/store/modules/data-visualization/dvMain'
+import {useI18n} from '@/hooks/web/useI18n'
+import {XpackComponent} from '@/components/plugin'
+
+const {wsCache} = useCache()
 const interactiveStore = interactiveStoreWithOut()
 const embeddedStore = useEmbedded()
 const config = ref()
 const viewInfo = ref()
 const userViewEnlargeRef = ref()
 const dvMainStore = dvMainStoreWithOut()
-const { t } = useI18n()
+const {t} = useI18n()
 const openHandler = ref(null)
 const state = reactive({
   canvasDataPreview: null,
@@ -43,7 +44,7 @@ const checkPer = async resourceId => {
   if (!window.DataEaseBi || !resourceId) {
     return true
   }
-  const request = { busiFlag: embeddedStore.busiFlag }
+  const request = {busiFlag: embeddedStore.busiFlag}
   await interactiveStore.setInteractive(request)
   const key = embeddedStore.busiFlag === 'dataV' ? 'screen-weight' : 'panel-weight'
   return check(wsCache.get(key), resourceId, 1)
@@ -77,7 +78,7 @@ onBeforeMount(async () => {
   initCanvasData(
     embeddedStore.dvId,
     embeddedStore.busiFlag,
-    function ({ canvasDataResult, canvasStyleResult, dvInfo, canvasViewInfoPreview }) {
+    function ({canvasDataResult, canvasStyleResult, dvInfo, canvasViewInfoPreview}) {
       state.canvasDataPreview = canvasDataResult
       state.canvasStylePreview = canvasStyleResult
       state.canvasViewInfoPreview = canvasViewInfoPreview
@@ -158,7 +159,7 @@ const onPointClick = param => {
     />
     <user-view-enlarge ref="userViewEnlargeRef"></user-view-enlarge>
   </div>
-  <XpackComponent ref="openHandler" jsname="L2NvbXBvbmVudC9lbWJlZGRlZC1pZnJhbWUvT3BlbkhhbmRsZXI=" />
+  <XpackComponent ref="openHandler" jsname="L2NvbXBvbmVudC9lbWJlZGRlZC1pZnJhbWUvT3BlbkhhbmRsZXI="/>
 </template>
 
 <style lang="less" scoped>

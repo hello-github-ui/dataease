@@ -1,8 +1,9 @@
-import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
-import { storeToRefs } from 'pinia'
-import { getDynamicRange, getCustomTime } from '@/custom-component/v-query/time-format'
+import {dvMainStoreWithOut} from '@/store/modules/data-visualization/dvMain'
+import {storeToRefs} from 'pinia'
+import {getDynamicRange, getCustomTime} from '@/custom-component/v-query/time-format'
+
 const dvMainStore = dvMainStoreWithOut()
-const { componentData } = storeToRefs(dvMainStore)
+const {componentData} = storeToRefs(dvMainStore)
 
 const getDynamicRangeTime = (type: number, selectValue: any, timeGranularityMultiple: string) => {
   const timeType = (timeGranularityMultiple || '').split('range')[0]

@@ -1,6 +1,7 @@
 <script lang="ts" setup>
-import { computed } from 'vue'
-import { useEmbedded } from '@/store/modules/embedded'
+import {computed} from 'vue'
+import {useEmbedded} from '@/store/modules/embedded'
+
 const embeddedStore = useEmbedded()
 const outerUrl = computed(() => {
   return embeddedStore.outerUrl

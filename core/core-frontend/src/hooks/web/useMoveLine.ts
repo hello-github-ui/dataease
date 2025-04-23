@@ -1,10 +1,10 @@
-import { ref, onBeforeUnmount, onMounted } from 'vue'
-import { useCache } from '@/hooks/web/useCache'
+import {ref, onBeforeUnmount, onMounted} from 'vue'
+import {useCache} from '@/hooks/web/useCache'
 
 type Sidebar = 'DATASET' | 'DASHBOARD' | 'DATASOURCE'
 
 export const useMoveLine = (type: Sidebar) => {
-  const { wsCache } = useCache('localStorage')
+  const {wsCache} = useCache('localStorage')
   const width = ref(wsCache.get(type) || 280)
 
   const getCoordinates = () => {

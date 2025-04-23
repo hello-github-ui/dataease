@@ -1,12 +1,13 @@
-import { cos, sin } from '@/utils/translate'
+import {cos, sin} from '@/utils/translate'
 import {
   DEFAULT_COLOR_CASE,
   DEFAULT_COLOR_CASE_DARK
 } from '@/views/chart/components/editor/util/chart'
 
-import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
-import { useEmitt } from '@/hooks/web/useEmitt'
-import { merge } from 'lodash-es'
+import {dvMainStoreWithOut} from '@/store/modules/data-visualization/dvMain'
+import {useEmitt} from '@/hooks/web/useEmitt'
+import {merge} from 'lodash-es'
+
 const dvMainStore = dvMainStoreWithOut()
 
 export const LIGHT_THEME_COLOR_MAIN = '#000000'
@@ -63,7 +64,7 @@ export function getStyle(style, filter = []) {
 
 // 获取一个组件旋转 rotate 后的样式
 export function getComponentRotatedStyle(style) {
-  style = { ...style }
+  style = {...style}
   if (style.rotate !== 0) {
     const newWidth = style.width * cos(style.rotate) + style.height * sin(style.rotate)
     const diffX = (style.width - newWidth) / 2 // 旋转后范围变小是正值，变大是负值
@@ -296,6 +297,7 @@ export function getScaleValue(propValue, scale) {
   const propValueTemp = Math.round(propValue * scale)
   return propValueTemp > 1 ? propValueTemp : 1
 }
+
 export const THEME_ATTR_TRANS_ARR_MAIN = {
   label: {
     seriesLabelFormatter: {

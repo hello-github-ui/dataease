@@ -1,18 +1,18 @@
 import eventBus from '@/utils/eventBus'
-import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
-import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
-import { copyStoreWithOut } from '@/store/modules/data-visualization/copy'
-import { composeStoreWithOut } from '@/store/modules/data-visualization/compose'
-import { lockStoreWithOut } from '@/store/modules/data-visualization/lock'
-import { storeToRefs } from 'pinia'
+import {dvMainStoreWithOut} from '@/store/modules/data-visualization/dvMain'
+import {snapshotStoreWithOut} from '@/store/modules/data-visualization/snapshot'
+import {copyStoreWithOut} from '@/store/modules/data-visualization/copy'
+import {composeStoreWithOut} from '@/store/modules/data-visualization/compose'
+import {lockStoreWithOut} from '@/store/modules/data-visualization/lock'
+import {storeToRefs} from 'pinia'
 
 const dvMainStore = dvMainStoreWithOut()
 const composeStore = composeStoreWithOut()
 const snapshotStore = snapshotStoreWithOut()
 const copyStore = copyStoreWithOut()
 const lockStore = lockStoreWithOut()
-const { curComponent, isInEditor, editMode } = storeToRefs(dvMainStore)
-const { areaData } = storeToRefs(composeStore)
+const {curComponent, isInEditor, editMode} = storeToRefs(dvMainStore)
+const {areaData} = storeToRefs(composeStore)
 
 const ctrlKey = 17,
   shiftKey = 16, // shift
@@ -98,11 +98,12 @@ const checkDialog = () => {
 
 let isCtrlOrCommandDown = false
 let isShiftDown = false
+
 // 全局监听按键操作并执行相应命令
 export function listenGlobalKeyDown() {
   window.onkeydown = e => {
     if (editMode.value === 'preview' || checkDialog()) return
-    const { keyCode } = e
+    const {keyCode} = e
     if (positionMoveKey[keyCode] && curComponent.value) {
       positionMoveKey[keyCode](keyCode)
       e.preventDefault()

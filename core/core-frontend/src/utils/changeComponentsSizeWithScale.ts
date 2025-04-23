@@ -1,11 +1,11 @@
-import { deepCopy } from './utils'
-import { divide, multiply } from 'mathjs'
-import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
-import { storeToRefs } from 'pinia'
-import { groupSizeStyleAdaptor } from '@/utils/style'
+import {deepCopy} from './utils'
+import {divide, multiply} from 'mathjs'
+import {dvMainStoreWithOut} from '@/store/modules/data-visualization/dvMain'
+import {storeToRefs} from 'pinia'
+import {groupSizeStyleAdaptor} from '@/utils/style'
 
 const dvMainStore = dvMainStoreWithOut()
-const { componentData, curComponentIndex, canvasStyleData } = storeToRefs(dvMainStore)
+const {componentData, curComponentIndex, canvasStyleData} = storeToRefs(dvMainStore)
 
 const needToChangeAttrs = ['top', 'left', 'width', 'height', 'fontSize', 'letterSpacing']
 
@@ -70,6 +70,7 @@ export function changeRefComponentsSizeWithScale(componentDataRef, canvasStyleDa
 }
 
 const needToChangeAttrs2 = ['width', 'height', 'fontSize']
+
 export function changeComponentSizeWithScale(component, scale = canvasStyleData.value.scale) {
   Object.keys(component.style).forEach(key => {
     if (needToChangeAttrs2.includes(key)) {

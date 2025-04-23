@@ -1,5 +1,5 @@
-import { defineStore } from 'pinia'
-import { store } from '../../index'
+import {defineStore} from 'pinia'
+import {store} from '../../index'
 
 export const contextmenuStore = defineStore('contextmenu', {
   state: () => {
@@ -11,7 +11,7 @@ export const contextmenuStore = defineStore('contextmenu', {
     }
   },
   actions: {
-    showContextMenu({ top, left, position }) {
+    showContextMenu({top, left, position}) {
       this.menuShow = true
       this.menuTop = top
       this.menuLeft = left

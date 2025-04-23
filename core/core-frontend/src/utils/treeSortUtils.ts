@@ -1,4 +1,4 @@
-import { BusiTreeNode } from '@/models/tree/TreeNode'
+import {BusiTreeNode} from '@/models/tree/TreeNode'
 import _ from 'lodash'
 
 export default function treeSort(tree: BusiTreeNode[], sortType: string) {
@@ -19,9 +19,9 @@ export function sortCircle(tree: BusiTreeNode[], sortType: string) {
 
 export const sortPer = (subTree: BusiTreeNode[], sortType: string) => {
   if (sortType === 'name_desc') {
-    subTree.sort((a, b) => b.name.localeCompare(a.name, 'zh-Hans-CN', { sensitivity: 'accent' }))
+    subTree.sort((a, b) => b.name.localeCompare(a.name, 'zh-Hans-CN', {sensitivity: 'accent'}))
   } else if (sortType === 'name_asc') {
-    subTree.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN', { sensitivity: 'accent' }))
+    subTree.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN', {sensitivity: 'accent'}))
   } else if (sortType === 'time_asc') {
     subTree.reverse()
   }

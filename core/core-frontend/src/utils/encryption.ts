@@ -1,12 +1,12 @@
 import CryptoJS from 'crypto-js/crypto-js'
 import JSEncrypt from 'jsencrypt'
-import { Base64 } from 'js-base64'
-import { useCache } from '@/hooks/web/useCache'
-import { useAppStoreWithOut } from '@/store/modules/app'
+import {Base64} from 'js-base64'
+import {useCache} from '@/hooks/web/useCache'
+import {useAppStoreWithOut} from '@/store/modules/app'
 
 const appStore = useAppStoreWithOut()
 
-const { wsCache } = useCache()
+const {wsCache} = useCache()
 
 const rsaKey = '-pk_separator-'
 const crypt = new JSEncrypt()

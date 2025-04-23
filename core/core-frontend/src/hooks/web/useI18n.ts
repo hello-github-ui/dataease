@@ -1,4 +1,4 @@
-import { i18n } from '@/plugins/vue-i18n'
+import {i18n} from '@/plugins/vue-i18n'
 
 type I18nGlobalTranslation = {
   (key: string): string
@@ -36,7 +36,7 @@ export const useI18n = (
     return normalFn
   }
 
-  const { t, ...methods } = i18n.global
+  const {t, ...methods} = i18n.global
 
   const tFn: I18nGlobalTranslation = (key: string, ...arg: any[]) => {
     if (!key) return ''

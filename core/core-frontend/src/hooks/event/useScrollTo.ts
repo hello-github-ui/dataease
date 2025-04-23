@@ -1,4 +1,4 @@
-import { ref, unref } from 'vue'
+import {ref, unref} from 'vue'
 
 export interface ScrollToParams {
   el: HTMLElement
@@ -21,12 +21,12 @@ const move = (el: HTMLElement, position: string, amount: number) => {
 }
 
 export function useScrollTo({
-  el,
-  position = 'scrollLeft',
-  to,
-  duration = 500,
-  callback
-}: ScrollToParams) {
+                              el,
+                              position = 'scrollLeft',
+                              to,
+                              duration = 500,
+                              callback
+                            }: ScrollToParams) {
   const isActiveRef = ref(false)
   const start = el[position]
   const change = to - start
@@ -58,5 +58,5 @@ export function useScrollTo({
     isActiveRef.value = false
   }
 
-  return { start: run, stop }
+  return {start: run, stop}
 }

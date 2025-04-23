@@ -1,7 +1,7 @@
 export default async function runAnimation($el, animations = []) {
   const play = animation =>
     new Promise<void>(resolve => {
-      const { animationTime, value = '', isLoop } = animation
+      const {animationTime, value = '', isLoop} = animation
       $el.style.setProperty('--time', animationTime + 's')
       $el.classList.add(value, 'animated', utilsHandle(isLoop))
       const removeAnimation = () => {

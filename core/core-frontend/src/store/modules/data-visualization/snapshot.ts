@@ -1,12 +1,13 @@
-import { defineStore, storeToRefs } from 'pinia'
-import { store } from '../../index'
-import { dvMainStoreWithOut } from './dvMain'
-import { deepCopy } from '@/utils/utils'
-import { BASE_THEMES } from '@/views/chart/components/editor/util/dataVisualization'
+import {defineStore, storeToRefs} from 'pinia'
+import {store} from '../../index'
+import {dvMainStoreWithOut} from './dvMain'
+import {deepCopy} from '@/utils/utils'
+import {BASE_THEMES} from '@/views/chart/components/editor/util/dataVisualization'
 import eventBus from '@/utils/eventBus'
-import { useEmitt } from '@/hooks/web/useEmitt'
-import { useCache } from '@/hooks/web/useCache'
-const { wsCache } = useCache('localStorage')
+import {useEmitt} from '@/hooks/web/useEmitt'
+import {useCache} from '@/hooks/web/useCache'
+
+const {wsCache} = useCache('localStorage')
 
 const dvMainStore = dvMainStoreWithOut()
 const {

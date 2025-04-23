@@ -1,6 +1,6 @@
 import request from '@/config/axios'
-import { guid } from '@/views/visualized/data/dataset/form/util.js'
-import { ElMessage } from 'element-plus-secondary'
+import {guid} from '@/views/visualized/data/dataset/form/util.js'
+import {ElMessage} from 'element-plus-secondary'
 
 const staticResourcePath = '/static-resource/'
 export const uploadFile = (fileId: number | string, param) =>

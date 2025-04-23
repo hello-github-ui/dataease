@@ -1,9 +1,9 @@
-import { defineStore } from 'pinia'
-import { routes } from '@/router'
+import {defineStore} from 'pinia'
+import {routes} from '@/router'
 
-import { generateRoutesFn2 } from '@/router/establish'
-import { store } from '../index'
-import { cloneDeep } from 'lodash-es'
+import {generateRoutesFn2} from '@/router/establish'
+import {store} from '../index'
+import {cloneDeep} from 'lodash-es'
 import NotFoundPage from '@/views/404/index.vue'
 
 export interface PermissionState {

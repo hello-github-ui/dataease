@@ -1,13 +1,13 @@
-import { nextTick, unref } from 'vue'
-import type { NProgressOptions } from 'nprogress'
+import {nextTick, unref} from 'vue'
+import type {NProgressOptions} from 'nprogress'
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
-import { useCssVar } from '@vueuse/core'
+import {useCssVar} from '@vueuse/core'
 
 const primaryColor = useCssVar('--el-color-primary', document.documentElement)
 
 export const useNProgress = () => {
-  NProgress.configure({ showSpinner: false } as NProgressOptions)
+  NProgress.configure({showSpinner: false} as NProgressOptions)
 
   const initColor = async () => {
     await nextTick()

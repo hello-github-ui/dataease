@@ -3,6 +3,6 @@ import configGlobal from '@/components/config-global/src/ConfigGlobal.vue'
 </script>
 <template>
   <config-global>
-    <router-view />
+    <router-view/>
   </config-global>
 </template>

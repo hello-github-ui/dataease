@@ -1,25 +1,26 @@
 <script lang="ts" setup>
-import { ref, reactive, onBeforeMount, nextTick } from 'vue'
-import { initCanvasData, initCanvasDataMobile } from '@/utils/canvasUtils'
-import { interactiveStoreWithOut } from '@/store/modules/interactive'
-import { useEmbedded } from '@/store/modules/embedded'
-import { isMobile } from '@/utils/utils'
-import { check } from '@/utils/CrossPermission'
-import { useEmitt } from '@/hooks/web/useEmitt'
-import { useCache } from '@/hooks/web/useCache'
-import { getOuterParamsInfo } from '@/api/visualization/outerParams'
-import { ElMessage } from 'element-plus-secondary'
-import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
-import { useI18n } from '@/hooks/web/useI18n'
+import {ref, reactive, onBeforeMount, nextTick} from 'vue'
+import {initCanvasData, initCanvasDataMobile} from '@/utils/canvasUtils'
+import {interactiveStoreWithOut} from '@/store/modules/interactive'
+import {useEmbedded} from '@/store/modules/embedded'
+import {isMobile} from '@/utils/utils'
+import {check} from '@/utils/CrossPermission'
+import {useEmitt} from '@/hooks/web/useEmitt'
+import {useCache} from '@/hooks/web/useCache'
+import {getOuterParamsInfo} from '@/api/visualization/outerParams'
+import {ElMessage} from 'element-plus-secondary'
+import {dvMainStoreWithOut} from '@/store/modules/data-visualization/dvMain'
+import {useI18n} from '@/hooks/web/useI18n'
 import VanSticky from 'vant/es/sticky'
 import VanNavBar from 'vant/es/nav-bar'
 import 'vant/es/nav-bar/style'
 import 'vant/es/sticky/style'
-const { wsCache } = useCache()
+
+const {wsCache} = useCache()
 const interactiveStore = interactiveStoreWithOut()
 const embeddedStore = useEmbedded()
 const dashboardPreview = ref(null)
-const { t } = useI18n()
+const {t} = useI18n()
 const state = reactive({
   canvasDataPreview: null,
   canvasStylePreview: null,
@@ -33,7 +34,7 @@ const checkPer = async resourceId => {
   if (!window.DataEaseBi || !resourceId) {
     return true
   }
-  const request = { busiFlag: embeddedStore.busiFlag }
+  const request = {busiFlag: embeddedStore.busiFlag}
   await interactiveStore.setInteractive(request)
   const key = embeddedStore.busiFlag === 'dataV' ? 'screen-weight' : 'panel-weight'
   return check(wsCache.get(key), resourceId, 1)
@@ -69,12 +70,12 @@ onBeforeMount(async () => {
     embeddedStore.dvId,
     embeddedStore.busiFlag,
     function ({
-      canvasDataResult,
-      canvasStyleResult,
-      dvInfo,
-      canvasViewInfoPreview,
-      curPreviewGap
-    }) {
+                canvasDataResult,
+                canvasStyleResult,
+                dvInfo,
+                canvasViewInfoPreview,
+                curPreviewGap
+              }) {
       if (!isPc.value) {
         if (!dvInfo.mobileLayout) {
           useEmitt().emitter.emit('changeCurrentComponent', 'DashboardEmpty')
@@ -106,7 +107,7 @@ onBeforeMount(async () => {
     v-if="state.canvasStylePreview"
   >
     <van-sticky v-if="!isPc">
-      <van-nav-bar :title="state.dvInfo.name" />
+      <van-nav-bar :title="state.dvInfo.name"/>
     </van-sticky>
     <de-preview
       ref="dashboardPreview"

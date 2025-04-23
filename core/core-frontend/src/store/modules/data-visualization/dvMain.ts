@@ -1,6 +1,6 @@
-import { defineStore } from 'pinia'
-import { store } from '../../index'
-import { deepCopy } from '@/utils/utils'
+import {defineStore} from 'pinia'
+import {store} from '../../index'
+import {deepCopy} from '@/utils/utils'
 import {
   BASE_VIEW_CONFIG,
   DEFAULT_INDICATOR_NAME_STYLE,
@@ -12,7 +12,7 @@ import {
   DEFAULT_CANVAS_STYLE_DATA_LIGHT,
   DEFAULT_CANVAS_STYLE_DATA_SCREEN_DARK
 } from '@/views/chart/components/editor/util/dataVisualization'
-import { useEmitt } from '@/hooks/web/useEmitt'
+import {useEmitt} from '@/hooks/web/useEmitt'
 import chartViewManager from '@/views/chart/components/js/panel'
 import {
   COMMON_COMPONENT_BACKGROUND_BASE,
@@ -21,8 +21,8 @@ import {
   defaultStyleValue,
   findBaseDeFaultAttr
 } from '@/custom-component/component-list'
-import { get, set } from 'lodash-es'
-import { viewFieldTimeTrans } from '@/utils/viewUtils'
+import {get, set} from 'lodash-es'
+import {viewFieldTimeTrans} from '@/utils/viewUtils'
 
 export const dvMainStore = defineStore('dataVisualization', {
   state: () => {
@@ -46,7 +46,7 @@ export const dvMainStore = defineStore('dataVisualization', {
       mobileInPc: false,
       inMobile: false,
       firstLoadMap: [],
-      canvasStyleData: { ...deepCopy(DEFAULT_CANVAS_STYLE_DATA_DARK), backgroundColor: null },
+      canvasStyleData: {...deepCopy(DEFAULT_CANVAS_STYLE_DATA_DARK), backgroundColor: null},
       appData: null, //应用信息
       // 当前展示画布缓存数据
       componentDataCache: null,
@@ -256,7 +256,7 @@ export const dvMainStore = defineStore('dataVisualization', {
     setAppDataInfo(appDataInfo) {
       this.appData = appDataInfo
     },
-    setCurComponent({ component, index }) {
+    setCurComponent({component, index}) {
       if (!component && this.curComponent) {
         this.curComponent['editing'] = false
         this.curComponent['resizing'] = false
@@ -309,7 +309,7 @@ export const dvMainStore = defineStore('dataVisualization', {
     },
 
     setShapeStyle(
-      { top, left, width, height, rotate },
+      {top, left, width, height, rotate},
       areaDataComponents = [],
       moveType = 'move',
       baseGroupComponentsRadio = {}
@@ -353,7 +353,7 @@ export const dvMainStore = defineStore('dataVisualization', {
       }
     },
 
-    setShapeSingleStyle({ key, value }) {
+    setShapeSingleStyle({key, value}) {
       this.curComponent.style[key] = value
     },
 
@@ -397,17 +397,17 @@ export const dvMainStore = defineStore('dataVisualization', {
       }
     },
 
-    addComponent({ component, index, isFromGroup = false, componentData = this.componentData }) {
+    addComponent({component, index, isFromGroup = false, componentData = this.componentData}) {
       if (isFromGroup) {
         componentData.push(component)
         return
       }
       if (index !== undefined) {
         componentData.splice(index, 0, component)
-        this.setCurComponent({ component: component, index: index })
+        this.setCurComponent({component: component, index: index})
       } else {
         componentData.push(component)
-        this.setCurComponent({ component: component, index: componentData.length - 1 })
+        this.setCurComponent({component: component, index: componentData.length - 1})
       }
       //如果当前的组件是UserView 图表，则想canvasView中增加一项 UserView ID 和componentID保持一致
       if (component.component === 'UserView') {
@@ -438,8 +438,8 @@ export const dvMainStore = defineStore('dataVisualization', {
         this.canvasViewInfo[component.id] = newView
       }
       if (component.component === 'VQuery') {
-        const { color, titleColor, labelColor, borderColor, bgColor, text, titleLayout, layout } =
-          this.canvasStyleData.component.filterStyle || {}
+        const {color, titleColor, labelColor, borderColor, bgColor, text, titleLayout, layout} =
+        this.canvasStyleData.component.filterStyle || {}
         const newView = {
           ...JSON.parse(JSON.stringify(BASE_VIEW_CONFIG)),
           id: component.id,
@@ -527,7 +527,7 @@ export const dvMainStore = defineStore('dataVisualization', {
       this.curOriginThemes = dvInfo.type === 'dashboard' ? 'light' : 'dark'
     },
     matrixSizeAdaptor() {
-      const { baseWidth, baseHeight, baseMarginLeft, baseMarginTop } = this.bashMatrixInfo
+      const {baseWidth, baseHeight, baseMarginLeft, baseMarginTop} = this.bashMatrixInfo
       this.componentData.forEach(function (component) {
         component.style.width = baseWidth * component.sizeX - baseMarginLeft
         component.style.height = baseHeight * component.sizeY - baseMarginTop
@@ -685,7 +685,7 @@ export const dvMainStore = defineStore('dataVisualization', {
             ) {
               mixPropertyInnerTemp[propertyInnerItem] = mixPropertyInnerTemp[
                 propertyInnerItem
-              ].filter(
+                ].filter(
                 propertyInnerItemValue =>
                   componentInfo.propertyInner[propertyInnerItem].indexOf(propertyInnerItemValue) >
                   -1
@@ -1232,7 +1232,7 @@ export const dvMainStore = defineStore('dataVisualization', {
         this.canvasState['curPointArea'] = 'base'
       }
     },
-    canvasStateChange({ key, value }) {
+    canvasStateChange({key, value}) {
       if (this.canvasState[key] && value) {
         this.canvasState[key] = value
       }
@@ -1294,7 +1294,7 @@ export const dvMainStore = defineStore('dataVisualization', {
         type: null,
         mobileLayout: false
       }
-      this.canvasStyleData = { ...deepCopy(DEFAULT_CANVAS_STYLE_DATA_DARK), backgroundColor: null }
+      this.canvasStyleData = {...deepCopy(DEFAULT_CANVAS_STYLE_DATA_DARK), backgroundColor: null}
     },
     removeGroupArea(curComponentData = this.componentData) {
       // 清理临时组件
