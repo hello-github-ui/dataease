@@ -12,10 +12,8 @@ import java.util.List;
  */
 @Data
 public class MarketBaseResponse {
-    private String baseUrl;
-
     List<MarketMetaDataVO> categories;
-
+    private String baseUrl;
     private List<TemplateMarketDTO> contents;
 
     public MarketBaseResponse() {

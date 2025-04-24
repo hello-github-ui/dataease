@@ -30,11 +30,11 @@ public class JacksonConfig {
         return jacksonObjectMapperBuilder -> {
             // 增大最大字符串长度限制到 350000000（或根据需要设置）
             StreamReadConstraints constraints = StreamReadConstraints.builder()
-                    .maxStringLength(35000000)  // 设置更大的限制值
-                    .build();
+                .maxStringLength(35000000)  // 设置更大的限制值
+                .build();
 
             jacksonObjectMapperBuilder.postConfigurer(objectMapper ->
-                    objectMapper.getFactory().setStreamReadConstraints(constraints)
+                objectMapper.getFactory().setStreamReadConstraints(constraints)
             );
         };
     }

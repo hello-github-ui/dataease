@@ -37,56 +37,57 @@ import PopArea from '@/custom-component/pop-area/Component.vue'
 import PopAreaAttr from '@/custom-component/pop-area/Attr.vue'
 import PictureGroup from '@/custom-component/picture-group/Component.vue'
 import PictureGroupAttr from '@/custom-component/picture-group/Attr.vue'
+
 export const componentsMap = {
-  VText: VText,
-  VQuery,
-  VTextAttr: VTextAttr,
-  Group: Group,
-  GroupAttr: GroupAttr,
-  UserView: UserView,
-  UserViewAttr: UserViewAttr,
-  Picture: Picture,
-  PictureAttr: PictureAttr,
-  CanvasBoard: CanvasBoard,
-  CanvasBoardAttr: CanvasBoardAttr,
-  CanvasIcon: CanvasIcon,
-  CanvasIconAttr: CanvasIconAttr,
-  DeTabs: DeTabs,
-  DeTabsAttr: DeTabsAttr,
-  DeGraphical: DeGraphical,
-  DeGraphicalAttr: DeGraphicalAttr,
-  CircleShape: CircleShape,
-  CircleShapeAttr: CircleShapeAttr,
-  RectShape: RectShape,
-  RectShapeAttr: RectShapeAttr,
-  SvgTriangle: SvgTriangle,
-  SvgTriangleAttr: SvgTriangleAttr,
-  DeTimeClock: DeTimeClock,
-  DeTimeClockAttr: DeTimeClockAttr,
-  GroupArea: GroupArea,
-  GroupAreaAttr: GroupAreaAttr,
-  DeFrame: DeFrame,
-  DeFrameAttr: DeFrameAttr,
-  DeVideo: DeVideo,
-  DeVideoAttr: DeVideoAttr,
-  DeStreamMedia: DeStreamMedia,
-  DeStreamMediaAttr: DeStreamMediaAttr,
-  ScrollText: ScrollText,
-  ScrollTextAttr: ScrollTextAttr,
-  PopArea: PopArea,
-  PopAreaAttr: PopAreaAttr,
-  PictureGroup: PictureGroup,
-  PictureGroupAttr: PictureGroupAttr
+    VText: VText,
+    VQuery,
+    VTextAttr: VTextAttr,
+    Group: Group,
+    GroupAttr: GroupAttr,
+    UserView: UserView,
+    UserViewAttr: UserViewAttr,
+    Picture: Picture,
+    PictureAttr: PictureAttr,
+    CanvasBoard: CanvasBoard,
+    CanvasBoardAttr: CanvasBoardAttr,
+    CanvasIcon: CanvasIcon,
+    CanvasIconAttr: CanvasIconAttr,
+    DeTabs: DeTabs,
+    DeTabsAttr: DeTabsAttr,
+    DeGraphical: DeGraphical,
+    DeGraphicalAttr: DeGraphicalAttr,
+    CircleShape: CircleShape,
+    CircleShapeAttr: CircleShapeAttr,
+    RectShape: RectShape,
+    RectShapeAttr: RectShapeAttr,
+    SvgTriangle: SvgTriangle,
+    SvgTriangleAttr: SvgTriangleAttr,
+    DeTimeClock: DeTimeClock,
+    DeTimeClockAttr: DeTimeClockAttr,
+    GroupArea: GroupArea,
+    GroupAreaAttr: GroupAreaAttr,
+    DeFrame: DeFrame,
+    DeFrameAttr: DeFrameAttr,
+    DeVideo: DeVideo,
+    DeVideoAttr: DeVideoAttr,
+    DeStreamMedia: DeStreamMedia,
+    DeStreamMediaAttr: DeStreamMediaAttr,
+    ScrollText: ScrollText,
+    ScrollTextAttr: ScrollTextAttr,
+    PopArea: PopArea,
+    PopAreaAttr: PopAreaAttr,
+    PictureGroup: PictureGroup,
+    PictureGroupAttr: PictureGroupAttr
 }
 
 export default function findComponent(key) {
-  return componentsMap[key]
+    return componentsMap[key]
 }
 
 export function findComponentAttr(component) {
-  const key =
-    component.component === 'UserView' && component.innerType === 'picture-group'
-      ? 'PictureGroupAttr'
-      : component.component + 'Attr'
-  return componentsMap[key]
+    const key =
+        component.component === 'UserView' && component.innerType === 'picture-group'
+            ? 'PictureGroupAttr'
+            : component.component + 'Attr'
+    return componentsMap[key]
 }

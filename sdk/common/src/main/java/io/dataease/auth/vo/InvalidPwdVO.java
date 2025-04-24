@@ -12,7 +12,7 @@ public class InvalidPwdVO implements Serializable {
     @Serial
     private static final long serialVersionUID = 3684394012648654165L;
 
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long uid;
 
     private boolean invalid;

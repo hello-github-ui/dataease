@@ -15,8 +15,8 @@ import java.util.List;
 public class H2EngineProvider extends EngineProvider {
 
     private static final String creatTableSql =
-            "CREATE TABLE IF NOT EXISTS \"TABLE_NAME\"" +
-                    "Column_Fields;";
+        "CREATE TABLE IF NOT EXISTS \"TABLE_NAME\"" +
+            "Column_Fields;";
 
 
     @Override
@@ -59,7 +59,7 @@ public class H2EngineProvider extends EngineProvider {
                 }
             }
             values.append("('").append(String.join("','", Arrays.asList(strings1)))
-                    .append("'),");
+                .append("'),");
         }
         return (insertSql + values.substring(0, values.length() - 1));
     }

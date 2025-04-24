@@ -1,11 +1,12 @@
 package io.dataease.system.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author fit2cloud
@@ -84,11 +85,11 @@ public class CoreTypeface implements Serializable {
     @Override
     public String toString() {
         return "CoreTypeface{" +
-        "id = " + id +
-        ", name = " + name +
-        ", fileName = " + fileName +
-        ", fileTransName = " + fileTransName +
-        ", isDefault = " + isDefault +
-        "}";
+            "id = " + id +
+            ", name = " + name +
+            ", fileName = " + fileName +
+            ", fileTransName = " + fileTransName +
+            ", isDefault = " + isDefault +
+            "}";
     }
 }

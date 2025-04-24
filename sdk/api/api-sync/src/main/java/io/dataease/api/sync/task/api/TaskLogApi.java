@@ -5,11 +5,11 @@ import io.dataease.api.sync.task.dto.TaskLogGridRequest;
 import io.dataease.api.sync.task.vo.LogResultVO;
 import io.dataease.api.sync.task.vo.TaskLogVO;
 import io.dataease.auth.DeApiPath;
+import io.swagger.v3.oas.annotations.Hidden;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import io.swagger.v3.oas.annotations.Hidden;
 
 import static io.dataease.constant.AuthResourceEnum.TASK;
 

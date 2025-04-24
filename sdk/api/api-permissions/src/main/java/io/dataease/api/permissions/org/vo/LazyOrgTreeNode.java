@@ -12,10 +12,10 @@ import java.util.List;
 @Data
 public class LazyOrgTreeNode implements Serializable {
     @Schema(description = "ID")
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
     @Schema(description = "PID")
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long pid;
     @Schema(description = "名称")
     private String name;

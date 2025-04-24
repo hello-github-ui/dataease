@@ -5,10 +5,10 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 
 @Data
-public class ExportTaskDTO  {
-    @JsonSerialize(using= ToStringSerializer.class)
+public class ExportTaskDTO {
+    @JsonSerialize(using = ToStringSerializer.class)
     private String id;
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long userId;
 
     private String fileName;

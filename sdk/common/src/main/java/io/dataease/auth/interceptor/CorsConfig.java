@@ -32,10 +32,10 @@ public class CorsConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         operateCorsRegistration = registry.addMapping("/**")
-                .allowCredentials(false)
-                .allowedHeaders("*")
-                .maxAge(3600)
-                .allowedMethods("GET", "POST", "DELETE");
+            .allowCredentials(false)
+            .allowedHeaders("*")
+            .maxAge(3600)
+            .allowedMethods("GET", "POST", "DELETE");
         if (corsStrict) {
             operateCorsRegistration.allowedOrigins(originList.toArray(new String[0]));
             return;

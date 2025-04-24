@@ -1,7 +1,6 @@
 package io.dataease.extensions.view.util;
 
 import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
-import io.dataease.extensions.datasource.model.SQLObj;
 import io.dataease.extensions.view.dto.*;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -12,7 +11,7 @@ import java.util.*;
 
 public class ChartDataUtil {
     // 对结果排序
-    public static List<String[]> resultCustomSort(List<ChartViewFieldDTO> xAxis,List<ChartViewFieldDTO> yAxis, List<SortAxis> sortPriority, List<String[]> data) {
+    public static List<String[]> resultCustomSort(List<ChartViewFieldDTO> xAxis, List<ChartViewFieldDTO> yAxis, List<SortAxis> sortPriority, List<String[]> data) {
         List<String[]> res = new ArrayList<>(data);
         var axisList = new ArrayList<ChartViewFieldDTO>();
         axisList.addAll(xAxis);
@@ -26,7 +25,7 @@ public class ChartDataUtil {
             var ids = new HashSet<Long>();
             for (SortAxis sortAxis : sortPriority) {
                 for (ChartViewFieldDTO axis : axisList) {
-                    if (sortAxis.getId().equals(axis.getId())){
+                    if (sortAxis.getId().equals(axis.getId())) {
                         tmp.add(axis);
                         ids.add(axis.getId());
                     }
@@ -84,7 +83,7 @@ public class ChartDataUtil {
 
     public static List<String[]> customSort(List<String> custom, List<String[]> data, int index) {
         List<String[]> res = new ArrayList<>();
-        
+
         // 数据行在自定义排序的范围内，记录该数据行的内容以及下标
         List<Integer> indexInCustomSort = new ArrayList<>();
         List<String[]> dataInCustomSort = new ArrayList<>();

@@ -8,14 +8,6 @@ public enum DataFillingFinishTaskEnum {
 
     private Integer flag;
 
-    public Integer getFlag() {
-        return flag;
-    }
-
-    public void setFlag(Integer flag) {
-        this.flag = flag;
-    }
-
     DataFillingFinishTaskEnum(Integer flag) {
         this.flag = flag;
     }
@@ -25,5 +17,13 @@ public enum DataFillingFinishTaskEnum {
 
     public static DataFillingFinishTaskEnum fromValue(Integer flag) {
         return Arrays.stream(values()).filter(v -> v.flag.equals(flag)).findFirst().get();
+    }
+
+    public Integer getFlag() {
+        return flag;
+    }
+
+    public void setFlag(Integer flag) {
+        this.flag = flag;
     }
 }

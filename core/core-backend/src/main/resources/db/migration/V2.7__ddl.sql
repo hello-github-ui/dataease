@@ -30,13 +30,13 @@ CREATE TABLE `core_export_task`
     `id`                  varchar(255) NOT NULL,
     `user_id`             bigint(20)   NOT NULL,
     `file_name`           varchar(2048) DEFAULT NULL,
-    `file_size`           DOUBLE        DEFAULT NULL,
+    `file_size` DOUBLE DEFAULT NULL,
     `file_size_unit`      varchar(255)  DEFAULT NULL,
     `export_from`         varchar(255)  DEFAULT NULL,
     `export_status`       varchar(255)  DEFAULT NULL,
     `export_from_type`    varchar(255)  DEFAULT NULL,
     `export_time`         bigint(20)    DEFAULT NULL,
-    `export_progress`      varchar(255)  DEFAULT NULL,
+    `export_progress`     varchar(255)  DEFAULT NULL,
     `export_machine_name` varchar(512)  DEFAULT NULL,
     `params`              longtext     NOT NULL COMMENT '过滤参数',
     PRIMARY KEY (`id`)
@@ -54,4 +54,8 @@ CREATE TABLE `xpack_platform_token`
 
 
 
-UPDATE `QRTZ_JOB_DETAILS` SET `JOB_CLASS_NAME` = 'io.dataease.job.schedule.CheckDsStatusJob' WHERE (`SCHED_NAME` = 'deSyncJob') and (`JOB_NAME` = 'Datasource') and (`JOB_GROUP` = 'check_status');
+UPDATE `QRTZ_JOB_DETAILS`
+SET `JOB_CLASS_NAME` = 'io.dataease.job.schedule.CheckDsStatusJob'
+WHERE (`SCHED_NAME` = 'deSyncJob')
+  and (`JOB_NAME` = 'Datasource')
+  and (`JOB_GROUP` = 'check_status');

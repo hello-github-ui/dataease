@@ -8,7 +8,7 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class DataSetColumnPermissionsDTO   {
+public class DataSetColumnPermissionsDTO {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 

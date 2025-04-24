@@ -13,9 +13,9 @@ import java.util.List;
 public class FreeVO implements Serializable, TreeResultModel<FreeVO> {
     @Serial
     private static final long serialVersionUID = -7055936995493939929L;
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long pid;
 
     private String name;

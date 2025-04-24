@@ -183,27 +183,27 @@ public class CoreVisualizationManage {
             return new ArrayList<>();
         }
         return pos.stream().map(po ->
-                new VisualizationResourceVO(
-                        po.getId(), po.getResourceId(), po.getName(),
-                        po.getType(), String.valueOf(po.getCreator()), String.valueOf(po.getLastEditor()), po.getLastEditTime(),
-                        po.getFavorite(), 9, po.getExtFlag())).toList();
+            new VisualizationResourceVO(
+                po.getId(), po.getResourceId(), po.getName(),
+                po.getType(), String.valueOf(po.getCreator()), String.valueOf(po.getLastEditor()), po.getLastEditTime(),
+                po.getFavorite(), 9, po.getExtFlag())).toList();
     }
 
     public IPage<VisualizationResourcePO> queryVisualizationPage(int goPage, int pageSize, VisualizationWorkbranchQueryRequest request) {
         Long uid = AuthUtils.getUser().getUserId();
-        Map<String,Object> params = new HashMap<>();
+        Map<String, Object> params = new HashMap<>();
         if (StringUtils.isNotBlank(request.getType())) {
             BusiResourceEnum busiResourceEnum = BusiResourceEnum.valueOf(request.getType().toUpperCase());
             if (ObjectUtils.isEmpty(busiResourceEnum)) {
                 DEException.throwException("type is invalid");
             }
-            params.put("type",request.getType());
+            params.put("type", request.getType());
         }
         String info = CommunityUtils.getInfo();
         if (StringUtils.isNotBlank(info)) {
-            params.put("info",info);
+            params.put("info", info);
         }
-        params.put("isAsc",request.isAsc());
+        params.put("isAsc", request.isAsc());
         Page<VisualizationResourcePO> page = new Page<>(goPage, pageSize);
         return extDataVisualizationMapper.findRecent(page, uid, request.getKeyword(), params);
     }

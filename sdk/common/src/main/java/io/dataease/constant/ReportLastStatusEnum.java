@@ -7,14 +7,6 @@ public enum ReportLastStatusEnum {
 
     private Integer flag;
 
-    public Integer getFlag() {
-        return flag;
-    }
-
-    public void setFlag(Integer flag) {
-        this.flag = flag;
-    }
-
     ReportLastStatusEnum() {
     }
 
@@ -24,5 +16,13 @@ public enum ReportLastStatusEnum {
 
     public static ReportLastStatusEnum fromValue(Integer flag) {
         return Arrays.stream(values()).filter(v -> v.flag.equals(flag)).findFirst().get();
+    }
+
+    public Integer getFlag() {
+        return flag;
+    }
+
+    public void setFlag(Integer flag) {
+        this.flag = flag;
     }
 }

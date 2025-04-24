@@ -1,7 +1,7 @@
 package io.dataease.datasource.dao.auto.mapper;
 
-import io.dataease.datasource.dao.auto.entity.CoreDriverJar;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import io.dataease.datasource.dao.auto.entity.CoreDriverJar;
 import org.apache.ibatis.annotations.Mapper;
 
 /**

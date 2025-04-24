@@ -47,9 +47,9 @@ CREATE TABLE `xpack_threshold_info`
 DROP TABLE IF EXISTS `xpack_threshold_instance`;
 CREATE TABLE `xpack_threshold_instance`
 (
-    `id`        bigint     NOT NULL,
-    `task_id`   bigint     NOT NULL COMMENT '阈值信息ID',
-    `exec_time` bigint     NOT NULL COMMENT '检测时间',
+    `id`        bigint NOT NULL,
+    `task_id`   bigint NOT NULL COMMENT '阈值信息ID',
+    `exec_time` bigint NOT NULL COMMENT '检测时间',
     `status`    tinyint(1) NOT NULL DEFAULT '0' COMMENT '数据状态',
     `content`   longtext COMMENT '通知内容',
     `msg`       longtext COMMENT '报错信息',
@@ -58,8 +58,8 @@ CREATE TABLE `xpack_threshold_instance`
 
 
 ALTER TABLE `visualization_outer_params_target_view_info`
-    MODIFY COLUMN `target_view_id` varchar(50) NULL DEFAULT NULL COMMENT '联动视图ID/联动过滤项ID' ,
-    ADD COLUMN `target_ds_id` varchar(50) NULL COMMENT '联动数据集id/联动过滤组件id' ;
+    MODIFY COLUMN `target_view_id` varchar (50) NULL DEFAULT NULL COMMENT '联动视图ID/联动过滤项ID',
+    ADD COLUMN `target_ds_id` varchar (50) NULL COMMENT '联动数据集id/联动过滤组件id';
 
 alter table `core_chart_view`
     add flow_map_start_name longtext comment '流向地图起点名称field';
@@ -68,23 +68,27 @@ alter table `core_chart_view`
 alter table `core_chart_view`
     add ext_color longtext comment '颜色维度field';
 
-update visualization_outer_params_target_view_info tvi INNER JOIN core_chart_view ccv on tvi.target_view_id = ccv.id
+update visualization_outer_params_target_view_info tvi INNER JOIN core_chart_view ccv
+on tvi.target_view_id = ccv.id
     set tvi.target_ds_id = ccv.table_id;
 
 
 DROP TABLE IF EXISTS `core_font`;
 CREATE TABLE `core_font`
 (
-    `id`                bigint       NOT NULL COMMENT 'ID',
-    `name`              varchar(255) NOT NULL COMMENT '字体名称',
-    `file_name`         varchar(255) default NULL COMMENT '文件名称',
-    `file_trans_name`   varchar(255) default NULL COMMENT '文件转换名称',
-    `is_default`         tinyint(1)       default 0 COMMENT '是否默认',
-    `update_time`        bigint     NOT NULL COMMENT '更新时间',
-    `is_BuiltIn`         tinyint(1)       default 0 COMMENT '是否内置',
+    `id`              bigint       NOT NULL COMMENT 'ID',
+    `name`            varchar(255) NOT NULL COMMENT '字体名称',
+    `file_name`       varchar(255) default NULL COMMENT '文件名称',
+    `file_trans_name` varchar(255) default NULL COMMENT '文件转换名称',
+    `is_default`      tinyint(1)       default 0 COMMENT '是否默认',
+    `update_time`     bigint       NOT NULL COMMENT '更新时间',
+    `is_BuiltIn`      tinyint(1)       default 0 COMMENT '是否内置',
     PRIMARY KEY (`id`)
 );
-ALTER TABLE  `core_font` ADD COLUMN `size` DOUBLE NULL AFTER `is_BuiltIn`;
-ALTER TABLE  `core_font` ADD COLUMN `size_type` varchar(255) NULL AFTER `size`;
-INSERT INTO  `core_font` (`id`, `name`, `is_default`, `update_time`, `is_BuiltIn`) VALUES ('1', 'PingFang', '1', '0', '1');
+ALTER TABLE `core_font`
+    ADD COLUMN `size` DOUBLE NULL AFTER `is_BuiltIn`;
+ALTER TABLE `core_font`
+    ADD COLUMN `size_type` varchar(255) NULL AFTER `size`;
+INSERT INTO `core_font` (`id`, `name`, `is_default`, `update_time`, `is_BuiltIn`)
+VALUES ('1', 'PingFang', '1', '0', '1');
 

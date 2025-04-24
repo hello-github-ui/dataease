@@ -9,9 +9,9 @@ import io.dataease.api.visualization.dto.VisualizationOuterParamsDTO;
 import io.dataease.api.visualization.dto.VisualizationOuterParamsInfoDTO;
 import io.dataease.api.visualization.response.VisualizationOuterParamsBaseResponse;
 import io.dataease.auth.DeLinkPermit;
+import io.dataease.constant.DeTypeConstants;
 import io.dataease.dataset.dao.auto.entity.CoreDatasetTable;
 import io.dataease.dataset.dao.auto.mapper.CoreDatasetTableMapper;
-import io.dataease.constant.DeTypeConstants;
 import io.dataease.extensions.view.dto.SqlVariableDetails;
 import io.dataease.utils.BeanUtils;
 import io.dataease.utils.JsonUtil;
@@ -64,17 +64,17 @@ public class VisualizationOuterParamsService implements VisualizationOuterParams
     public void updateOuterParamsSet(VisualizationOuterParamsDTO outerParamsDTO) {
         String visualizationId = outerParamsDTO.getVisualizationId();
         Assert.notNull(visualizationId, "visualizationId cannot be null");
-        Map<String,String> paramsInfoNameIdMap = new HashMap<>();
+        Map<String, String> paramsInfoNameIdMap = new HashMap<>();
         List<VisualizationOuterParamsInfo> paramsInfoNameIdList = extOuterParamsMapper.getVisualizationOuterParamsInfoBase(visualizationId);
-        if(!CollectionUtils.isEmpty(paramsInfoNameIdList)){
+        if (!CollectionUtils.isEmpty(paramsInfoNameIdList)) {
             paramsInfoNameIdMap = paramsInfoNameIdList.stream()
-                    .collect(Collectors.toMap(VisualizationOuterParamsInfo::getParamName, VisualizationOuterParamsInfo::getParamsInfoId));
+                .collect(Collectors.toMap(VisualizationOuterParamsInfo::getParamName, VisualizationOuterParamsInfo::getParamsInfoId));
         }
         //清理原有数据
         extOuterParamsMapper.deleteOuterParamsTargetWithVisualizationId(visualizationId);
         extOuterParamsMapper.deleteOuterParamsInfoWithVisualizationId(visualizationId);
         extOuterParamsMapper.deleteOuterParamsWithVisualizationId(visualizationId);
-        if(CollectionUtils.isEmpty(outerParamsDTO.getOuterParamsInfoArray())){
+        if (CollectionUtils.isEmpty(outerParamsDTO.getOuterParamsInfoArray())) {
             return;
         }
         // 插入新的数据
@@ -86,7 +86,7 @@ public class VisualizationOuterParamsService implements VisualizationOuterParams
         Map<String, String> finalParamsInfoNameIdMap = paramsInfoNameIdMap;
         Optional.ofNullable(outerParamsDTO.getOuterParamsInfoArray()).orElse(new ArrayList<>()).forEach(outerParamsInfo -> {
             String paramsInfoId = finalParamsInfoNameIdMap.get(outerParamsInfo.getParamName());
-            if(StringUtils.isEmpty(paramsInfoId)){
+            if (StringUtils.isEmpty(paramsInfoId)) {
                 paramsInfoId = UUID.randomUUID().toString();
             }
             outerParamsInfo.setParamsInfoId(paramsInfoId);
@@ -112,7 +112,7 @@ public class VisualizationOuterParamsService implements VisualizationOuterParams
     public VisualizationOuterParamsBaseResponse getOuterParamsInfo(String visualizationId) {
         List<VisualizationOuterParamsInfoDTO> result = extOuterParamsMapper.getVisualizationOuterParamsInfo(visualizationId);
         return new VisualizationOuterParamsBaseResponse(Optional.ofNullable(result).orElse(new ArrayList<>()).stream().collect(Collectors.toMap(VisualizationOuterParamsInfoDTO::getSourceInfo, VisualizationOuterParamsInfoDTO::getTargetInfoList)),
-                Optional.ofNullable(result).orElse(new ArrayList<>()).stream().collect(Collectors.toMap(VisualizationOuterParamsInfoDTO::getSourceInfo, paramsInfo -> paramsInfo))
+            Optional.ofNullable(result).orElse(new ArrayList<>()).stream().collect(Collectors.toMap(VisualizationOuterParamsInfoDTO::getSourceInfo, paramsInfo -> paramsInfo))
         );
     }
 

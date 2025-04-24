@@ -19,11 +19,11 @@ public interface CoreApiTrafficMapper {
     Integer apiCount(@Param("api") String api);
 
     @Update("""
-        update `core_api_traffic` set alive = 
-        CASE WHEN alive > 0 THEN alive - 1
-        ELSE alive END 
-        where `api` = #{api}
-    """)
+            update `core_api_traffic` set alive = 
+            CASE WHEN alive > 0 THEN alive - 1
+            ELSE alive END 
+            where `api` = #{api}
+        """)
     void releaseAlive(@Param("api") String api);
 
     @Delete("delete from core_api_traffic")

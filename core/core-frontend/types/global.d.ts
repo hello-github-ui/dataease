@@ -1,58 +1,60 @@
 export {}
 declare global {
-  interface Window {
-    DataEaseBi: any
-    _de_get_time_out: number
-  }
-  interface Fn<T = any> {
-    (...arg: T[]): T
-  }
+    interface Window {
+        DataEaseBi: any
+        _de_get_time_out: number
+    }
 
-  type Nullable<T> = T | null
+    interface Fn<T = any> {
+        (...arg: T[]): T
+    }
 
-  type ElRef<T extends HTMLElement = HTMLDivElement> = Nullable<T>
+    type Nullable<T> = T | null
 
-  type Recordable<T = any, K = string> = Record<K extends string | number | symbol ? K : string, T>
+    type ElRef<T extends HTMLElement = HTMLDivElement> = Nullable<T>
 
-  type LocaleType = 'zh-CN' | 'en' | 'tw'
+    type Recordable<T = any, K = string> = Record<K extends string | number | symbol ? K : string, T>
 
-  type AxiosHeaders =
-    | 'application/json'
-    | 'application/x-www-form-urlencoded'
-    | 'multipart/form-data'
+    type LocaleType = 'zh-CN' | 'en' | 'tw'
 
-  type AxiosMethod = 'get' | 'post' | 'delete' | 'put'
+    type AxiosHeaders =
+        | 'application/json'
+        | 'application/x-www-form-urlencoded'
+        | 'multipart/form-data'
 
-  type AxiosResponseType = 'arraybuffer' | 'blob' | 'document' | 'json' | 'text' | 'stream'
+    type AxiosMethod = 'get' | 'post' | 'delete' | 'put'
 
-  interface AxiosConfig {
-    params?: any
-    data?: any
-    url?: string
-    method?: AxiosMethod
-    headersType?: string
-    responseType?: AxiosResponseType
-  }
+    type AxiosResponseType = 'arraybuffer' | 'blob' | 'document' | 'json' | 'text' | 'stream'
 
-  interface IResponse<T = any> {
-    code: string | number
-    data: T extends any ? T : T & any
-    msg: string
-  }
+    interface AxiosConfig {
+        params?: any
+        data?: any
+        url?: string
+        method?: AxiosMethod
+        headersType?: string
+        responseType?: AxiosResponseType
+    }
 
-  type DeepPartial<T> = {
-    [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P]
-  }
+    interface IResponse<T = any> {
+        code: string | number
+        data: T extends any ? T : T & any
+        msg: string
+    }
 
-  type JSONString<T> = string & {
-    _: never
-    __: T
-  }
+    type DeepPartial<T> = {
+        [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P]
+    }
 
-  interface JSON {
-    stringify<T>(value: T): JSONString<T>
-    parse<T>(text: JSONString<T>): T
-  }
+    type JSONString<T> = string & {
+        _: never
+        __: T
+    }
 
-  type EditorTheme = 'plain' | 'dark' | 'light'
+    interface JSON {
+        stringify<T>(value: T): JSONString<T>
+
+        parse<T>(text: JSONString<T>): T
+    }
+
+    type EditorTheme = 'plain' | 'dark' | 'light'
 }

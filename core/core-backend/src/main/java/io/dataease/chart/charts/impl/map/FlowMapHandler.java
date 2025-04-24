@@ -14,6 +14,7 @@ import java.util.Optional;
 public class FlowMapHandler extends GroupChartHandler {
     @Getter
     private String type = "flow-map";
+
     @Override
     public AxisFormatResult formatAxis(ChartViewDTO view) {
         var result = super.formatAxis(view);

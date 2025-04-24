@@ -1,7 +1,10 @@
 package io.dataease.chart.charts.impl.bar;
 
 import io.dataease.chart.utils.ChartDataBuild;
-import io.dataease.extensions.view.dto.*;
+import io.dataease.extensions.view.dto.AxisFormatResult;
+import io.dataease.extensions.view.dto.ChartAxis;
+import io.dataease.extensions.view.dto.ChartViewDTO;
+import io.dataease.extensions.view.dto.CustomFilterResult;
 import lombok.Getter;
 import org.springframework.stereotype.Component;
 
@@ -33,9 +36,9 @@ public class ProgressBarHandler extends BarHandler {
     @Override
     public Map<String, Object> buildNormalResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data) {
         boolean isDrill = filterResult
-                .getFilterList()
-                .stream()
-                .anyMatch(ele -> ele.getFilterType() == 1);
+            .getFilterList()
+            .stream()
+            .anyMatch(ele -> ele.getFilterType() == 1);
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
         var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);
         Map<String, Object> result = ChartDataBuild.transMixChartDataAntV(xAxis, xAxis, new ArrayList<>(), yAxis, view, data, isDrill);

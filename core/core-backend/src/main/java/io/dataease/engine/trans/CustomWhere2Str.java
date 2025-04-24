@@ -139,10 +139,10 @@ public class CustomWhere2Str {
                 }
                 // 此处获取标准格式的日期
                 if (StringUtils.equalsIgnoreCase(field.getType(), "date")
-                        || (StringUtils.equalsIgnoreCase(dsMap.entrySet().iterator().next().getValue().getType(), "oracle") && StringUtils.equalsIgnoreCase(field.getType(), "timestamp"))) {
+                    || (StringUtils.equalsIgnoreCase(dsMap.entrySet().iterator().next().getValue().getType(), "oracle") && StringUtils.equalsIgnoreCase(field.getType(), "timestamp"))) {
                     whereName = String.format(SQLConstants.DE_CAST_DATE_FORMAT, originName,
-                            SQLConstants.DEFAULT_DATE_FORMAT,
-                            SQLConstants.DEFAULT_DATE_FORMAT);
+                        SQLConstants.DEFAULT_DATE_FORMAT,
+                        SQLConstants.DEFAULT_DATE_FORMAT);
                 } else {
                     whereName = originName;
                 }
@@ -167,7 +167,7 @@ public class CustomWhere2Str {
         if (StringUtils.equalsIgnoreCase(item.getFilterType(), "enum")) {
             if (ObjectUtils.isNotEmpty(item.getEnumValue())) {
                 if ((StringUtils.containsIgnoreCase(field.getType(), "NVARCHAR")
-                        || StringUtils.containsIgnoreCase(field.getType(), "NCHAR")) && !isCross) {
+                    || StringUtils.containsIgnoreCase(field.getType(), "NCHAR")) && !isCross) {
                     res = "(" + whereName + " IN (" + item.getEnumValue().stream().map(str -> "'" + SQLConstants.MSSQL_N_PREFIX + str + "'").collect(Collectors.joining(",")) + "))";
                 } else {
                     res = "(" + whereName + " IN ('" + String.join("','", item.getEnumValue()) + "'))";
@@ -193,14 +193,14 @@ public class CustomWhere2Str {
                 whereValue = "''";
             } else if (StringUtils.containsIgnoreCase(item.getTerm(), "in") || StringUtils.containsIgnoreCase(item.getTerm(), "not in")) {
                 if ((StringUtils.containsIgnoreCase(field.getType(), "NVARCHAR")
-                        || StringUtils.containsIgnoreCase(field.getType(), "NCHAR")) && !isCross) {
+                    || StringUtils.containsIgnoreCase(field.getType(), "NCHAR")) && !isCross) {
                     whereValue = "(" + Arrays.stream(value.split(",")).map(str -> "'" + SQLConstants.MSSQL_N_PREFIX + str + "'").collect(Collectors.joining(",")) + ")";
                 } else {
                     whereValue = "('" + String.join("','", value.split(",")) + "')";
                 }
             } else if (StringUtils.containsIgnoreCase(item.getTerm(), "like")) {
                 if ((StringUtils.containsIgnoreCase(field.getType(), "NVARCHAR")
-                        || StringUtils.containsIgnoreCase(field.getType(), "NCHAR")) && !isCross) {
+                    || StringUtils.containsIgnoreCase(field.getType(), "NCHAR")) && !isCross) {
                     whereValue = "'" + SQLConstants.MSSQL_N_PREFIX + "%" + value + "%'";
                 } else {
                     whereValue = "'%" + value + "%'";
@@ -246,7 +246,7 @@ public class CustomWhere2Str {
                     }
                 } else {
                     if ((StringUtils.containsIgnoreCase(field.getType(), "NVARCHAR")
-                            || StringUtils.containsIgnoreCase(field.getType(), "NCHAR")) && !isCross) {
+                        || StringUtils.containsIgnoreCase(field.getType(), "NCHAR")) && !isCross) {
                         whereValue = String.format(SQLConstants.WHERE_VALUE_VALUE_CH, value);
                     } else {
                         whereValue = String.format(SQLConstants.WHERE_VALUE_VALUE, value);
@@ -254,9 +254,9 @@ public class CustomWhere2Str {
                 }
             }
             SQLObj build = SQLObj.builder()
-                    .whereField(whereName)
-                    .whereTermAndValue(whereTerm + whereValue)
-                    .build();
+                .whereField(whereName)
+                .whereTermAndValue(whereTerm + whereValue)
+                .build();
             res = build.getWhereField() + " " + build.getWhereTermAndValue();
         }
         return res;

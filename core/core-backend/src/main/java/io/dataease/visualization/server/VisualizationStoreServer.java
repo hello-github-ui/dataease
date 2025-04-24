@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.dataease.api.visualization.VisualizationStoreApi;
 import io.dataease.api.visualization.request.VisualizationStoreRequest;
 import io.dataease.api.visualization.request.VisualizationWorkbranchQueryRequest;
-import io.dataease.api.visualization.vo.VisualizationResourceVO;
 import io.dataease.api.visualization.vo.VisualizationStoreVO;
 import io.dataease.i18n.Translator;
 import io.dataease.visualization.manage.VisualizationStoreManage;

@@ -19,12 +19,9 @@ import java.util.concurrent.TimeUnit;
 public class RedisCacheImpl implements DECacheService {
 
     private static final String SEPARATOR = "::";
-
+    private static CacheManager cacheManager;
     @Resource
     private RedisTemplate redisTemplate;
-
-    private static CacheManager cacheManager;
-
 
     private static CacheManager getCacheManager() {
         if (cacheManager == null)

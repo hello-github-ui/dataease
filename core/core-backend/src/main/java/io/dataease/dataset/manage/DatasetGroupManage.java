@@ -51,6 +51,7 @@ import java.util.stream.Collectors;
 @Component
 @Transactional(rollbackFor = Exception.class)
 public class DatasetGroupManage {
+    private static final String leafType = "dataset";
     @Resource
     private CoreDatasetGroupMapper coreDatasetGroupMapper;
     @Resource
@@ -69,19 +70,12 @@ public class DatasetGroupManage {
     private CoreDatasetTableMapper coreDatasetTableMapper;
     @Resource
     private CoreDatasourceMapper coreDatasourceMapper;
-
-
     @Resource
     private CoreUserManage coreUserManage;
-
     @Resource
     private CoreOptRecentManage coreOptRecentManage;
-
     @Autowired(required = false)
     private RelationApi relationManage;
-
-    private static final String leafType = "dataset";
-
     private Lock lock = new ReentrantLock();
 
 
@@ -354,7 +348,7 @@ public class DatasetGroupManage {
                     if (Objects.equals(datasetTableFieldDTO.getExtField(), ExtFieldConstant.EXT_NORMAL)) {
                         for (DatasetTableFieldDTO fieldDTO : unionFields) {
                             if (Objects.equals(datasetTableFieldDTO.getDatasetTableId(), fieldDTO.getDatasetTableId())
-                                    && Objects.equals(datasetTableFieldDTO.getOriginName(), fieldDTO.getOriginName())) {
+                                && Objects.equals(datasetTableFieldDTO.getOriginName(), fieldDTO.getOriginName())) {
                                 datasetTableFieldDTO.setDataeaseName(fieldDTO.getDataeaseName());
                                 datasetTableFieldDTO.setFieldShortName(fieldDTO.getFieldShortName());
                             }

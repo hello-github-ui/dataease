@@ -32,6 +32,10 @@ import java.util.regex.Pattern;
  */
 public abstract class Provider {
 
+    @Getter
+    private static final Map<Long, Integer> lPorts = new HashMap<>();
+    @Getter
+    private static final Map<Long, Session> sessions = new HashMap<>();
     public static Logger logger = LoggerFactory.getLogger(Provider.class);
 
     /**
@@ -101,12 +105,6 @@ public abstract class Provider {
         return 0;
     }
 
-
-    @Getter
-    private static final Map<Long, Integer> lPorts = new HashMap<>();
-    @Getter
-    private static final Map<Long, Session> sessions = new HashMap<>();
-
     public Statement getStatement(Connection connection, int queryTimeout) {
         if (connection == null) {
             DEException.throwException("Failed to get connection!");
@@ -152,10 +150,10 @@ public abstract class Provider {
 
     public String replaceTablePlaceHolder(String s, String placeholder) {
         s = s.replaceAll("\r\n", " ")
-                .replaceAll("\n", " ")
-                .replaceAll(SqlPlaceholderConstants.TABLE_PLACEHOLDER_REGEX, Matcher.quoteReplacement(placeholder))
-                .replaceAll("ASYMMETRIC", "")
-                .replaceAll("SYMMETRIC", "");
+            .replaceAll("\n", " ")
+            .replaceAll(SqlPlaceholderConstants.TABLE_PLACEHOLDER_REGEX, Matcher.quoteReplacement(placeholder))
+            .replaceAll("ASYMMETRIC", "")
+            .replaceAll("SYMMETRIC", "");
         return s;
     }
 
@@ -283,7 +281,7 @@ public abstract class Provider {
                 Integer lport = Provider.getLPorts().get(datasourceId);
                 if (lport != null) {
                     configuration.setLPort(lport);
-                        if (Provider.getSessions().get(datasourceId) == null || !Provider.getSessions().get(datasourceId).isConnected()) {
+                    if (Provider.getSessions().get(datasourceId) == null || !Provider.getSessions().get(datasourceId).isConnected()) {
                         Session session = initSession(configuration);
                         Provider.getSessions().put(datasourceId, session);
                     }

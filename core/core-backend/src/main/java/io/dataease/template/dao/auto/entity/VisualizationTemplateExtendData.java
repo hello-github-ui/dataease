@@ -1,11 +1,12 @@
 package io.dataease.template.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author fit2cloud
@@ -79,12 +80,12 @@ public class VisualizationTemplateExtendData implements Serializable {
     @Override
     public String toString() {
         return "VisualizationTemplateExtendData{" +
-        "id = " + id +
-        ", dvId = " + dvId +
-        ", viewId = " + viewId +
-        ", viewDetails = " + viewDetails +
-        ", copyFrom = " + copyFrom +
-        ", copyId = " + copyId +
-        "}";
+            "id = " + id +
+            ", dvId = " + dvId +
+            ", viewId = " + viewId +
+            ", viewDetails = " + viewDetails +
+            ", copyFrom = " + copyFrom +
+            ", copyId = " + copyId +
+            "}";
     }
 }

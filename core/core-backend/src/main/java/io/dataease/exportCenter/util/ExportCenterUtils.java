@@ -10,12 +10,12 @@ public class ExportCenterUtils {
 
     private static ExportCenterLimitManage exportCenterLimitManage;
 
+    public static long getExportLimit(String type) {
+        return exportCenterLimitManage.getExportLimit(type);
+    }
+
     @Resource(name = "exportCenterLimitManage")
     public void setExportCenterLimitManage(ExportCenterLimitManage exportCenterLimitManage) {
         ExportCenterUtils.exportCenterLimitManage = exportCenterLimitManage;
-    }
-
-    public static long getExportLimit(String type) {
-        return exportCenterLimitManage.getExportLimit(type);
     }
 }

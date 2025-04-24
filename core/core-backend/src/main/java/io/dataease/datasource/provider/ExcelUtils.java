@@ -11,6 +11,7 @@ import com.alibaba.excel.read.metadata.ReadSheet;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.dataease.api.ds.vo.ExcelConfiguration;
 import io.dataease.api.ds.vo.ExcelFileData;
 import io.dataease.api.ds.vo.ExcelSheetData;
 import io.dataease.api.ds.vo.RemoteExcelRequest;
@@ -21,7 +22,6 @@ import io.dataease.extensions.datasource.dto.DatasetTableDTO;
 import io.dataease.extensions.datasource.dto.DatasourceDTO;
 import io.dataease.extensions.datasource.dto.DatasourceRequest;
 import io.dataease.extensions.datasource.dto.TableField;
-import io.dataease.api.ds.vo.ExcelConfiguration;
 import io.dataease.i18n.Translator;
 import io.dataease.utils.*;
 import lombok.Data;
@@ -43,6 +43,10 @@ public class ExcelUtils {
     public static final String UFEFF = "\uFEFF";
     private static String path = getExcelPath();
     private static ObjectMapper objectMapper = new ObjectMapper();
+    private static TypeReference<List<TableField>> TableFieldListTypeReference = new TypeReference<List<TableField>>() {
+    };
+    private static TypeReference<List<ExcelSheetData>> sheets = new TypeReference<List<ExcelSheetData>>() {
+    };
 
     public static String getExcelPath() {
         if (ModelUtils.isDesktop()) {
@@ -51,12 +55,6 @@ public class ExcelUtils {
             return "/opt/dataease2.0/data/excel/";
         }
     }
-
-    private static TypeReference<List<TableField>> TableFieldListTypeReference = new TypeReference<List<TableField>>() {
-    };
-
-    private static TypeReference<List<ExcelSheetData>> sheets = new TypeReference<List<ExcelSheetData>>() {
-    };
 
     public static void mergeSheets(CoreDatasource requestDatasource, DatasourceDTO sourceData) {
         if (requestDatasource.getType().equalsIgnoreCase("Excel")) {
@@ -178,74 +176,6 @@ public class ExcelUtils {
         return "0 B";
     }
 
-    public List<String[]> fetchDataList(DatasourceRequest datasourceRequest) throws DEException, IOException {
-        List<String[]> dataList = new ArrayList<>();
-        if (datasourceRequest.getDatasource().getType().equalsIgnoreCase("ExcelRemote")) {
-            ExcelConfiguration excelConfiguration = JsonUtil.parseObject(datasourceRequest.getDatasource().getConfiguration(), ExcelConfiguration.class);
-            Map<String, String> fileNames = downLoadRemoteExcel(excelConfiguration);
-            for (ExcelSheetData sheet : excelConfiguration.getSheets()) {
-                if (sheet.getDeTableName().equalsIgnoreCase(datasourceRequest.getTable())) {
-                    List<TableField> tableFields = sheet.getFields();
-                    String suffix = fileNames.get("fileName").substring(fileNames.get("fileName").lastIndexOf(".") + 1);
-                    InputStream inputStream = new FileInputStream(path + fileNames.get("tranName"));
-                    if (StringUtils.equalsIgnoreCase(suffix, "csv")) {
-                        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
-                        reader.readLine();//去掉表头
-                        dataList = csvData(reader, false, tableFields.size());
-                    } else {
-                        dataList = fetchExcelDataList(sheet.getTableName(), inputStream);
-                    }
-                }
-            }
-            if (StringUtils.isNotEmpty(fileNames.get("tranName"))) {
-                FileUtils.deleteFile(path + fileNames.get("tranName"));
-            }
-        } else {
-            try {
-                JsonNode rootNode = objectMapper.readTree(datasourceRequest.getDatasource().getConfiguration());
-                for (int i = 0; i < rootNode.size(); i++) {
-                    if (rootNode.get(i).get("deTableName").asText().equalsIgnoreCase(datasourceRequest.getTable())) {
-                        List<TableField> tableFields = JsonUtil.parseList(rootNode.get(i).get("fields").toString(), TableFieldListTypeReference);
-                        String suffix = rootNode.get(i).get("path").asText().substring(rootNode.get(i).get("path").asText().lastIndexOf(".") + 1);
-                        InputStream inputStream = new FileInputStream(rootNode.get(i).get("path").asText());
-                        if (StringUtils.equalsIgnoreCase(suffix, "csv")) {
-                            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
-                            reader.readLine();//去掉表头
-                            dataList = csvData(reader, false, tableFields.size());
-                        } else {
-                            dataList = fetchExcelDataList(rootNode.get(i).get("tableName").asText(), inputStream);
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                DEException.throwException(e);
-            }
-        }
-        return dataList;
-    }
-
-    private List<String[]> fetchExcelDataList(String sheetName, InputStream inputStream) {
-        NoModelDataListener noModelDataListener = new NoModelDataListener();
-        ExcelReader excelReader = EasyExcel.read(inputStream, noModelDataListener).build();
-        List<ReadSheet> sheets = excelReader.excelExecutor().sheetList();
-        for (ReadSheet readSheet : sheets) {
-            if (!sheetName.equalsIgnoreCase(readSheet.getSheetName())) {
-                continue;
-            }
-            noModelDataListener.clear();
-            List<TableField> fields = new ArrayList<>();
-            excelReader.read(readSheet);
-            for (String s : noModelDataListener.getHeader()) {
-                TableField tableFiled = new TableField();
-                tableFiled.setFieldType("TEXT");
-                tableFiled.setName(s);
-                tableFiled.setOriginName(s);
-                fields.add(tableFiled);
-            }
-        }
-        return noModelDataListener.getData();
-    }
-
     public static List<TableField> getTableFields(DatasourceRequest datasourceRequest) throws DEException {
         List<TableField> tableFields = new ArrayList<>();
         TypeReference<List<TableField>> listTypeReference = new TypeReference<List<TableField>>() {
@@ -269,75 +199,6 @@ public class ExcelUtils {
         return tableFields;
     }
 
-    public ExcelFileData excelSaveAndParse(MultipartFile file, String createBy) throws DEException {
-        String filename = file.getOriginalFilename();
-        List<ExcelSheetData> excelSheetDataList = null;
-        try {
-            excelSheetDataList = parseExcel(filename, file.getInputStream(), true, filename);
-        } catch (Exception e) {
-            DEException.throwException(e);
-        }
-        List<ExcelSheetData> returnSheetDataList = new ArrayList<>();
-        returnSheetDataList = excelSheetDataList;
-        returnSheetDataList = returnSheetDataList.stream().filter(excelSheetData -> !CollectionUtils.isEmpty(excelSheetData.getFields())).collect(Collectors.toList());
-        // save file
-        String excelId = UUID.randomUUID().toString();
-        String filePath = saveFile(file, excelId);
-
-        for (ExcelSheetData excelSheetData : returnSheetDataList) {
-            excelSheetData.setLastUpdateTime(System.currentTimeMillis());
-            excelSheetData.setTableName(excelSheetData.getExcelLabel());
-            excelSheetData.setDeTableName("excel_" + excelSheetData.getExcelLabel() + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 10));
-            excelSheetData.setPath(filePath);
-            excelSheetData.setSheetId(UUID.randomUUID().toString());
-            excelSheetData.setSheetExcelId(excelId);
-            excelSheetData.setFileName(filename);
-            /**
-             * dataease字段类型：0-文本，1-时间，2-整型数值，3-浮点数值，4-布尔，5-地理位置，6-二进制
-             */
-            for (TableField field : excelSheetData.getFields()) {
-                //TEXT LONG DATETIME DOUBLE
-                if (field.getFieldType().equalsIgnoreCase("TEXT")) {
-                    field.setDeType(0);
-                    field.setDeExtractType(0);
-                }
-                if (field.getFieldType().equalsIgnoreCase("DATETIME")) {
-                    field.setDeType(1);
-                    field.setDeExtractType(1);
-                }
-                if (field.getFieldType().equalsIgnoreCase("LONG")) {
-                    field.setDeType(2);
-                    field.setDeExtractType(2);
-                }
-                if (field.getFieldType().equalsIgnoreCase("DOUBLE")) {
-                    field.setDeType(3);
-                    field.setDeExtractType(3);
-                }
-
-            }
-            long size = 0;
-            String unit = "B";
-            if (file.getSize() / 1024 == 0) {
-                size = file.getSize();
-            }
-            if (0 < file.getSize() / 1024 && file.getSize() / 1024 < 1024) {
-                size = file.getSize() / 1024;
-                unit = "KB";
-            }
-            if (1024 <= file.getSize() / 1024) {
-                size = file.getSize() / 1024 / 1024;
-                unit = "MB";
-            }
-            excelSheetData.setSize(size + " " + unit);
-        }
-        ExcelFileData excelFileData = new ExcelFileData();
-        excelFileData.setExcelLabel(filename.substring(0, filename.lastIndexOf('.')));
-        excelFileData.setId(excelId);
-        excelFileData.setPath(filePath);
-        excelFileData.setSheets(returnSheetDataList);
-        return excelFileData;
-    }
-
     public static String checkStatus(DatasourceRequest datasourceRequest) throws FileNotFoundException {
         ExcelConfiguration excelConfiguration = JsonUtil.parseObject(datasourceRequest.getDatasource().getConfiguration(), ExcelConfiguration.class);
         Map<String, String> fileNames = new HashMap<>();
@@ -351,73 +212,6 @@ public class ExcelUtils {
                 FileUtils.deleteFile(path + fileNames.get("tranName"));
             }
         }
-    }
-
-    public ExcelFileData parseRemoteExcel(RemoteExcelRequest remoteExcelRequest) throws DEException, FileNotFoundException {
-        Map<String, String> fileNames = downLoadRemoteExcel(remoteExcelRequest);
-        FileInputStream fileInputStream = new FileInputStream(path + fileNames.get("tranName"));
-        List<ExcelSheetData> returnSheetDataList = new ArrayList<>();
-        try {
-            returnSheetDataList = parseExcel(fileNames.get("tranName"), fileInputStream, true, fileNames.get("fileName")).stream().filter(excelSheetData -> !CollectionUtils.isEmpty(excelSheetData.getFields())).collect(Collectors.toList());
-        } catch (Exception e) {
-            DEException.throwException(e);
-        }
-        for (ExcelSheetData excelSheetData : returnSheetDataList) {
-            excelSheetData.setLastUpdateTime(System.currentTimeMillis());
-            excelSheetData.setTableName(excelSheetData.getExcelLabel());
-            excelSheetData.setDeTableName("excel_" + excelSheetData.getExcelLabel() + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 10));
-            excelSheetData.setPath(path + fileNames.get("tranName"));
-            excelSheetData.setSheetId(UUID.randomUUID().toString());
-            excelSheetData.setSheetExcelId(fileNames.get("tranName").split("\\.")[0]);
-            excelSheetData.setFileName(fileNames.get("fileName"));
-            /**
-             * dataease字段类型：0-文本，1-时间，2-整型数值，3-浮点数值，4-布尔，5-地理位置，6-二进制
-             */
-            for (TableField field : excelSheetData.getFields()) {
-                //TEXT LONG DATETIME DOUBLE
-                if (field.getFieldType().equalsIgnoreCase("TEXT")) {
-                    field.setDeType(0);
-                    field.setDeExtractType(0);
-                }
-                if (field.getFieldType().equalsIgnoreCase("DATETIME")) {
-                    field.setDeType(1);
-                    field.setDeExtractType(1);
-                }
-                if (field.getFieldType().equalsIgnoreCase("LONG")) {
-                    field.setDeType(2);
-                    field.setDeExtractType(2);
-                }
-                if (field.getFieldType().equalsIgnoreCase("DOUBLE")) {
-                    field.setDeType(3);
-                    field.setDeExtractType(3);
-                }
-            }
-            long size = 0;
-            File file = new File(path + fileNames.get("tranName"));
-            String unit = "B";
-            if (file.length() / 1024 == 0) {
-                size = file.length();
-            }
-            if (0 < file.length() / 1024 && file.length() / 1024 < 1024) {
-                size = file.length() / 1024;
-                unit = "KB";
-            }
-            if (1024 <= file.length() / 1024) {
-                size = file.length() / 1024 / 1024;
-                unit = "MB";
-            }
-            excelSheetData.setSize(size + " " + unit);
-        }
-
-        ExcelFileData excelFileData = new ExcelFileData();
-        excelFileData.setExcelLabel(fileNames.get("fileName").split("\\.")[0]);
-        excelFileData.setId(fileNames.get("tranName").split("\\.")[0]);
-        excelFileData.setPath(path + fileNames.get("tranName"));
-        excelFileData.setSheets(returnSheetDataList);
-        if (StringUtils.isNotEmpty(fileNames.get("tranName"))) {
-            FileUtils.deleteFile(path + fileNames.get("tranName"));
-        }
-        return excelFileData;
     }
 
     private static Map<String, String> downLoadRemoteExcel(ExcelConfiguration remoteExcelRequest) throws DEException, FileNotFoundException {
@@ -509,6 +303,280 @@ public class ExcelUtils {
         return data;
     }
 
+    public static Map<String, String> downLoadFromFtp(ExcelConfiguration remoteExcelRequest) {
+        Map<String, String> fileNames = new HashMap<>();
+        String username = "";
+        String password = "";
+        String serverAddress = "";
+        String filePath = "";
+        if (remoteExcelRequest.getUrl().contains("@")) {
+            String regex = "ftp://([^:]+):([^@]+)@([^/]+)(.*)";
+            Pattern pattern = Pattern.compile(regex);
+            Matcher matcher = pattern.matcher(remoteExcelRequest.getUrl());
+            if (matcher.find()) {
+                username = matcher.group(1);
+                password = matcher.group(2);
+                serverAddress = matcher.group(3);
+                filePath = matcher.group(4);
+            } else {
+                DEException.throwException(Translator.get("i18n_invalid_address"));
+            }
+        } else {
+            String regex = "ftp://([^/]+)(.*)";
+            Pattern pattern = Pattern.compile(regex);
+            Matcher matcher = pattern.matcher(remoteExcelRequest.getUrl());
+            if (matcher.find()) {
+                serverAddress = matcher.group(1);
+                filePath = matcher.group(2);
+            } else {
+                DEException.throwException(Translator.get("i18n_invalid_address"));
+            }
+        }
+        if (StringUtils.isNotEmpty(remoteExcelRequest.getUserName())) {
+            username = remoteExcelRequest.getUserName();
+        }
+        if (StringUtils.isNotEmpty(remoteExcelRequest.getPasswd())) {
+            password = remoteExcelRequest.getPasswd();
+        }
+        filePath = filePath.startsWith("/") ? filePath.substring(1) : filePath;
+        String suffix = filePath.substring(filePath.lastIndexOf(".") + 1);
+        if (!Arrays.asList("csv", "xlsx", "xls").contains(suffix)) {
+            DEException.throwException(Translator.get("i18n_unsupported_file_format"));
+        }
+        String tranName = UUID.randomUUID().toString() + "." + suffix;
+        String localFilePath = path + tranName;
+        fileNames.put("fileName", filePath);
+        fileNames.put("tranName", tranName);
+
+        try {
+            URL url;
+            if (StringUtils.isNotEmpty(username) && StringUtils.isNotEmpty(password)) {
+                url = new URL("ftp://" + username + ":" + password + "@" + serverAddress + "/" + filePath);
+            } else {
+                url = new URL("ftp://" + serverAddress + "/" + filePath);
+            }
+
+            URLConnection conn = url.openConnection();
+            InputStream inputStream = conn.getInputStream();
+            FileOutputStream outputStream = new FileOutputStream(localFilePath);
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+            inputStream.close();
+            outputStream.close();
+
+        } catch (IOException e) {
+            DEException.throwException(Translator.get("i18n_file_download_failed"));
+        }
+        return fileNames;
+    }
+
+    public List<String[]> fetchDataList(DatasourceRequest datasourceRequest) throws DEException, IOException {
+        List<String[]> dataList = new ArrayList<>();
+        if (datasourceRequest.getDatasource().getType().equalsIgnoreCase("ExcelRemote")) {
+            ExcelConfiguration excelConfiguration = JsonUtil.parseObject(datasourceRequest.getDatasource().getConfiguration(), ExcelConfiguration.class);
+            Map<String, String> fileNames = downLoadRemoteExcel(excelConfiguration);
+            for (ExcelSheetData sheet : excelConfiguration.getSheets()) {
+                if (sheet.getDeTableName().equalsIgnoreCase(datasourceRequest.getTable())) {
+                    List<TableField> tableFields = sheet.getFields();
+                    String suffix = fileNames.get("fileName").substring(fileNames.get("fileName").lastIndexOf(".") + 1);
+                    InputStream inputStream = new FileInputStream(path + fileNames.get("tranName"));
+                    if (StringUtils.equalsIgnoreCase(suffix, "csv")) {
+                        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+                        reader.readLine();//去掉表头
+                        dataList = csvData(reader, false, tableFields.size());
+                    } else {
+                        dataList = fetchExcelDataList(sheet.getTableName(), inputStream);
+                    }
+                }
+            }
+            if (StringUtils.isNotEmpty(fileNames.get("tranName"))) {
+                FileUtils.deleteFile(path + fileNames.get("tranName"));
+            }
+        } else {
+            try {
+                JsonNode rootNode = objectMapper.readTree(datasourceRequest.getDatasource().getConfiguration());
+                for (int i = 0; i < rootNode.size(); i++) {
+                    if (rootNode.get(i).get("deTableName").asText().equalsIgnoreCase(datasourceRequest.getTable())) {
+                        List<TableField> tableFields = JsonUtil.parseList(rootNode.get(i).get("fields").toString(), TableFieldListTypeReference);
+                        String suffix = rootNode.get(i).get("path").asText().substring(rootNode.get(i).get("path").asText().lastIndexOf(".") + 1);
+                        InputStream inputStream = new FileInputStream(rootNode.get(i).get("path").asText());
+                        if (StringUtils.equalsIgnoreCase(suffix, "csv")) {
+                            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+                            reader.readLine();//去掉表头
+                            dataList = csvData(reader, false, tableFields.size());
+                        } else {
+                            dataList = fetchExcelDataList(rootNode.get(i).get("tableName").asText(), inputStream);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                DEException.throwException(e);
+            }
+        }
+        return dataList;
+    }
+
+    private List<String[]> fetchExcelDataList(String sheetName, InputStream inputStream) {
+        NoModelDataListener noModelDataListener = new NoModelDataListener();
+        ExcelReader excelReader = EasyExcel.read(inputStream, noModelDataListener).build();
+        List<ReadSheet> sheets = excelReader.excelExecutor().sheetList();
+        for (ReadSheet readSheet : sheets) {
+            if (!sheetName.equalsIgnoreCase(readSheet.getSheetName())) {
+                continue;
+            }
+            noModelDataListener.clear();
+            List<TableField> fields = new ArrayList<>();
+            excelReader.read(readSheet);
+            for (String s : noModelDataListener.getHeader()) {
+                TableField tableFiled = new TableField();
+                tableFiled.setFieldType("TEXT");
+                tableFiled.setName(s);
+                tableFiled.setOriginName(s);
+                fields.add(tableFiled);
+            }
+        }
+        return noModelDataListener.getData();
+    }
+
+    public ExcelFileData excelSaveAndParse(MultipartFile file, String createBy) throws DEException {
+        String filename = file.getOriginalFilename();
+        List<ExcelSheetData> excelSheetDataList = null;
+        try {
+            excelSheetDataList = parseExcel(filename, file.getInputStream(), true, filename);
+        } catch (Exception e) {
+            DEException.throwException(e);
+        }
+        List<ExcelSheetData> returnSheetDataList = new ArrayList<>();
+        returnSheetDataList = excelSheetDataList;
+        returnSheetDataList = returnSheetDataList.stream().filter(excelSheetData -> !CollectionUtils.isEmpty(excelSheetData.getFields())).collect(Collectors.toList());
+        // save file
+        String excelId = UUID.randomUUID().toString();
+        String filePath = saveFile(file, excelId);
+
+        for (ExcelSheetData excelSheetData : returnSheetDataList) {
+            excelSheetData.setLastUpdateTime(System.currentTimeMillis());
+            excelSheetData.setTableName(excelSheetData.getExcelLabel());
+            excelSheetData.setDeTableName("excel_" + excelSheetData.getExcelLabel() + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 10));
+            excelSheetData.setPath(filePath);
+            excelSheetData.setSheetId(UUID.randomUUID().toString());
+            excelSheetData.setSheetExcelId(excelId);
+            excelSheetData.setFileName(filename);
+            /**
+             * dataease字段类型：0-文本，1-时间，2-整型数值，3-浮点数值，4-布尔，5-地理位置，6-二进制
+             */
+            for (TableField field : excelSheetData.getFields()) {
+                //TEXT LONG DATETIME DOUBLE
+                if (field.getFieldType().equalsIgnoreCase("TEXT")) {
+                    field.setDeType(0);
+                    field.setDeExtractType(0);
+                }
+                if (field.getFieldType().equalsIgnoreCase("DATETIME")) {
+                    field.setDeType(1);
+                    field.setDeExtractType(1);
+                }
+                if (field.getFieldType().equalsIgnoreCase("LONG")) {
+                    field.setDeType(2);
+                    field.setDeExtractType(2);
+                }
+                if (field.getFieldType().equalsIgnoreCase("DOUBLE")) {
+                    field.setDeType(3);
+                    field.setDeExtractType(3);
+                }
+
+            }
+            long size = 0;
+            String unit = "B";
+            if (file.getSize() / 1024 == 0) {
+                size = file.getSize();
+            }
+            if (0 < file.getSize() / 1024 && file.getSize() / 1024 < 1024) {
+                size = file.getSize() / 1024;
+                unit = "KB";
+            }
+            if (1024 <= file.getSize() / 1024) {
+                size = file.getSize() / 1024 / 1024;
+                unit = "MB";
+            }
+            excelSheetData.setSize(size + " " + unit);
+        }
+        ExcelFileData excelFileData = new ExcelFileData();
+        excelFileData.setExcelLabel(filename.substring(0, filename.lastIndexOf('.')));
+        excelFileData.setId(excelId);
+        excelFileData.setPath(filePath);
+        excelFileData.setSheets(returnSheetDataList);
+        return excelFileData;
+    }
+
+    public ExcelFileData parseRemoteExcel(RemoteExcelRequest remoteExcelRequest) throws DEException, FileNotFoundException {
+        Map<String, String> fileNames = downLoadRemoteExcel(remoteExcelRequest);
+        FileInputStream fileInputStream = new FileInputStream(path + fileNames.get("tranName"));
+        List<ExcelSheetData> returnSheetDataList = new ArrayList<>();
+        try {
+            returnSheetDataList = parseExcel(fileNames.get("tranName"), fileInputStream, true, fileNames.get("fileName")).stream().filter(excelSheetData -> !CollectionUtils.isEmpty(excelSheetData.getFields())).collect(Collectors.toList());
+        } catch (Exception e) {
+            DEException.throwException(e);
+        }
+        for (ExcelSheetData excelSheetData : returnSheetDataList) {
+            excelSheetData.setLastUpdateTime(System.currentTimeMillis());
+            excelSheetData.setTableName(excelSheetData.getExcelLabel());
+            excelSheetData.setDeTableName("excel_" + excelSheetData.getExcelLabel() + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 10));
+            excelSheetData.setPath(path + fileNames.get("tranName"));
+            excelSheetData.setSheetId(UUID.randomUUID().toString());
+            excelSheetData.setSheetExcelId(fileNames.get("tranName").split("\\.")[0]);
+            excelSheetData.setFileName(fileNames.get("fileName"));
+            /**
+             * dataease字段类型：0-文本，1-时间，2-整型数值，3-浮点数值，4-布尔，5-地理位置，6-二进制
+             */
+            for (TableField field : excelSheetData.getFields()) {
+                //TEXT LONG DATETIME DOUBLE
+                if (field.getFieldType().equalsIgnoreCase("TEXT")) {
+                    field.setDeType(0);
+                    field.setDeExtractType(0);
+                }
+                if (field.getFieldType().equalsIgnoreCase("DATETIME")) {
+                    field.setDeType(1);
+                    field.setDeExtractType(1);
+                }
+                if (field.getFieldType().equalsIgnoreCase("LONG")) {
+                    field.setDeType(2);
+                    field.setDeExtractType(2);
+                }
+                if (field.getFieldType().equalsIgnoreCase("DOUBLE")) {
+                    field.setDeType(3);
+                    field.setDeExtractType(3);
+                }
+            }
+            long size = 0;
+            File file = new File(path + fileNames.get("tranName"));
+            String unit = "B";
+            if (file.length() / 1024 == 0) {
+                size = file.length();
+            }
+            if (0 < file.length() / 1024 && file.length() / 1024 < 1024) {
+                size = file.length() / 1024;
+                unit = "KB";
+            }
+            if (1024 <= file.length() / 1024) {
+                size = file.length() / 1024 / 1024;
+                unit = "MB";
+            }
+            excelSheetData.setSize(size + " " + unit);
+        }
+
+        ExcelFileData excelFileData = new ExcelFileData();
+        excelFileData.setExcelLabel(fileNames.get("fileName").split("\\.")[0]);
+        excelFileData.setId(fileNames.get("tranName").split("\\.")[0]);
+        excelFileData.setPath(path + fileNames.get("tranName"));
+        excelFileData.setSheets(returnSheetDataList);
+        if (StringUtils.isNotEmpty(fileNames.get("tranName"))) {
+            FileUtils.deleteFile(path + fileNames.get("tranName"));
+        }
+        return excelFileData;
+    }
+
     private String cellType(String value) {
         if (StringUtils.isEmpty(value) || value.length() > 19) {
             return "TEXT";
@@ -554,64 +622,6 @@ public class ExcelUtils {
         }
 
     }
-
-    @Data
-    public class NoModelDataListener extends AnalysisEventListener<Map<Integer, String>> {
-        private List<String[]> data = new ArrayList<>();
-        private List<String> header = new ArrayList<>();
-        private List<Integer> headerKey = new ArrayList<>();
-
-        @Override
-        public void invokeHead(Map<Integer, ReadCellData<?>> headMap, AnalysisContext context) {
-            super.invokeHead(headMap, context);
-            for (Integer key : headMap.keySet()) {
-                ReadCellData<?> cellData = headMap.get(key);
-                String value = null;
-                if (cellData.getType().equals(CellDataTypeEnum.STRING)) {
-                    value = cellData.getStringValue();
-                }
-                if (cellData.getType().equals(CellDataTypeEnum.NUMBER)) {
-                    value = cellData.getNumberValue().toString();
-                }
-                if (StringUtils.isEmpty(value)) {
-                    continue;
-                }
-                headerKey.add(key);
-                header.add(value);
-            }
-        }
-
-        @Override
-        public void invoke(Map<Integer, String> dataMap, AnalysisContext context) {
-            List<String> line = new ArrayList<>();
-            for (Integer key : dataMap.keySet()) {
-                String value = dataMap.get(key);
-                if (StringUtils.isEmpty(value)) {
-                    value = null;
-                }
-                if (headerKey.contains(key)) {
-                    line.add(value);
-                }
-            }
-            int size = line.size();
-            if (size < header.size()) {
-                for (int i = 0; i < header.size() - size; i++) {
-                    line.add(null);
-                }
-            }
-            data.add(line.toArray(new String[line.size()]));
-        }
-
-        @Override
-        public void doAfterAllAnalysed(AnalysisContext analysisContext) {
-        }
-
-        public void clear() {
-            data.clear();
-            header.clear();
-        }
-    }
-
 
     private List<ExcelSheetData> parseExcel(String filename, InputStream inputStream, boolean isPreview, String originFilename) throws IOException {
         List<ExcelSheetData> excelSheetDataList = new ArrayList<>();
@@ -668,7 +678,7 @@ public class ExcelUtils {
             List<TableField> fields = new ArrayList<>();
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
             String s = reader.readLine();// first line
-            if(StringUtils.isNotEmpty(s)){
+            if (StringUtils.isNotEmpty(s)) {
                 String[] split = s.split(",");
                 for (int i = 0; i < split.length; i++) {
                     String filedName = split[i];
@@ -736,74 +746,61 @@ public class ExcelUtils {
         return excelSheetDataList;
     }
 
-    public static Map<String, String> downLoadFromFtp(ExcelConfiguration remoteExcelRequest) {
-        Map<String, String> fileNames = new HashMap<>();
-        String username = "";
-        String password = "";
-        String serverAddress = "";
-        String filePath = "";
-        if (remoteExcelRequest.getUrl().contains("@")) {
-            String regex = "ftp://([^:]+):([^@]+)@([^/]+)(.*)";
-            Pattern pattern = Pattern.compile(regex);
-            Matcher matcher = pattern.matcher(remoteExcelRequest.getUrl());
-            if (matcher.find()) {
-                username = matcher.group(1);
-                password = matcher.group(2);
-                serverAddress = matcher.group(3);
-                filePath = matcher.group(4);
-            } else {
-                DEException.throwException(Translator.get("i18n_invalid_address"));
-            }
-        } else {
-            String regex = "ftp://([^/]+)(.*)";
-            Pattern pattern = Pattern.compile(regex);
-            Matcher matcher = pattern.matcher(remoteExcelRequest.getUrl());
-            if (matcher.find()) {
-                serverAddress = matcher.group(1);
-                filePath = matcher.group(2);
-            } else {
-                DEException.throwException(Translator.get("i18n_invalid_address"));
-            }
-        }
-        if(StringUtils.isNotEmpty(remoteExcelRequest.getUserName())){
-            username = remoteExcelRequest.getUserName();
-        }
-        if(StringUtils.isNotEmpty(remoteExcelRequest.getPasswd())){
-            password = remoteExcelRequest.getPasswd();
-        }
-        filePath = filePath.startsWith("/") ? filePath.substring(1) : filePath;
-        String suffix = filePath.substring(filePath.lastIndexOf(".") + 1);
-        if (!Arrays.asList("csv", "xlsx", "xls").contains(suffix)) {
-            DEException.throwException(Translator.get("i18n_unsupported_file_format"));
-        }
-        String tranName = UUID.randomUUID().toString() + "." + suffix;
-        String localFilePath = path + tranName;
-        fileNames.put("fileName", filePath);
-        fileNames.put("tranName", tranName);
+    @Data
+    public class NoModelDataListener extends AnalysisEventListener<Map<Integer, String>> {
+        private List<String[]> data = new ArrayList<>();
+        private List<String> header = new ArrayList<>();
+        private List<Integer> headerKey = new ArrayList<>();
 
-        try {
-            URL url;
-            if(StringUtils.isNotEmpty(username) && StringUtils.isNotEmpty(password)){
-                url= new URL("ftp://" + username + ":" +password + "@" + serverAddress + "/" + filePath);
-            }else {
-                url= new URL("ftp://" + serverAddress + "/" + filePath);
+        @Override
+        public void invokeHead(Map<Integer, ReadCellData<?>> headMap, AnalysisContext context) {
+            super.invokeHead(headMap, context);
+            for (Integer key : headMap.keySet()) {
+                ReadCellData<?> cellData = headMap.get(key);
+                String value = null;
+                if (cellData.getType().equals(CellDataTypeEnum.STRING)) {
+                    value = cellData.getStringValue();
+                }
+                if (cellData.getType().equals(CellDataTypeEnum.NUMBER)) {
+                    value = cellData.getNumberValue().toString();
+                }
+                if (StringUtils.isEmpty(value)) {
+                    continue;
+                }
+                headerKey.add(key);
+                header.add(value);
             }
-
-            URLConnection conn = url.openConnection();
-            InputStream inputStream = conn.getInputStream();
-            FileOutputStream outputStream = new FileOutputStream(localFilePath);
-            byte[] buffer = new byte[4096];
-            int bytesRead;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, bytesRead);
-            }
-            inputStream.close();
-            outputStream.close();
-
-        } catch (IOException e) {
-            DEException.throwException(Translator.get("i18n_file_download_failed"));
         }
-        return fileNames;
+
+        @Override
+        public void invoke(Map<Integer, String> dataMap, AnalysisContext context) {
+            List<String> line = new ArrayList<>();
+            for (Integer key : dataMap.keySet()) {
+                String value = dataMap.get(key);
+                if (StringUtils.isEmpty(value)) {
+                    value = null;
+                }
+                if (headerKey.contains(key)) {
+                    line.add(value);
+                }
+            }
+            int size = line.size();
+            if (size < header.size()) {
+                for (int i = 0; i < header.size() - size; i++) {
+                    line.add(null);
+                }
+            }
+            data.add(line.toArray(new String[line.size()]));
+        }
+
+        @Override
+        public void doAfterAllAnalysed(AnalysisContext analysisContext) {
+        }
+
+        public void clear() {
+            data.clear();
+            header.clear();
+        }
     }
 
 }

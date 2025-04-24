@@ -26,12 +26,12 @@ public class SqlUtils {
         }
 
         SqlParser.Config config =
-                SqlParser.config()
-                        .withLex(Lex.JAVA)
-                        .withIdentifierMaxLength(256);
+            SqlParser.config()
+                .withLex(Lex.JAVA)
+                .withIdentifierMaxLength(256);
         // 创建解析器
         SqlParser sqlParser = SqlParser
-                .create(sql, config);
+            .create(sql, config);
         // 生成 AST 语法树
         SqlNode sqlNode = null;
         try {
@@ -92,15 +92,15 @@ public class SqlUtils {
                     addTableSchema(operandList.get(0), fromOrJoin, schema, config);
                 }
             } else if (sqlNode.getKind() == IN
-                    || sqlNode.getKind() == NOT_IN
-                    || sqlNode.getKind() == AND
-                    || sqlNode.getKind() == OR
-                    || sqlNode.getKind() == LESS_THAN
-                    || sqlNode.getKind() == GREATER_THAN
-                    || sqlNode.getKind() == LESS_THAN_OR_EQUAL
-                    || sqlNode.getKind() == GREATER_THAN_OR_EQUAL
-                    || sqlNode.getKind() == EQUALS
-                    || sqlNode.getKind() == NOT_EQUALS) {
+                || sqlNode.getKind() == NOT_IN
+                || sqlNode.getKind() == AND
+                || sqlNode.getKind() == OR
+                || sqlNode.getKind() == LESS_THAN
+                || sqlNode.getKind() == GREATER_THAN
+                || sqlNode.getKind() == LESS_THAN_OR_EQUAL
+                || sqlNode.getKind() == GREATER_THAN_OR_EQUAL
+                || sqlNode.getKind() == EQUALS
+                || sqlNode.getKind() == NOT_EQUALS) {
                 SqlBasicCall where = (SqlBasicCall) sqlNode;
                 if (where.getOperandList().size() >= 2) {
                     for (int i = 0; i < where.getOperandList().size(); i++) {

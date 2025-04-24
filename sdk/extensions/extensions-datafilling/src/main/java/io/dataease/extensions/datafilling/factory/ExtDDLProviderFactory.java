@@ -6,7 +6,6 @@ import io.dataease.extensions.datafilling.provider.ExtDDLProvider;
 import io.dataease.extensions.datafilling.vo.XpackPluginsDfVO;
 import io.dataease.extensions.datasource.utils.SpringContextUtil;
 import io.dataease.extensions.datasource.vo.DatasourceConfiguration;
-import io.dataease.license.utils.LicenseUtil;
 import io.dataease.license.utils.LogUtil;
 import io.dataease.plugins.factory.DataEasePluginFactory;
 

@@ -8,6 +8,7 @@ import java.util.List;
 
 @Data
 public class TableField implements Serializable {
+    List<Object> value;
     private String name;
     private String originName;
     private String type;               //SQL type from java.sql.Types
@@ -23,8 +24,6 @@ public class TableField implements Serializable {
     private int extField;
     private String jsonPath;
     private boolean primary;
-    List<Object> value;
-
     private int inCount;
     private String term = "eq";
     private Integer typeNumber;

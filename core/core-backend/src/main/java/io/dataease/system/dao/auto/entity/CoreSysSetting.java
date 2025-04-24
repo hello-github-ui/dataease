@@ -1,11 +1,12 @@
 package io.dataease.system.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author fit2cloud
@@ -84,11 +85,11 @@ public class CoreSysSetting implements Serializable {
     @Override
     public String toString() {
         return "CoreSysSetting{" +
-        "id = " + id +
-        ", pkey = " + pkey +
-        ", pval = " + pval +
-        ", type = " + type +
-        ", sort = " + sort +
-        "}";
+            "id = " + id +
+            ", pkey = " + pkey +
+            ", pval = " + pval +
+            ", type = " + type +
+            ", sort = " + sort +
+            "}";
     }
 }

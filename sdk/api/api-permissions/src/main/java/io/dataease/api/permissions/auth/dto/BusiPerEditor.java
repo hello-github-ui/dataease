@@ -8,6 +8,7 @@ import lombok.EqualsAndHashCode;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.List;
+
 @EqualsAndHashCode(callSuper = true)
 @Schema(description = "业务权限编辑器")
 @Data

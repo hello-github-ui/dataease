@@ -16,7 +16,7 @@ public class FreeRelationNode implements Serializable {
     @Serial
     private static final long serialVersionUID = 5396869322229400707L;
 
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
     private String name;

@@ -1,2 +1,3 @@
 import CollapseSwitchItem from './src/CollapseSwitchItem.vue'
-export { CollapseSwitchItem }
+
+export {CollapseSwitchItem}

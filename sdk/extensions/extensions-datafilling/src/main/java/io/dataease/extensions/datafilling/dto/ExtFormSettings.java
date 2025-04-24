@@ -29,8 +29,8 @@ public class ExtFormSettings implements Serializable {
     public static class NumberRule implements Serializable {
         @Serial
         private static final long serialVersionUID = -8841727448573594811L;
-        private String  column;
-        private String  term;
+        private String column;
+        private String term;
 
     }
 }

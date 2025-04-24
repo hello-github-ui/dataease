@@ -17,7 +17,6 @@ import lombok.Getter;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -29,7 +28,7 @@ public class TableHeatmapHandler extends DefaultChartHandler {
 
     @Override
     public AxisFormatResult formatAxis(ChartViewDTO view) {
-        var result =  super.formatAxis(view);
+        var result = super.formatAxis(view);
         var xAxis = new ArrayList<ChartViewFieldDTO>(view.getXAxis());
         xAxis.addAll(view.getXAxisExt());
         var yAxis = new ArrayList<ChartViewFieldDTO>(view.getYAxis());
@@ -41,7 +40,7 @@ public class TableHeatmapHandler extends DefaultChartHandler {
 
     public Map<String, Object> buildResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data) {
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
-        Map<String, Object> result = ChartDataBuild.transChartData( xAxis, new ArrayList<>(), view, data, false);
+        Map<String, Object> result = ChartDataBuild.transChartData(xAxis, new ArrayList<>(), view, data, false);
         return result;
     }
 
@@ -59,8 +58,8 @@ public class TableHeatmapHandler extends DefaultChartHandler {
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
         var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);
         var allFields = (List<ChartViewFieldDTO>) filterResult.getContext().get("allFields");
-        Dimension2SQLObj.dimension2sqlObj(sqlMeta, xAxis, FieldUtil.transFields(allFields), crossDs, dsMap, Utils.getParams(FieldUtil.transFields(allFields)),  view.getCalParams(), pluginManage);
-        Quota2SQLObj.quota2sqlObj(sqlMeta, yAxis, FieldUtil.transFields(allFields), crossDs, dsMap, Utils.getParams(FieldUtil.transFields(allFields)),  view.getCalParams(), pluginManage);
+        Dimension2SQLObj.dimension2sqlObj(sqlMeta, xAxis, FieldUtil.transFields(allFields), crossDs, dsMap, Utils.getParams(FieldUtil.transFields(allFields)), view.getCalParams(), pluginManage);
+        Quota2SQLObj.quota2sqlObj(sqlMeta, yAxis, FieldUtil.transFields(allFields), crossDs, dsMap, Utils.getParams(FieldUtil.transFields(allFields)), view.getCalParams(), pluginManage);
         String querySql = SQLProvider.createQuerySQL(sqlMeta, true, needOrder, view);
         querySql = provider.rebuildSQL(querySql, sqlMeta, crossDs, dsMap);
         datasourceRequest.setQuery(querySql);

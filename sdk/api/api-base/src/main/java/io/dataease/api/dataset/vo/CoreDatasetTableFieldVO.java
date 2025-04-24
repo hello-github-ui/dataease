@@ -124,7 +124,7 @@ public class CoreDatasetTableFieldVO implements Serializable {
     // 附加ID 兼容自定义参数ID
     private String attachId;
 
-    public CoreDatasetTableFieldVO(String attachId, String name,  Integer deType) {
+    public CoreDatasetTableFieldVO(String attachId, String name, Integer deType) {
         this.attachId = attachId;
         this.name = name;
         this.deType = deType;

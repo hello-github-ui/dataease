@@ -3,7 +3,6 @@ package io.dataease.api.visualization.request;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import io.dataease.api.visualization.vo.DataVisualizationVO;
-import io.dataease.api.visualization.vo.VisualizationExport2AppVO;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -58,7 +57,7 @@ public class DataVisualizationBaseRequest extends DataVisualizationVO {
     private Boolean checkHistory = false;
 
 
-    public DataVisualizationBaseRequest(Long id,String busiFlag) {
+    public DataVisualizationBaseRequest(Long id, String busiFlag) {
         this.busiFlag = busiFlag;
         super.setId(id);
     }

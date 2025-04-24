@@ -16,9 +16,9 @@ public class VisualizationOuterParamsBaseResponse {
     // 获取仪表板外部参数映射信息
     private Map<String, List<String>> outerParamsInfoMap;
 
-    private Map<String,VisualizationOuterParamsInfoDTO> outerParamsInfoBaseMap;
+    private Map<String, VisualizationOuterParamsInfoDTO> outerParamsInfoBaseMap;
 
-    public VisualizationOuterParamsBaseResponse(Map<String, List<String>> outerParamsInfoMap,Map<String,VisualizationOuterParamsInfoDTO> outerParamsInfoBaseMap) {
+    public VisualizationOuterParamsBaseResponse(Map<String, List<String>> outerParamsInfoMap, Map<String, VisualizationOuterParamsInfoDTO> outerParamsInfoBaseMap) {
         this.outerParamsInfoMap = outerParamsInfoMap;
         this.outerParamsInfoBaseMap = outerParamsInfoBaseMap;
     }

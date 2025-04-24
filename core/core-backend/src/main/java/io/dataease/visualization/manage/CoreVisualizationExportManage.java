@@ -6,8 +6,8 @@ import io.dataease.chart.constant.ChartConstants;
 import io.dataease.chart.manage.ChartDataManage;
 import io.dataease.chart.manage.ChartViewManege;
 import io.dataease.constant.CommonConstants;
-import io.dataease.dataset.server.DatasetFieldServer;
 import io.dataease.constant.DeTypeConstants;
+import io.dataease.dataset.server.DatasetFieldServer;
 import io.dataease.exception.DEException;
 import io.dataease.exportCenter.util.ExportCenterUtils;
 import io.dataease.extensions.view.dto.ChartExtFilterDTO;
@@ -36,18 +36,16 @@ import java.util.stream.Collectors;
 
 @Component
 public class CoreVisualizationExportManage {
+    private final TypeReference<List<Map<String, Object>>> tokenType = new TypeReference<List<Map<String, Object>>>() {
+    };
     @Resource
     private ExtDataVisualizationMapper extDataVisualizationMapper;
-
     @Resource
     private ChartViewManege chartViewManege;
-
     @Resource
     private ChartDataManage chartDataManage;
-
     @Resource
     private VisualizationTemplateExtendDataManage extendDataManage;
-
     @Resource
     private DatasetFieldServer datasetFieldServer;
 
@@ -183,10 +181,6 @@ public class CoreVisualizationExportManage {
         }
         return sourceNumberStr;
     }
-
-    private final TypeReference<List<Map<String, Object>>> tokenType = new TypeReference<List<Map<String, Object>>>() {
-    };
-
 
     private Map<String, ChartExtRequest> buildViewRequest(DataVisualizationVO panelDto, Boolean justView) {
         String componentsJson = panelDto.getComponentData();

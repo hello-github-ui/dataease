@@ -17,10 +17,8 @@ import java.util.List;
 @AllArgsConstructor
 public class VisualizationComponentDTO {
 
-    private String bashComponentData;
-
     List<VisualizationViewTableVO> visualizationViewTables;
-
     List<VisualizationOutParamsJumpVO> outParamsJumpInfo;
+    private String bashComponentData;
 
 }

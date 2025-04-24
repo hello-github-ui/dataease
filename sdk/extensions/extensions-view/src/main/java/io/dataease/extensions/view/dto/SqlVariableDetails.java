@@ -25,14 +25,17 @@ public class SqlVariableDetails {
     private String operator;
     private List<String> value;
     private String datasetFullName;
+
     public enum DefaultValueScope {
         EDIT("EDIT"),
         ALLSCOPE("ALLSCOPE");
-        private String  type;
-        DefaultValueScope(String type){
+        private String type;
+
+        DefaultValueScope(String type) {
             this.type = type;
         }
-        public String getType(){
+
+        public String getType() {
             return type;
         }
     }

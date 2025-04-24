@@ -21,25 +21,10 @@ import java.util.Map;
 @Configuration
 public class SubstituleLoginConfig {
 
+    private static String pwd;
+    private static boolean ready = false;
     @Value("${dataease.path.substitule:classpath:substitule.json}")
     private String jsonFilePath;
-
-    private static String pwd;
-
-    private static boolean ready = false;
-
-
-    @ConditionalOnMissingBean(name = "loginServer")
-    @Bean
-    public Map<String, Object> substituleLoginData(ResourceLoader resourceLoader) throws IOException {
-        ObjectMapper objectMapper = new ObjectMapper();
-        File jsonFile = new File(jsonFilePath);
-        if (!jsonFile.exists()) {
-            pwd = CommonBeanFactory.getBean(Environment.class).getProperty("dataease.default-pwd", "DataEase@123456");
-            modifyPwd(pwd);
-        }
-        return objectMapper.readValue(jsonFile, Map.class);
-    }
 
     public static String getPwd() {
         if (!ready) {
@@ -54,6 +39,18 @@ public class SubstituleLoginConfig {
             }
         }
         return pwd;
+    }
+
+    @ConditionalOnMissingBean(name = "loginServer")
+    @Bean
+    public Map<String, Object> substituleLoginData(ResourceLoader resourceLoader) throws IOException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        File jsonFile = new File(jsonFilePath);
+        if (!jsonFile.exists()) {
+            pwd = CommonBeanFactory.getBean(Environment.class).getProperty("dataease.default-pwd", "DataEase@123456");
+            modifyPwd(pwd);
+        }
+        return objectMapper.readValue(jsonFile, Map.class);
     }
 
     public void modifyPwd(String pwd) {

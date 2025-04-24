@@ -13,10 +13,6 @@ public class CommonBeanFactory implements ApplicationContextAware {
     public CommonBeanFactory() {
     }
 
-    public void setApplicationContext(ApplicationContext ctx) throws BeansException {
-        context = ctx;
-    }
-
     public static Object getBean(String beanName) {
         try {
             return context != null && !StringUtils.isBlank(beanName) ? context.getBean(beanName) : null;
@@ -32,8 +28,13 @@ public class CommonBeanFactory implements ApplicationContextAware {
             return null;
         }
     }
+
     public static ApplicationContext getApplicationContext() {
         return context;
+    }
+
+    public void setApplicationContext(ApplicationContext ctx) throws BeansException {
+        context = ctx;
     }
 
     public static <T> T proxy(Class<T> className) {

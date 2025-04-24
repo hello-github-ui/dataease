@@ -1,7 +1,7 @@
 package io.dataease.chart.dao.auto.mapper;
 
-import io.dataease.chart.dao.auto.entity.CoreChartView;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import io.dataease.chart.dao.auto.entity.CoreChartView;
 import org.apache.ibatis.annotations.Mapper;
 
 /**

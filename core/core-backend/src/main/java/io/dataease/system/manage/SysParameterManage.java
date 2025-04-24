@@ -27,14 +27,11 @@ import java.util.stream.Collectors;
 @Component
 public class SysParameterManage {
 
+    private static final String MAP_KEY_PREFIX = "map.";
     @Value("${dataease.show-demo-tips:false}")
     private boolean showDemoTips;
-
     @Value("${dataease.demo-tips-content:#{null}}")
     private String demoTipsContent;
-
-    private static final String MAP_KEY_PREFIX = "map.";
-
     @Resource
     private CoreSysSettingMapper coreSysSettingMapper;
 

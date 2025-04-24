@@ -14,7 +14,7 @@ import java.util.List;
 public class VisualizationOuterParamsInfoDTO extends VisualizationOuterParamsInfoVO {
     private String dvId;
 
-    private List<VisualizationOuterParamsTargetViewInfoVO> targetViewInfoList=new ArrayList<>();
+    private List<VisualizationOuterParamsTargetViewInfoVO> targetViewInfoList = new ArrayList<>();
 
     //仪表板外部参数信息 dvId#paramName
     private String sourceInfo;

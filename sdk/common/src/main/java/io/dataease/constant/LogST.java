@@ -21,23 +21,23 @@ public enum LogST {
 
     private String name;
 
-    public Integer getValue() {
-        return value;
-    }
-
-    public String getName() {
-        return name;
-    }
-
     LogST(Integer value, String name) {
         this.value = value;
         this.name = name;
+    }
+
+    LogST() {
     }
 
     public static LogST fromValue(Integer value) {
         return Arrays.stream(values()).filter(v -> v.value.equals(value)).findFirst().get();
     }
 
-    LogST() {
+    public Integer getValue() {
+        return value;
+    }
+
+    public String getName() {
+        return name;
     }
 }

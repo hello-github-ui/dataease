@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.io.Serial;
 import java.io.Serializable;
+
 @Schema(description = "切换器")
 @Data
 public class TicketSwitchRequest implements Serializable {

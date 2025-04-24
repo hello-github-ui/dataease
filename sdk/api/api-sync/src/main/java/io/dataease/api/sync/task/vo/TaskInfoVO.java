@@ -31,7 +31,8 @@ public class TaskInfoVO {
     /**
      * 创建人
      */
-    private Long createBy;;
+    private Long createBy;
+    ;
     /**
      * 创建人
      */

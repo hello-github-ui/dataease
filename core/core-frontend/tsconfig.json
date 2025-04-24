@@ -1,36 +1,38 @@
 {
-  "compilerOptions": {
-    "jsx": "preserve",
-    "module": "esnext",
-    "target": "esnext",
-    "moduleResolution": "Node",
-    "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true,
-    "strictFunctionTypes": false,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "experimentalDecorators": true,
-    "noImplicitAny": false,
-    "noEmit": true,
-    "baseUrl": "./",
-    "paths": {
-      "@/*": ["./src/*"]
+    "compilerOptions": {
+        "jsx": "preserve",
+        "module": "esnext",
+        "target": "esnext",
+        "moduleResolution": "Node",
+        "allowSyntheticDefaultImports": true,
+        "forceConsistentCasingInFileNames": true,
+        "strictFunctionTypes": false,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "experimentalDecorators": true,
+        "noImplicitAny": false,
+        "noEmit": true,
+        "baseUrl": "./",
+        "paths": {
+            "@/*": [
+                "./src/*"
+            ]
+        },
+        "types": [
+            "vite/client",
+            "vite-plugin-svg-icons/client",
+            "element-plus-secondary/global"
+        ]
     },
-    "types": [
-      "vite/client",
-      "vite-plugin-svg-icons/client",
-      "element-plus-secondary/global",
+    "include": [
+        "src/**/*",
+        "electron-main/**/*.ts",
+        "types/**/*.d.ts",
+        "types"
     ],
-  },
-  "include": [
-    "src/**/*",
-    "electron-main/**/*.ts",
-    "types/**/*.d.ts",
-    "types"
-  ],
-  "exclude": [
-    "dist",
-    "lib",
-    "node_modules",
-  ]
+    "exclude": [
+        "dist",
+        "lib",
+        "node_modules"
+    ]
 }

@@ -1,10 +1,6 @@
 package io.dataease.chart.charts.impl.map;
 
 import io.dataease.chart.charts.impl.ExtQuotaChartHandler;
-import io.dataease.extensions.view.dto.AxisFormatResult;
-import io.dataease.extensions.view.dto.ChartAxis;
-import io.dataease.chart.charts.impl.DefaultChartHandler;
-import io.dataease.extensions.view.dto.ChartViewDTO;
 import lombok.Getter;
 import org.springframework.stereotype.Component;
 

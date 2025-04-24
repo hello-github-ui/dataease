@@ -3,5 +3,4 @@ ALTER TABLE `xpack_threshold_info`
 
 UPDATE core_sys_setting
 SET pval = 'https://cdn0-templates-dataease-cn.fit2cloud.com'
-WHERE
-    pkey = 'template.url';
+WHERE pkey = 'template.url';

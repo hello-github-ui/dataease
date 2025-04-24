@@ -144,108 +144,108 @@
     </select>
     <select id="findDvInfo" resultType="io.dataease.api.visualization.vo.DataVisualizationVO">
         SELECT `id`,
-               `name`,
-               `pid`,
-               `org_id`,
-               `level`,
-               `node_type`,
-               `type`,
-               `canvas_style_data`,
-               `component_data`,
-               `mobile_layout`,
-               `mobile_layout` as ext_flag,
-               `status`,
-               `self_watermark_status`,
-               `sort`,
-               `create_time`,
-               `create_by`,
-               `update_time`,
-               `update_by`,
-               `remark`,
-               `source`,
-               `delete_flag`,
-               `delete_time`,
-               `delete_by`,
-               `version`,
-               `content_id`,
-               `check_version`
+        `name`,
+        `pid`,
+        `org_id`,
+        `level`,
+        `node_type`,
+        `type`,
+        `canvas_style_data`,
+        `component_data`,
+        `mobile_layout`,
+        `mobile_layout` as ext_flag,
+        `status`,
+        `self_watermark_status`,
+        `sort`,
+        `create_time`,
+        `create_by`,
+        `update_time`,
+        `update_by`,
+        `remark`,
+        `source`,
+        `delete_flag`,
+        `delete_time`,
+        `delete_by`,
+        `version`,
+        `content_id`,
+        `check_version`
         FROM data_visualization_info
         where data_visualization_info.delete_flag = 0
-          and data_visualization_info.id = #{dvId}
-          <if test="dvType">
+        and data_visualization_info.id = #{dvId}
+        <if test="dvType">
             and data_visualization_info.type = #{dvType}
-          </if>
+        </if>
     </select>
 
     <select id="findRecent" resultType="io.dataease.visualization.dao.ext.po.VisualizationResourcePO">
         SELECT dvResource.id,
-               dvResource.resource_id,
-               dvResource.name,
-               dvResource.ext_flag,
-               dvResource.type,
-               dvResource.creator,
-               core_opt_recent.uid  AS last_editor,
-               core_opt_recent.time AS last_edit_time,
-               (
-                   CASE
+        dvResource.resource_id,
+        dvResource.name,
+        dvResource.ext_flag,
+        dvResource.type,
+        dvResource.creator,
+        core_opt_recent.uid AS last_editor,
+        core_opt_recent.time AS last_edit_time,
+        (
+        CASE
 
-                       WHEN core_store.resource_id IS NULL THEN
-                           0
-                       ELSE 1
-                       END
-                   )                AS favorite
+        WHEN core_store.resource_id IS NULL THEN
+        0
+        ELSE 1
+        END
+        ) AS favorite
         FROM (SELECT core_dataset_group.id,
-                     core_dataset_group.id        AS resource_id,
-                     core_dataset_group.NAME,
-                     0 as ext_flag,
-                     'dataset'                    AS type,
-                     core_dataset_group.create_by AS creator
-              FROM core_dataset_group
-              WHERE core_dataset_group.node_type = 'dataset'
-              UNION ALL
-              SELECT core_datasource.id,
-                     core_datasource.id        AS resource_id,
-                     core_datasource.NAME,
-                     0 as ext_flag,
-                     'datasource'              AS type,
-                     core_datasource.create_by AS creator
-              FROM core_datasource
-              WHERE core_datasource.type != 'folder'
-              UNION ALL
-              SELECT
-                  data_visualization_info.id,
-                  data_visualization_info.id AS resource_id,
-                  data_visualization_info.NAME,
-                  data_visualization_info.`mobile_layout` as ext_flag,
-                  (
-                  CASE
-                  data_visualization_info.type
-                  WHEN 'dataV' THEN
-                  'screen' ELSE 'panel'
-                  END
-                  ) AS type,
-                  data_visualization_info.create_by AS creator
-              FROM
-                  data_visualization_info
-              WHERE
-                  data_visualization_info.delete_flag = 0
-                AND node_type = 'leaf') dvResource
-                 LEFT JOIN core_store ON dvResource.id = core_store.resource_id
-            AND core_store.uid = #{uid}
-                 INNER JOIN core_opt_recent ON dvResource.resource_id = core_opt_recent.resource_id
-            AND core_opt_recent.uid = #{uid}
-             <if test="keyword">
-                AND LOWER(dvResource.name) LIKE LOWER(CONCAT('%', #{keyword}, '%'))
-             </if>
-             <if test="ew.type != null">
-                AND dvResource.type = #{ew.type}
-             </if>
-             <if test="ew.info != null">
-                AND NOT EXISTS(select 1 from per_busi_resource community where core_opt_recent.resource_id = community.id)
-             </if>
-             <if test="ew.isAsc">
-                order by core_opt_recent.time asc
-             </if>
+        core_dataset_group.id AS resource_id,
+        core_dataset_group.NAME,
+        0 as ext_flag,
+        'dataset' AS type,
+        core_dataset_group.create_by AS creator
+        FROM core_dataset_group
+        WHERE core_dataset_group.node_type = 'dataset'
+        UNION ALL
+        SELECT core_datasource.id,
+        core_datasource.id AS resource_id,
+        core_datasource.NAME,
+        0 as ext_flag,
+        'datasource' AS type,
+        core_datasource.create_by AS creator
+        FROM core_datasource
+        WHERE core_datasource.type != 'folder'
+        UNION ALL
+        SELECT
+        data_visualization_info.id,
+        data_visualization_info.id AS resource_id,
+        data_visualization_info.NAME,
+        data_visualization_info.`mobile_layout` as ext_flag,
+        (
+        CASE
+        data_visualization_info.type
+        WHEN 'dataV' THEN
+        'screen' ELSE 'panel'
+        END
+        ) AS type,
+        data_visualization_info.create_by AS creator
+        FROM
+        data_visualization_info
+        WHERE
+        data_visualization_info.delete_flag = 0
+        AND node_type = 'leaf') dvResource
+        LEFT JOIN core_store ON dvResource.id = core_store.resource_id
+        AND core_store.uid = #{uid}
+        INNER JOIN core_opt_recent ON dvResource.resource_id = core_opt_recent.resource_id
+        AND core_opt_recent.uid = #{uid}
+        <if test="keyword">
+            AND LOWER(dvResource.name) LIKE LOWER(CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="ew.type != null">
+            AND dvResource.type = #{ew.type}
+        </if>
+        <if test="ew.info != null">
+            AND NOT EXISTS(select 1 from per_busi_resource community where core_opt_recent.resource_id = community.id)
+        </if>
+        <if test="ew.isAsc">
+            order by core_opt_recent.time asc
+        </if>
     </select>
 
     <insert id="copyLinkJump">
@@ -398,7 +398,7 @@
                             ON visualization_linkage_field.linkage_id = pvlf_copy.s_id
     </insert>
 
-    <resultMap  id="ViewDetailsMap" type="io.dataease.api.visualization.dto.VisualizationViewTableDTO">
+    <resultMap id="ViewDetailsMap" type="io.dataease.api.visualization.dto.VisualizationViewTableDTO">
         <result column="id" property="id"/>
         <result column="title" property="title"/>
         <result column="scene_id" property="sceneId"/>
@@ -421,45 +421,60 @@
                core_chart_view.table_id,
                core_chart_view.`type`,
                core_chart_view.render,
-               core_chart_view.scene_id as `visualization_id`, core_dataset_table_field.id AS `field_id`, core_dataset_table_field.origin_name,
-               core_dataset_table_field.`name` AS `field_name`, core_dataset_table_field.type AS `field_type`, core_dataset_table_field.de_type
+               core_chart_view.scene_id        as `visualization_id`,
+               core_dataset_table_field.id     AS `field_id`,
+               core_dataset_table_field.origin_name,
+               core_dataset_table_field.`name` AS `field_name`,
+               core_dataset_table_field.type   AS `field_type`,
+               core_dataset_table_field.de_type
         FROM core_chart_view
                  LEFT JOIN core_dataset_table_field
                            ON core_chart_view.table_id = core_dataset_table_field.dataset_group_id
         WHERE core_chart_view.scene_id = #{dvId}
-          AND core_chart_view.id IS NOT NULL and core_chart_view.`type` != 'VQuery'
+          AND core_chart_view.id IS NOT NULL
+          and core_chart_view.`type` != 'VQuery'
     </select>
 
     <select id="queryReportFilter" resultType="io.dataease.api.visualization.vo.VisualizationReportFilterVO">
-        SELECT
-            `id`, `report_id`, `resource_id`, `dv_type`, `component_id`, `filter_id`, `filter_info`, `filter_version`, `create_time`, `create_user`
-        FROM
-            visualization_report_filter
-        where visualization_report_filter.resource_id = #{dvId} and visualization_report_filter.task_id = #{taskId}
+        SELECT `id`,
+               `report_id`,
+               `resource_id`,
+               `dv_type`,
+               `component_id`,
+               `filter_id`,
+               `filter_info`,
+               `filter_version`,
+               `create_time`,
+               `create_user`
+        FROM visualization_report_filter
+        where visualization_report_filter.resource_id = #{dvId}
+          and visualization_report_filter.task_id = #{taskId}
     </select>
 
     <delete id="deleteDataVBatch">
         DELETE
         FROM
-            data_visualization_info dvi
+        data_visualization_info dvi
         WHERE
-            dvi.id IN
-            <foreach collection="ids" item="id" index="index" open="(" close=")" separator=",">
-              #{id}
-            </foreach>
+        dvi.id IN
+        <foreach collection="ids" item="id" index="index" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
     </delete>
     <delete id="deleteViewsBatch">
         DELETE
         FROM
-            core_chart_view ccv
+        core_chart_view ccv
         WHERE
-            ccv.scene_id IN
-            <foreach collection="ids" item="id" index="index" open="(" close=")" separator=",">
-              #{id}
-            </foreach>
+        ccv.scene_id IN
+        <foreach collection="ids" item="id" index="index" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
     </delete>
 
-        <select id="queryInnerUserInfo" resultType="io.dataease.api.permissions.user.vo.UserFormVO">
-            select id,account,name from per_user where id =  #{id}
-        </select>
+    <select id="queryInnerUserInfo" resultType="io.dataease.api.permissions.user.vo.UserFormVO">
+        select id, account, name
+        from per_user
+        where id = #{id}
+    </select>
 </mapper>

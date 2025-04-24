@@ -12,6 +12,7 @@ public class DeTrafficStarter implements ApplicationRunner {
 
     @Resource
     private CoreApiTrafficMapper coreApiTrafficMapper;
+
     @Override
     public void run(ApplicationArguments args) throws Exception {
         try {

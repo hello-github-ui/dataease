@@ -18,9 +18,9 @@ public class Table2SQLObj {
             sql = table;
         }
         SQLObj tableObj = SQLObj.builder()
-                .tableName((table.startsWith("(") && table.endsWith(")")) ? sql : String.format(SQLConstants.TABLE_NAME, tablePrefix, table))
-                .tableAlias(String.format(SQLConstants.TABLE_ALIAS_PREFIX, 0))
-                .build();
+            .tableName((table.startsWith("(") && table.endsWith(")")) ? sql : String.format(SQLConstants.TABLE_NAME, tablePrefix, table))
+            .tableAlias(String.format(SQLConstants.TABLE_ALIAS_PREFIX, 0))
+            .build();
         meta.setTable(tableObj);
     }
 }

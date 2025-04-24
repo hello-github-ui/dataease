@@ -33,9 +33,9 @@ public interface UserApi {
 
     @Operation(summary = "查询用户列表")
     @Parameters({
-            @Parameter(name = "goPage", description = "目标页码", required = true, in = ParameterIn.PATH),
-            @Parameter(name = "pageSize", description = "每页容量", required = true, in = ParameterIn.PATH),
-            @Parameter(name = "request", description = "过滤条件", required = true)
+        @Parameter(name = "goPage", description = "目标页码", required = true, in = ParameterIn.PATH),
+        @Parameter(name = "pageSize", description = "每页容量", required = true, in = ParameterIn.PATH),
+        @Parameter(name = "request", description = "过滤条件", required = true)
     })
     @DePermit("m:read")
     @PostMapping("/pager/{goPage}/{pageSize}")
@@ -91,9 +91,9 @@ public interface UserApi {
 
     @Operation(summary = "角色已绑用户")
     @Parameters({
-            @Parameter(name = "goPage", description = "目标页码", required = true, in = ParameterIn.PATH),
-            @Parameter(name = "pageSize", description = "每页容量", required = true, in = ParameterIn.PATH),
-            @Parameter(name = "request", description = "过滤条件", required = true)
+        @Parameter(name = "goPage", description = "目标页码", required = true, in = ParameterIn.PATH),
+        @Parameter(name = "pageSize", description = "每页容量", required = true, in = ParameterIn.PATH),
+        @Parameter(name = "request", description = "过滤条件", required = true)
     })
     @PostMapping("/role/selected/{goPage}/{pageSize}")
     IPage<UserItemVO> selectedForRole(@PathVariable("goPage") int goPage, @PathVariable("pageSize") int pageSize, @RequestBody UserRequest request);

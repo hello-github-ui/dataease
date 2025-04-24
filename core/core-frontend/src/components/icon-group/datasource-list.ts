@@ -15,24 +15,25 @@ import ExcelDs from '@/assets/svg/Excel-ds.svg'
 import ExcelRemoteDs from '@/assets/svg/Excel-remote-ds.svg'
 import dorisDs from '@/assets/svg/doris-ds.svg'
 import esDs from '@/assets/svg/es-ds.svg'
+
 const iconDatasourceMap = {
-  mysql: mysqlDs,
-  oracle: oracleDs,
-  sqlServer: sqlServerDs,
-  TiDB: TiDBDs,
-  impala: impalaDs,
-  mariadb: mariadbDs,
-  StarRocks: StarRocksDs,
-  pg: pgDs,
-  mongo: mongoDs,
-  ck: ckDs,
-  db2: db2Ds,
-  redshift: redshiftDs,
-  API: APIDs,
-  Excel: ExcelDs,
-  ExcelRemote: ExcelRemoteDs,
-  doris: dorisDs,
-  es: esDs
+    mysql: mysqlDs,
+    oracle: oracleDs,
+    sqlServer: sqlServerDs,
+    TiDB: TiDBDs,
+    impala: impalaDs,
+    mariadb: mariadbDs,
+    StarRocks: StarRocksDs,
+    pg: pgDs,
+    mongo: mongoDs,
+    ck: ckDs,
+    db2: db2Ds,
+    redshift: redshiftDs,
+    API: APIDs,
+    Excel: ExcelDs,
+    ExcelRemote: ExcelRemoteDs,
+    doris: dorisDs,
+    es: esDs
 }
 
-export { iconDatasourceMap }
+export {iconDatasourceMap}

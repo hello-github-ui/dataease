@@ -26,25 +26,22 @@ import java.util.Base64;
 @Component
 public class RsaUtils {
 
-    static {
-        if (ObjectUtils.isNotEmpty(Security.getProvider("BC"))) {
-            Security.removeProvider("BC");
-        }
-        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-    }
-
-
+    public static final String IV_KEY = "0000000000000000";
     private static final int MAX_ENCRYPT_BLOCK = 245;
 
     private static final int MAX_DECRYPT_BLOCK = 256;
 
     private static final String PK_SEPARATOR = "-pk_separator-";
-
+    private static final String ALGORITHM = "AES";
+    private static final int KEY_SIZE = 128;
+    public static String symmetricKey = null;
     private static RsaManage rsaManage;
 
-    @Resource
-    public void setRsaManage(RsaManage rsaManage) {
-        RsaUtils.rsaManage = rsaManage;
+    static {
+        if (ObjectUtils.isNotEmpty(Security.getProvider("BC"))) {
+            Security.removeProvider("BC");
+        }
+        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
     }
 
     private static KeyPair getKeyPair() {
@@ -178,8 +175,6 @@ public class RsaUtils {
         return pk + separator + aesKey;
     }
 
-    public static final String IV_KEY = "0000000000000000";
-
     private static String generateAesKey() {
         return RandomStringUtils.randomAlphanumeric(16);
     }
@@ -202,12 +197,6 @@ public class RsaUtils {
         }
 
     }
-
-
-    private static final String ALGORITHM = "AES";
-    public static String symmetricKey = null;
-    private static final int KEY_SIZE = 128;
-
 
     public static String generateSymmetricKey() {
         try {
@@ -250,5 +239,10 @@ public class RsaUtils {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Resource
+    public void setRsaManage(RsaManage rsaManage) {
+        RsaUtils.rsaManage = rsaManage;
     }
 }

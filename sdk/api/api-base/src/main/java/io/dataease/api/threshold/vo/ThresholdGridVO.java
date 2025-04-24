@@ -12,19 +12,19 @@ public class ThresholdGridVO implements Serializable {
     @Serial
     private static final long serialVersionUID = 3729780170978191092L;
 
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
     private String name;
 
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long resourceId;
 
     private String resourceType;
 
     private String resourceName;
 
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long chartId;
 
     private String chartType;
@@ -35,7 +35,7 @@ public class ThresholdGridVO implements Serializable {
 
     private Boolean enable;
 
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long creator;
 
     private String createName;

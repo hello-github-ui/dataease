@@ -16,9 +16,9 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Intercepts({
-        @Signature(type = Executor.class, method = "update", args = {MappedStatement.class, Object.class}),
-        @Signature(type = Executor.class, method = "query", args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class}),
-        @Signature(type = Executor.class, method = "query", args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class, CacheKey.class, BoundSql.class}),
+    @Signature(type = Executor.class, method = "update", args = {MappedStatement.class, Object.class}),
+    @Signature(type = Executor.class, method = "query", args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class}),
+    @Signature(type = Executor.class, method = "query", args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class, CacheKey.class, BoundSql.class}),
 })
 public class MybatisInterceptor implements Interceptor {
 
@@ -119,7 +119,7 @@ public class MybatisInterceptor implements Interceptor {
             }
             MybatisInterceptorConfig interceptorConfig = localInterceptorConfigMap.get(attrName).get(Methods.encrypt.name());
             if (interceptorConfig == null || StringUtils.isBlank(interceptorConfig.getInterceptorClass())
-                    || StringUtils.isBlank(interceptorConfig.getInterceptorMethod())) {
+                || StringUtils.isBlank(interceptorConfig.getInterceptorMethod())) {
                 continue;
             }
             Object fieldValue = BeanUtils.getFieldValueByName(interceptorConfig.getAttrName(), newObject);
@@ -153,7 +153,7 @@ public class MybatisInterceptor implements Interceptor {
             }
             MybatisInterceptorConfig interceptorConfig = localDecryptConfigMap.get(attrName).get(Methods.decrypt.name());
             if (interceptorConfig == null || StringUtils.isBlank(interceptorConfig.getUndoClass())
-                    || StringUtils.isBlank(interceptorConfig.getUndoMethod())) {
+                || StringUtils.isBlank(interceptorConfig.getUndoMethod())) {
                 continue;
             }
             Object fieldValue = BeanUtils.getFieldValueByName(interceptorConfig.getAttrName(), result);
@@ -195,12 +195,12 @@ public class MybatisInterceptor implements Interceptor {
         this.interceptorConfigList = interceptorConfigList;
     }
 
-    private enum Methods {
-        encrypt, decrypt
-    }
-
     private boolean isEmpty(Map<?, ?> map) {
         return map == null || map.isEmpty();
+    }
+
+    private enum Methods {
+        encrypt, decrypt
     }
 
 }

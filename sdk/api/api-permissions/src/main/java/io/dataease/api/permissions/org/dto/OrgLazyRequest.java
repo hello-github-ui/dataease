@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.io.Serializable;
+
 @Schema(description = "组织列表过滤器")
 @EqualsAndHashCode(callSuper = true)
 @Data

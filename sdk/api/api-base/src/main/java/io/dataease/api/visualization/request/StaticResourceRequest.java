@@ -2,6 +2,7 @@ package io.dataease.api.visualization.request;
 
 
 import lombok.Data;
+
 import java.util.List;
 
 @Data

@@ -11,18 +11,18 @@ import org.apache.ibatis.annotations.Select;
 public interface CoreStoreExtMapper {
 
     @Select("""
-            select
-            s.id as store_id,
-            v.id as resource_id,
-            v.type,
-            v.create_by as creator,
-            v.update_by as editor,
-            v.update_time as edit_time,
-            v.name,
-            v.mobile_layout as ext_flag
-            from core_store s
-            inner join data_visualization_info v on s.resource_id = v.id
-            ${ew.customSqlSegment}
-            """)
+        select
+        s.id as store_id,
+        v.id as resource_id,
+        v.type,
+        v.create_by as creator,
+        v.update_by as editor,
+        v.update_time as edit_time,
+        v.name,
+        v.mobile_layout as ext_flag
+        from core_store s
+        inner join data_visualization_info v on s.resource_id = v.id
+        ${ew.customSqlSegment}
+        """)
     IPage<StorePO> query(IPage<StorePO> page, @Param("ew") QueryWrapper<Object> ew);
 }

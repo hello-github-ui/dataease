@@ -7,9 +7,7 @@ import io.dataease.api.visualization.vo.VisualizationLinkageVO;
 import lombok.Data;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * @author : WangJiaHao
@@ -20,7 +18,7 @@ public class VisualizationLinkageRequest extends VisualizationLinkageVO {
 
     /**
      * 仪表板 or 大屏ID
-     * */
+     */
     @JsonSerialize(using = ToStringSerializer.class)
     private Long dvId;
     @JsonSerialize(using = ToStringSerializer.class)

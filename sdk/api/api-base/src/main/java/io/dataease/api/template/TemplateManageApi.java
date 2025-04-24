@@ -6,7 +6,11 @@ import io.dataease.api.template.request.TemplateManageRequest;
 import io.dataease.api.template.vo.VisualizationTemplateVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
 import java.util.List;
 
 @Tag(name = "模版管理:基础")
@@ -22,7 +26,7 @@ public interface TemplateManageApi {
 
     @PostMapping("/delete/{id}/{categoryId}")
     @Operation(summary = "删除")
-    void delete(@PathVariable String id,@PathVariable String categoryId);
+    void delete(@PathVariable String id, @PathVariable String categoryId);
 
     @PostMapping("/deleteCategory/{id}")
     @Operation(summary = "删除分类")

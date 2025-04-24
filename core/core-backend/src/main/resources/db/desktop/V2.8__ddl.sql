@@ -32,17 +32,18 @@ CREATE TABLE `core_share_ticket`
     PRIMARY KEY (`id`)
 ) COMMENT ='分享Ticket表';
 DROP TABLE IF EXISTS `visualization_report_filter`;
-CREATE TABLE `visualization_report_filter` (
-                                               `id` bigint NOT NULL COMMENT 'id',
-                                               `report_id` bigint DEFAULT NULL COMMENT '定时报告id',
-                                               `task_id` bigint DEFAULT NULL COMMENT '任务id',
-                                               `resource_id` bigint DEFAULT NULL COMMENT '资源id',
-                                               `dv_type` varchar(255) DEFAULT NULL COMMENT '资源类型',
-                                               `component_id` bigint DEFAULT NULL COMMENT '组件id',
-                                               `filter_id` bigint DEFAULT NULL COMMENT '过滤项id',
-                                               `filter_info` longtext COMMENT '过滤组件内容',
-                                               `filter_version` int DEFAULT NULL COMMENT '过滤组件版本',
-                                               `create_time` bigint DEFAULT NULL COMMENT '创建时间',
-                                               `create_user` varchar(255) DEFAULT NULL COMMENT '创建人',
-                                               PRIMARY KEY (`id`)
+CREATE TABLE `visualization_report_filter`
+(
+    `id`             bigint NOT NULL COMMENT 'id',
+    `report_id`      bigint       DEFAULT NULL COMMENT '定时报告id',
+    `task_id`        bigint       DEFAULT NULL COMMENT '任务id',
+    `resource_id`    bigint       DEFAULT NULL COMMENT '资源id',
+    `dv_type`        varchar(255) DEFAULT NULL COMMENT '资源类型',
+    `component_id`   bigint       DEFAULT NULL COMMENT '组件id',
+    `filter_id`      bigint       DEFAULT NULL COMMENT '过滤项id',
+    `filter_info`    longtext COMMENT '过滤组件内容',
+    `filter_version` int          DEFAULT NULL COMMENT '过滤组件版本',
+    `create_time`    bigint       DEFAULT NULL COMMENT '创建时间',
+    `create_user`    varchar(255) DEFAULT NULL COMMENT '创建人',
+    PRIMARY KEY (`id`)
 );

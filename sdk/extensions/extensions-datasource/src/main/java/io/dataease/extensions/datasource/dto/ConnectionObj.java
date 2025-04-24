@@ -26,7 +26,7 @@ public class ConnectionObj implements AutoCloseable {
             session.disconnect();
         }
 
-        if(lPort != null){
+        if (lPort != null) {
             Provider.getLPorts().remove(Long.valueOf(lPort));
         }
 

@@ -41,9 +41,9 @@ public class StackAreaHandler extends YoyChartHandler {
     @Override
     public Map<String, Object> buildNormalResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data) {
         boolean isDrill = filterResult
-                .getFilterList()
-                .stream()
-                .anyMatch(ele -> ele.getFilterType() == 1);
+            .getFilterList()
+            .stream()
+            .anyMatch(ele -> ele.getFilterType() == 1);
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
         var extStack = formatResult.getAxisMap().get(ChartAxis.extStack);
         var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);
@@ -60,18 +60,18 @@ public class StackAreaHandler extends YoyChartHandler {
         // 堆叠维度下钻
         if (ObjectUtils.isNotEmpty(drillRequestList) && (drillFields.size() > drillRequestList.size())) {
             List<ChartExtFilterDTO> noDrillFilterList = filterList
-                    .stream()
-                    .filter(ele -> ele.getFilterType() != 1)
-                    .collect(Collectors.toList());
+                .stream()
+                .filter(ele -> ele.getFilterType() != 1)
+                .collect(Collectors.toList());
             var noDrillFieldAxis = formatResult.getAxisMap().get(ChartAxis.xAxis)
-                    .stream()
-                    .filter(ele -> ele.getSource() != FieldSource.DRILL)
-                    .collect(Collectors.toList());
+                .stream()
+                .filter(ele -> ele.getSource() != FieldSource.DRILL)
+                .collect(Collectors.toList());
             List<ChartExtFilterDTO> drillFilters = new ArrayList<>();
             ArrayList<ChartViewFieldDTO> fieldsToFilter = new ArrayList<>();
             var extStack = formatResult.getAxisMap().get(ChartAxis.extStack);
             if (ObjectUtils.isNotEmpty(extStack) &&
-                    Objects.equals(drillFields.get(0).getId(), extStack.get(0).getId())) {
+                Objects.equals(drillFields.get(0).getId(), extStack.get(0).getId())) {
                 fieldsToFilter.addAll(view.getXAxis());
             }
             groupStackDrill(noDrillFieldAxis, noDrillFilterList, fieldsToFilter, drillFields, drillRequestList);

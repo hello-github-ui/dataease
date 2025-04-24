@@ -12,7 +12,7 @@ public class WebhookOption implements Serializable {
     @Serial
     private static final long serialVersionUID = 5994555955483485729L;
 
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
     private String name;

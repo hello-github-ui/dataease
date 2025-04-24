@@ -51,6 +51,8 @@ import java.util.stream.Collectors;
  */
 @Component
 public class ChartDataManage {
+    public static final String START_END_SEPARATOR = "_START_END_SPLIT";
+    private static final Logger logger = LoggerFactory.getLogger(ChartDataManage.class);
     @Resource
     private DatasetTableFieldManage datasetTableFieldManage;
     @Resource
@@ -65,15 +67,10 @@ public class ChartDataManage {
     private ChartFilterTreeService chartFilterTreeService;
     @Resource
     private ChartHandlerManager chartHandlerManager;
-
     @Resource
     private CorePermissionManage corePermissionManage;
     @Autowired(required = false)
     private PluginManageApi pluginManage;
-
-    public static final String START_END_SEPARATOR = "_START_END_SPLIT";
-
-    private static final Logger logger = LoggerFactory.getLogger(ChartDataManage.class);
 
     public ChartViewDTO calcData(ChartViewDTO view) throws Exception {
         ChartExtRequest chartExtRequest = view.getChartExtRequest();
@@ -634,11 +631,11 @@ public class ChartDataManage {
         List<ChartViewFieldDTO> xAxis = new ArrayList<>(view.getXAxis());
         List<ChartViewFieldDTO> xAxisExt = new ArrayList<>(view.getXAxisExt());
         if (StringUtils.equalsIgnoreCase(view.getType(), "table-pivot")
-                || StringUtils.containsIgnoreCase(view.getType(), "group")
-                || ("antv".equalsIgnoreCase(view.getRender()) && "line".equalsIgnoreCase(view.getType()))
-                || StringUtils.equalsIgnoreCase(view.getType(), "flow-map")
-                || StringUtils.equalsIgnoreCase(view.getType(), "t-heatmap")
-                || StringUtils.equalsIgnoreCase(view.getType(), "sankey")
+            || StringUtils.containsIgnoreCase(view.getType(), "group")
+            || ("antv".equalsIgnoreCase(view.getRender()) && "line".equalsIgnoreCase(view.getType()))
+            || StringUtils.equalsIgnoreCase(view.getType(), "flow-map")
+            || StringUtils.equalsIgnoreCase(view.getType(), "t-heatmap")
+            || StringUtils.equalsIgnoreCase(view.getType(), "sankey")
         ) {
             xAxis.addAll(xAxisExt);
         }

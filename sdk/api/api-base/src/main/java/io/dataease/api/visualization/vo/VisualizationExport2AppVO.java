@@ -1,7 +1,5 @@
 package io.dataease.api.visualization.vo;
 
-import com.google.gson.Gson;
-import io.dataease.api.visualization.request.DataVisualizationBaseRequest;
 import lombok.Data;
 
 import java.util.ArrayList;
@@ -10,35 +8,21 @@ import java.util.List;
 @Data
 public class VisualizationExport2AppVO {
 
-    private Boolean checkStatus = false;
-
-    private String checkMes;
-
-    private String visualizationInfo;
-
-    private String visualizationViewsInfo;
-
     List<AppCoreChartViewVO> chartViewsInfo;
-
     List<AppCoreDatasetGroupVO> datasetGroupsInfo;
-
     List<AppCoreDatasetTableVO> datasetTablesInfo;
-
     List<AppCoreDatasetTableFieldVO> datasetTableFieldsInfo;
-
     List<AppCoreDatasourceVO> datasourceInfo;
-
     List<AppCoreDatasourceTaskVO> datasourceTaskInfo;
-
     List<VisualizationLinkJumpVO> linkJumps;
-
     List<VisualizationLinkJumpInfoVO> linkJumpInfos;
-
     List<VisualizationLinkJumpTargetViewInfoVO> linkJumpTargetInfos;
-
     List<VisualizationLinkageVO> linkages;
-
     List<VisualizationLinkageFieldVO> linkageFields;
+    private Boolean checkStatus = false;
+    private String checkMes;
+    private String visualizationInfo;
+    private String visualizationViewsInfo;
 
     public VisualizationExport2AppVO() {
 

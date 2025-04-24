@@ -1,9 +1,9 @@
 package io.dataease.extensions.datafilling.provider;
 
 
-import io.dataease.extensions.datasource.dto.TableField;
 import io.dataease.extensions.datafilling.dto.ExtIndexField;
 import io.dataease.extensions.datafilling.dto.ExtTableField;
+import io.dataease.extensions.datasource.dto.TableField;
 import io.dataease.extensions.datasource.dto.TableFieldWithValue;
 import org.apache.commons.lang3.StringUtils;
 
@@ -36,8 +36,8 @@ public abstract class ExtDDLProvider {
             baseSql = "SELECT $Column_Fields$ FROM `$TABLE_NAME$` $WHERE_SQL$ LIMIT $OFFSET_COUNT$, $LIMIT_COUNT$ ;";
         }
         baseSql = baseSql.replace("$TABLE_NAME$", table)
-                .replace("$OFFSET_COUNT$", Long.toString(offset))
-                .replace("$LIMIT_COUNT$", Long.toString(limit));
+            .replace("$OFFSET_COUNT$", Long.toString(offset))
+            .replace("$LIMIT_COUNT$", Long.toString(limit));
         if (StringUtils.isBlank(whereSql)) {
             baseSql = baseSql.replace("$WHERE_SQL$", "");
         } else {
@@ -80,9 +80,9 @@ public abstract class ExtDDLProvider {
     public String searchColumnRowDataOne(String table, List<TableField> searchFields, TableFieldWithValue tableFieldWithValue) {
         String baseSql = "SELECT $Column_Fields$ FROM `$TABLE_NAME$` WHERE `$Column_Field$` = ? LIMIT 1;";
         baseSql = baseSql
-                .replace("$Column_Fields$", StringUtils.join(searchFields.stream().map(s -> "`" + s.getOriginName() + "`").toList(), ", "))
-                .replace("$TABLE_NAME$", table)
-                .replace("$Column_Field$", tableFieldWithValue.getFiledName());
+            .replace("$Column_Fields$", StringUtils.join(searchFields.stream().map(s -> "`" + s.getOriginName() + "`").toList(), ", "))
+            .replace("$TABLE_NAME$", table)
+            .replace("$Column_Field$", tableFieldWithValue.getFiledName());
         return baseSql;
     }
 
@@ -120,8 +120,8 @@ public abstract class ExtDDLProvider {
         }
 
         return sql.replace("$TABLE_NAME$", tableName)
-                .replace("$Column_Field$", field.getFiledName())
-                .replace("$PRIMARY_KEY_CONDITION$", pkCondition.toString());
+            .replace("$Column_Field$", field.getFiledName())
+            .replace("$PRIMARY_KEY_CONDITION$", pkCondition.toString());
     }
 
     @Deprecated

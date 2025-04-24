@@ -3,33 +3,27 @@ package io.dataease.font.manage;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import io.dataease.api.font.dto.FontDto;
-import io.dataease.chart.dao.auto.entity.CoreChartView;
 import io.dataease.exception.DEException;
 import io.dataease.font.dao.auto.entity.CoreFont;
 import io.dataease.font.dao.auto.mapper.CoreFontMapper;
-import io.dataease.utils.*;
+import io.dataease.utils.BeanUtils;
+import io.dataease.utils.FileUtils;
+import io.dataease.utils.IDUtils;
 import jakarta.annotation.Resource;
+import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
-import jakarta.servlet.ServletOutputStream;
-import org.springframework.beans.factory.annotation.Autowired;
-
-import org.springframework.core.io.ResourceLoader;
-
 import java.awt.*;
 import java.io.*;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 

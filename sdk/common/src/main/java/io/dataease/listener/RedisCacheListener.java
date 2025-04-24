@@ -37,8 +37,8 @@ public class RedisCacheListener implements ApplicationListener<ApplicationReadyE
         // 扫描所有的key
         ScanOptions scanOptions = ScanOptions.scanOptions().match("*" + searchString + "*").count(1000).build();
         Cursor<byte[]> cursor = redisTemplate.getConnectionFactory()
-                .getConnection()
-                .scan(scanOptions);
+            .getConnection()
+            .scan(scanOptions);
 
         List<byte[]> keysToDelete = new ArrayList<>();
         while (cursor.hasNext()) {

@@ -2,5 +2,5 @@
 import EmptyBackground from '@/components/empty-background/src/EmptyBackground.vue'
 </script>
 <template>
-  <EmptyBackground img-type="noneWhite" description="Ticket参数错误" />
+    <EmptyBackground description="Ticket参数错误" img-type="noneWhite"/>
 </template>

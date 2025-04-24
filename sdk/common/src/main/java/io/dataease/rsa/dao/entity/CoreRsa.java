@@ -1,11 +1,12 @@
 package io.dataease.rsa.dao.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author fit2cloud
@@ -81,10 +82,10 @@ public class CoreRsa implements Serializable {
     @Override
     public String toString() {
         return "CoreRsa{" +
-        "id = " + id +
-        ", privateKey = " + privateKey +
-        ", publicKey = " + publicKey +
-        ", createTime = " + createTime +
-        "}";
+            "id = " + id +
+            ", privateKey = " + privateKey +
+            ", publicKey = " + publicKey +
+            ", createTime = " + createTime +
+            "}";
     }
 }

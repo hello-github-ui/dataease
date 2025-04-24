@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.util.List;
+
 @Schema(description = "组织树VO")
 @Data
 public class LazyTreeVO implements Serializable {

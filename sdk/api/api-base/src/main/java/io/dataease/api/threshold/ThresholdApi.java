@@ -10,7 +10,10 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
 
@@ -28,9 +31,9 @@ public interface ThresholdApi {
 
     @Operation(summary = "查询列表")
     @Parameters({
-            @Parameter(name = "goPage", description = "目标页码", required = true, in = ParameterIn.PATH),
-            @Parameter(name = "pageSize", description = "每页容量", required = true, in = ParameterIn.PATH),
-            @Parameter(name = "request", description = "过滤条件", required = true)
+        @Parameter(name = "goPage", description = "目标页码", required = true, in = ParameterIn.PATH),
+        @Parameter(name = "pageSize", description = "每页容量", required = true, in = ParameterIn.PATH),
+        @Parameter(name = "request", description = "过滤条件", required = true)
     })
     @PostMapping("/pager/{goPage}/{pageSize}")
     IPage<ThresholdGridVO> pager(@PathVariable("goPage") int goPage, @PathVariable("pageSize") int pageSize, @RequestBody ThresholdGridRequest request);
@@ -53,9 +56,9 @@ public interface ThresholdApi {
 
     @Operation(summary = "查询实例列表")
     @Parameters({
-            @Parameter(name = "goPage", description = "目标页码", required = true, in = ParameterIn.PATH),
-            @Parameter(name = "pageSize", description = "每页容量", required = true, in = ParameterIn.PATH),
-            @Parameter(name = "request", description = "过滤条件", required = true)
+        @Parameter(name = "goPage", description = "目标页码", required = true, in = ParameterIn.PATH),
+        @Parameter(name = "pageSize", description = "每页容量", required = true, in = ParameterIn.PATH),
+        @Parameter(name = "request", description = "过滤条件", required = true)
     })
     @PostMapping("/instancePager/{goPage}/{pageSize}")
     IPage<ThresholdInstanceVO> instancePager(@PathVariable("goPage") int goPage, @PathVariable("pageSize") int pageSize, @RequestBody ThresholdInstanceRequest request);

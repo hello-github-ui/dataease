@@ -31,11 +31,19 @@ public class ExtTableField implements Serializable {
 
     private boolean removed;
 
+    public enum BaseType {
+        nvarchar, //字符串
+        text, //长文本
+        number, //整型数字
+        decimal, //小数数字
+        datetime //日期
+    }
+
     @Data
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class ExtTableFieldSetting implements Serializable  {
+    public static class ExtTableFieldSetting implements Serializable {
 
         @Serial
         private static final long serialVersionUID = 8776508642526681125L;
@@ -83,7 +91,7 @@ public class ExtTableField implements Serializable {
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class Option implements Serializable  {
+    public static class Option implements Serializable {
 
         @Serial
         private static final long serialVersionUID = -1681618296840344071L;
@@ -97,7 +105,7 @@ public class ExtTableField implements Serializable {
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class ExtTableFieldMapping implements Serializable  {
+    public static class ExtTableFieldMapping implements Serializable {
 
         @Serial
         private static final long serialVersionUID = 4233066732126872840L;
@@ -123,20 +131,11 @@ public class ExtTableField implements Serializable {
 
     }
 
-    public enum BaseType {
-        nvarchar, //字符串
-        text, //长文本
-        number, //整型数字
-        decimal, //小数数字
-        datetime //日期
-    }
-
-
     @Data
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class TableField implements Serializable  {
+    public static class TableField implements Serializable {
 
         @Serial
         private static final long serialVersionUID = 85092190247927362L;

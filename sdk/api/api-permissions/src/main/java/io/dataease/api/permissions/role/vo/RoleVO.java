@@ -14,7 +14,7 @@ public class RoleVO implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 3488550489306534641L;
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     @Schema(description = "ID")
     private Long id;
     @Schema(description = "角色名称")

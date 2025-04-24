@@ -135,16 +135,16 @@ public class ChartViewManege {
         List<ChartViewDTO> chartViewDTOS = transChart(coreChartViewMapper.selectList(wrapper));
         if (!CollectionUtils.isEmpty(chartViewDTOS)) {
             List<Long> tableIds = chartViewDTOS.stream()
-                    .map(ChartViewDTO::getTableId)
-                    .filter(tableId -> tableId != null) // 过滤掉空值
-                    .distinct()
-                    .toList();
+                .map(ChartViewDTO::getTableId)
+                .filter(tableId -> tableId != null) // 过滤掉空值
+                .distinct()
+                .toList();
             if (!CollectionUtils.isEmpty(tableIds)) {
                 QueryWrapper<CoreDatasetTableField> wp = new QueryWrapper<>();
                 wp.in("dataset_group_id", tableIds);
                 List<CoreDatasetTableField> coreDatasetTableFields = coreDatasetTableFieldMapper.selectList(wp);
                 Map<Long, List<CoreDatasetTableField>> groupedByTableId = coreDatasetTableFields.stream()
-                        .collect(Collectors.groupingBy(CoreDatasetTableField::getDatasetGroupId));
+                    .collect(Collectors.groupingBy(CoreDatasetTableField::getDatasetGroupId));
                 if (chartViewDTOS.size() < 10) {
                     chartViewDTOS.forEach(dto -> {
                         if (dto.getTableId() != null) {

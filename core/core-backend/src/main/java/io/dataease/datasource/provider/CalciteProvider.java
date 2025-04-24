@@ -49,12 +49,12 @@ import java.util.stream.Collectors;
 @Component("calciteProvider")
 public class CalciteProvider extends Provider {
 
+    private static String split = "DE";
+    // FILE_PATH, CUSTOM_PATH 两个属性 切换成 下面两行代码即可
+    private final String FILE_PATH = System.getProperty("user.dir") + File.separator + "drivers";
+    private final String CUSTOM_PATH = System.getProperty("user.dir") + File.separator + "custom-drivers" + File.separator;
     @Resource
     protected CoreDatasourceMapper coreDatasourceMapper;
-    @Resource
-    private EngineManage engineManage;
-    protected ExtendedJdbcClassLoader extendedJdbcClassLoader;
-    private Map<Long, ExtendedJdbcClassLoader> customJdbcClassLoaders = new HashMap<>();
 
     // windows 本地运行，如下 FILE_PATH, CUSTOM_PATH 两个属性注释掉
 //    @Value("${dataease.path.driver:/opt/dataease2.0/drivers}")
@@ -62,15 +62,13 @@ public class CalciteProvider extends Provider {
 //
 //    @Value("${dataease.path.custom-drivers:/opt/dataease2.0/custom-drivers/}")
 //    private String CUSTOM_PATH;
-
-    // FILE_PATH, CUSTOM_PATH 两个属性 切换成 下面两行代码即可
-    private final String FILE_PATH = System.getProperty("user.dir") + File.separator + "drivers";
-    private final String CUSTOM_PATH = System.getProperty("user.dir") + File.separator + "custom-drivers" + File.separator;
-
-    private static String split = "DE";
-
+    protected ExtendedJdbcClassLoader extendedJdbcClassLoader;
+    @Resource
+    private EngineManage engineManage;
+    private Map<Long, ExtendedJdbcClassLoader> customJdbcClassLoaders = new HashMap<>();
     @Resource
     private CommonThreadPool commonThreadPool;
+    private Connection connection = null;
 
     @PostConstruct
     public void init() throws Exception {
@@ -1383,8 +1381,6 @@ public class CalciteProvider extends Provider {
         }
         return null;
     }
-
-    private Connection connection = null;
 
     public void initConnectionPool() {
         LogUtil.info("Begin to init datasource pool...");

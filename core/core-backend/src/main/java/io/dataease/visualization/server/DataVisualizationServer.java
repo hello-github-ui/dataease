@@ -338,7 +338,7 @@ public class DataVisualizationServer implements DataVisualizationApi {
                             appDsTableNamesMap.forEach((keyName, valueName) -> {
                                 if (!CollectionUtils.isEmpty(systemDsTableNamesMap) && StringUtils.isNotEmpty(systemDsTableNamesMap.get(keyName))) {
                                     dsGroup.setInfo(dsGroup.getInfo().replaceAll(valueName, systemDsTableNamesMap.get(keyName)));
-                                }else{
+                                } else {
                                     dsGroup.setInfo(dsGroup.getInfo().replaceAll(valueName, "excel_can_not_find"));
                                 }
                             });

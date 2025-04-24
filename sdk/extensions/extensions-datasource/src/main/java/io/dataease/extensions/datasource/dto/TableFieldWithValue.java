@@ -29,14 +29,14 @@ public class TableFieldWithValue implements Serializable {
 
     public static TableFieldWithValue copy(TableFieldWithValue tableFieldWithValue) {
         return new TableFieldWithValue()
-                .setValue(tableFieldWithValue.getValue())
-                .setFiledName(tableFieldWithValue.getFiledName())
-                .setTypeName(tableFieldWithValue.getTypeName())
-                .setType(tableFieldWithValue.getType())
-                .setColumnTypeName(tableFieldWithValue.getColumnTypeName())
-                .setIsDateTime(tableFieldWithValue.getIsDateTime())
-                .setDateFormat(tableFieldWithValue.getDateFormat())
-                .setTerm(tableFieldWithValue.getTerm())
-                .setDeExtractType(tableFieldWithValue.getDeExtractType());
+            .setValue(tableFieldWithValue.getValue())
+            .setFiledName(tableFieldWithValue.getFiledName())
+            .setTypeName(tableFieldWithValue.getTypeName())
+            .setType(tableFieldWithValue.getType())
+            .setColumnTypeName(tableFieldWithValue.getColumnTypeName())
+            .setIsDateTime(tableFieldWithValue.getIsDateTime())
+            .setDateFormat(tableFieldWithValue.getDateFormat())
+            .setTerm(tableFieldWithValue.getTerm())
+            .setDeExtractType(tableFieldWithValue.getDeExtractType());
     }
 }

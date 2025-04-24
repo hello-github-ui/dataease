@@ -12,8 +12,36 @@ import static io.dataease.result.ResultCode.INTERFACE_ADDRESS_INVALID;
 
 public class WhitelistUtils {
 
+    public static List<String> WHITE_PATH = List.of(
+        "/login/localLogin",
+        "/apisix/check",
+        "/dekey",
+        "/symmetricKey",
+        "/index.html",
+        "/model",
+        "/xpackModel",
+        "/swagger-resources",
+        "/doc.html",
+        "/panel.html",
+        "/mobile.html",
+        "/lark/qrinfo",
+        "/lark/token",
+        "/larksuite/qrinfo",
+        "/larksuite/token",
+        "/dingtalk/qrinfo",
+        "/dingtalk/token",
+        "/wecom/qrinfo",
+        "/wecom/token",
+        "/sysParameter/requestTimeOut",
+        "/sysParameter/defaultSettings",
+        "/setting/authentication/status",
+        "/sysParameter/ui",
+        "/sysParameter/defaultLogin",
+        "/embedded/initIframe",
+        "/sysParameter/i18nOptions",
+        "/login/modifyInvalidPwd",
+        "/");
     private static String contextPath;
-
 
     public static String getContextPath() {
         if (StringUtils.isBlank(contextPath)) {
@@ -21,36 +49,6 @@ public class WhitelistUtils {
         }
         return contextPath;
     }
-
-    public static List<String> WHITE_PATH = List.of(
-            "/login/localLogin",
-            "/apisix/check",
-            "/dekey",
-            "/symmetricKey",
-            "/index.html",
-            "/model",
-            "/xpackModel",
-            "/swagger-resources",
-            "/doc.html",
-            "/panel.html",
-            "/mobile.html",
-            "/lark/qrinfo",
-            "/lark/token",
-            "/larksuite/qrinfo",
-            "/larksuite/token",
-            "/dingtalk/qrinfo",
-            "/dingtalk/token",
-            "/wecom/qrinfo",
-            "/wecom/token",
-            "/sysParameter/requestTimeOut",
-            "/sysParameter/defaultSettings",
-            "/setting/authentication/status",
-            "/sysParameter/ui",
-            "/sysParameter/defaultLogin",
-            "/embedded/initIframe",
-            "/sysParameter/i18nOptions",
-            "/login/modifyInvalidPwd",
-            "/");
 
     public static boolean match(String requestURI) {
         invalidUrl(requestURI);
@@ -67,28 +65,28 @@ public class WhitelistUtils {
             requestURI = requestURI.replaceFirst(AuthConstant.DE_OIDCAPI_PREFIX, "");
         }
         return WHITE_PATH.contains(requestURI)
-                || StringUtils.endsWithAny(requestURI, ".ico", "js", ".css", "svg", "png", "jpg", "js.map", ".otf", ".ttf", ".woff2")
-                || StringUtils.startsWithAny(requestURI, "data:image")
-                || StringUtils.startsWithAny(requestURI, "/login/platformLogin/")
-                || StringUtils.startsWithAny(requestURI, "/static-resource/")
-                || StringUtils.startsWithAny(requestURI, "/appearance/image/")
-                || StringUtils.startsWithAny(requestURI, "/share/proxyInfo")
-                || StringUtils.startsWithAny(requestURI, "/xpackComponent/content")
-                || StringUtils.startsWithAny(requestURI, "/xpackComponent/pluginStaticInfo")
-                || StringUtils.startsWithAny(requestURI, "/geo/")
-                || StringUtils.startsWithAny(requestURI, "/customGeo/")
-                || StringUtils.startsWithAny(requestURI, "/websocket")
-                || StringUtils.startsWithAny(requestURI, "/map/")
-                || StringUtils.startsWithAny(requestURI, "/oauth2/")
-                || StringUtils.startsWithAny(requestURI, "/mfa/qr/")
-                || StringUtils.startsWithAny(requestURI, "/mfa/login")
-                || StringUtils.startsWithAny(requestURI, "/typeface/download")
-                || StringUtils.startsWithAny(requestURI, "/typeface/defaultFont")
-                || StringUtils.startsWithAny(requestURI, "/typeface/listFont")
-                || StringUtils.startsWithAny(requestURI, "/exportCenter/download")
-                || StringUtils.startsWithAny(requestURI, "/i18n/")
-                || StringUtils.startsWithAny(requestURI, "/communicate/image/")
-                || StringUtils.startsWithAny(requestURI, "/communicate/down/");
+            || StringUtils.endsWithAny(requestURI, ".ico", "js", ".css", "svg", "png", "jpg", "js.map", ".otf", ".ttf", ".woff2")
+            || StringUtils.startsWithAny(requestURI, "data:image")
+            || StringUtils.startsWithAny(requestURI, "/login/platformLogin/")
+            || StringUtils.startsWithAny(requestURI, "/static-resource/")
+            || StringUtils.startsWithAny(requestURI, "/appearance/image/")
+            || StringUtils.startsWithAny(requestURI, "/share/proxyInfo")
+            || StringUtils.startsWithAny(requestURI, "/xpackComponent/content")
+            || StringUtils.startsWithAny(requestURI, "/xpackComponent/pluginStaticInfo")
+            || StringUtils.startsWithAny(requestURI, "/geo/")
+            || StringUtils.startsWithAny(requestURI, "/customGeo/")
+            || StringUtils.startsWithAny(requestURI, "/websocket")
+            || StringUtils.startsWithAny(requestURI, "/map/")
+            || StringUtils.startsWithAny(requestURI, "/oauth2/")
+            || StringUtils.startsWithAny(requestURI, "/mfa/qr/")
+            || StringUtils.startsWithAny(requestURI, "/mfa/login")
+            || StringUtils.startsWithAny(requestURI, "/typeface/download")
+            || StringUtils.startsWithAny(requestURI, "/typeface/defaultFont")
+            || StringUtils.startsWithAny(requestURI, "/typeface/listFont")
+            || StringUtils.startsWithAny(requestURI, "/exportCenter/download")
+            || StringUtils.startsWithAny(requestURI, "/i18n/")
+            || StringUtils.startsWithAny(requestURI, "/communicate/image/")
+            || StringUtils.startsWithAny(requestURI, "/communicate/down/");
     }
 
     public static String getBaseApiUrl(String redirect_uri) {

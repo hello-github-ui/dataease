@@ -14,13 +14,14 @@ import java.util.List;
 public class JsonUtil {
 
     private static final ObjectMapper objectMapper;
+
     static {
         objectMapper = new ObjectMapper();
         // 配置更大的 StreamReadConstraints 限制
         objectMapper.getFactory().setStreamReadConstraints(
-                StreamReadConstraints.builder()
-                        .maxStringLength(50000000)
-                        .build()
+            StreamReadConstraints.builder()
+                .maxStringLength(50000000)
+                .build()
         );
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }

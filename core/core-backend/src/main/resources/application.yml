@@ -5,7 +5,7 @@ server:
         connection-timeout: 70000
 spring:
     profiles:
-#        active: '@profiles.active@' #  报错一堆的 sql错误：Migration V2.0__core_ddl.sql failed
+        #        active: '@profiles.active@' #  报错一堆的 sql错误：Migration V2.0__core_ddl.sql failed
         active: standalone
     application:
         name: core-backend

@@ -10,14 +10,14 @@ public class DynamicI18nUtils {
 
     private static ReloadableResourceBundleMessageSource messageSource;
 
-    @Resource
-    public void setMessageSource(ReloadableResourceBundleMessageSource messageSource) {
-        DynamicI18nUtils.messageSource = messageSource;
-    }
-
     public static void addOrUpdate(String baseName) {
         messageSource.addBasenames(baseName);
         messageSource.setCacheSeconds(0);
         messageSource.clearCache();
+    }
+
+    @Resource
+    public void setMessageSource(ReloadableResourceBundleMessageSource messageSource) {
+        DynamicI18nUtils.messageSource = messageSource;
     }
 }

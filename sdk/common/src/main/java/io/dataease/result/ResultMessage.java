@@ -13,7 +13,8 @@ public class ResultMessage implements Serializable {
 
     private Object data;
 
-    public ResultMessage() {}
+    public ResultMessage() {
+    }
 
     public ResultMessage(Integer code, String msg) {
         this.code = code;

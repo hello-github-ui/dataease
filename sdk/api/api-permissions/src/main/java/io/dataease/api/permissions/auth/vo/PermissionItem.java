@@ -16,7 +16,7 @@ public class PermissionItem implements Serializable {
 
     @Serial
     private static final long serialVersionUID = -6537851979745319692L;
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     @Schema(description = "ID")
     private Long id;
     @Schema(description = "权重")

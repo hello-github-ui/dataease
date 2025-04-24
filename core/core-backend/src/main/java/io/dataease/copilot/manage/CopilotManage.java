@@ -5,6 +5,7 @@ import io.dataease.api.copilot.dto.*;
 import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.api.dataset.union.UnionDTO;
 import io.dataease.chart.utils.ChartDataBuild;
+import io.dataease.constant.DeTypeConstants;
 import io.dataease.copilot.api.CopilotAPI;
 import io.dataease.dataset.dao.auto.entity.CoreDatasetGroup;
 import io.dataease.dataset.dao.auto.mapper.CoreDatasetGroupMapper;
@@ -13,7 +14,6 @@ import io.dataease.dataset.manage.DatasetSQLManage;
 import io.dataease.dataset.manage.DatasetTableFieldManage;
 import io.dataease.dataset.manage.PermissionManage;
 import io.dataease.dataset.utils.FieldUtils;
-import io.dataease.constant.DeTypeConstants;
 import io.dataease.engine.utils.Utils;
 import io.dataease.exception.DEException;
 import io.dataease.extensions.datasource.constant.SqlPlaceholderConstants;
@@ -51,6 +51,7 @@ import java.util.stream.Collectors;
  */
 @Component
 public class CopilotManage {
+    private static Logger logger = LoggerFactory.getLogger(CopilotManage.class);
     @Resource
     private DatasetSQLManage datasetSQLManage;
     @Resource
@@ -63,9 +64,6 @@ public class CopilotManage {
     private PermissionManage permissionManage;
     @Resource
     private MsgManage msgManage;
-
-    private static Logger logger = LoggerFactory.getLogger(CopilotManage.class);
-
     @Resource
     private TokenManage tokenManage;
 
@@ -92,12 +90,12 @@ public class CopilotManage {
         // 获取field
         List<DatasetTableFieldDTO> dsFields = datasetTableFieldManage.selectByDatasetGroupId(msgDTO.getDatasetGroupId());
         List<DatasetTableFieldDTO> allFields = dsFields.stream().filter(ele -> ele.getExtField() == 0)
-                .map(ele -> {
-                    DatasetTableFieldDTO datasetTableFieldDTO = new DatasetTableFieldDTO();
-                    BeanUtils.copyBean(datasetTableFieldDTO, ele);
-                    datasetTableFieldDTO.setFieldShortName(ele.getDataeaseName());
-                    return datasetTableFieldDTO;
-                }).collect(Collectors.toList());
+            .map(ele -> {
+                DatasetTableFieldDTO datasetTableFieldDTO = new DatasetTableFieldDTO();
+                BeanUtils.copyBean(datasetTableFieldDTO, ele);
+                datasetTableFieldDTO.setFieldShortName(ele.getDataeaseName());
+                return datasetTableFieldDTO;
+            }).collect(Collectors.toList());
 
         Map<String, Object> sqlMap = datasetSQLManage.getUnionSQLForEdit(dto, null);
         String sql = (String) sqlMap.get("sql");// 数据集原始SQL
@@ -195,16 +193,16 @@ public class CopilotManage {
         Map<String, Object> data;
         try {
             s = copilotSQL
-                    .replaceAll(SqlPlaceholderConstants.KEYWORD_PREFIX_REGEX + "de_tmp_table" + SqlPlaceholderConstants.KEYWORD_SUFFIX_REGEX, "(" + querySQL + ")")
-                    .replaceAll(SqlPlaceholderConstants.KEYWORD_PREFIX_REGEX + "DE_TMP_TABLE" + SqlPlaceholderConstants.KEYWORD_SUFFIX_REGEX, "(" + querySQL + ")");
+                .replaceAll(SqlPlaceholderConstants.KEYWORD_PREFIX_REGEX + "de_tmp_table" + SqlPlaceholderConstants.KEYWORD_SUFFIX_REGEX, "(" + querySQL + ")")
+                .replaceAll(SqlPlaceholderConstants.KEYWORD_PREFIX_REGEX + "DE_TMP_TABLE" + SqlPlaceholderConstants.KEYWORD_SUFFIX_REGEX, "(" + querySQL + ")");
             logger.debug("copilot sql: " + s);
             datasourceRequest.setQuery(s);
             data = provider.fetchResultField(datasourceRequest);
         } catch (Exception e) {
             try {
                 s = copilotSQL
-                        .replaceAll(SqlPlaceholderConstants.KEYWORD_PREFIX_REGEX + "de_tmp_table" + SqlPlaceholderConstants.KEYWORD_SUFFIX_REGEX, "(" + querySQL + ") tmp")
-                        .replaceAll(SqlPlaceholderConstants.KEYWORD_PREFIX_REGEX + "DE_TMP_TABLE" + SqlPlaceholderConstants.KEYWORD_SUFFIX_REGEX, "(" + querySQL + ") tmp");
+                    .replaceAll(SqlPlaceholderConstants.KEYWORD_PREFIX_REGEX + "de_tmp_table" + SqlPlaceholderConstants.KEYWORD_SUFFIX_REGEX, "(" + querySQL + ") tmp")
+                    .replaceAll(SqlPlaceholderConstants.KEYWORD_PREFIX_REGEX + "DE_TMP_TABLE" + SqlPlaceholderConstants.KEYWORD_SUFFIX_REGEX, "(" + querySQL + ") tmp");
                 logger.debug("copilot sql: " + s);
                 datasourceRequest.setQuery(s);
                 data = provider.fetchResultField(datasourceRequest);
@@ -396,8 +394,8 @@ public class CopilotManage {
                             obj.put(tableField.getOriginName(), ChartDataBuild.desensitizationValue(desensitizationList.get(tableField.getOriginName()), String.valueOf(row[j])));
                         } else {
                             if (tableField.getDeExtractType() == DeTypeConstants.DE_INT
-                                    || tableField.getDeExtractType() == DeTypeConstants.DE_FLOAT
-                                    || tableField.getDeExtractType() == DeTypeConstants.DE_BOOL) {
+                                || tableField.getDeExtractType() == DeTypeConstants.DE_FLOAT
+                                || tableField.getDeExtractType() == DeTypeConstants.DE_BOOL) {
                                 try {
                                     obj.put(tableField.getOriginName(), new BigDecimal(row[j]));
                                 } catch (Exception e) {
@@ -422,7 +420,7 @@ public class CopilotManage {
         List<String> list = new ArrayList<>();
         for (DatasetTableFieldDTO dto : allFields) {
             list.add(" " + dto.getDataeaseName() + " " + transNum2Type(dto.getDeExtractType()) +
-                    " COMMENT '" + dto.getName() + "'");
+                " COMMENT '" + dto.getName() + "'");
         }
         return list;
     }

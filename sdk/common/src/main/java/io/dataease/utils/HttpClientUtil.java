@@ -43,9 +43,8 @@ import static io.dataease.result.ResultCode.SYSTEM_INNER_ERROR;
 
 public class HttpClientUtil {
 
-    private static Logger logger = LoggerFactory.getLogger(HttpClientUtil.class);
-
     private static final String HTTPS = "https";
+    private static Logger logger = LoggerFactory.getLogger(HttpClientUtil.class);
 
     /**
      * 根据url构建HttpClient（区分http和https）
@@ -76,8 +75,8 @@ public class HttpClientUtil {
                 builder.loadTrustMaterial(null, (X509Certificate[] x509Certificates, String s) -> true);
                 SSLConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(builder.build(), new String[]{"TLSv1.1", "TLSv1.2", "SSLv3"}, null, NoopHostnameVerifier.INSTANCE);
                 Registry<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create()
-                        .register("http", new PlainConnectionSocketFactory())
-                        .register("https", socketFactory).build();
+                    .register("http", new PlainConnectionSocketFactory())
+                    .register("https", socketFactory).build();
                 HttpClientConnectionManager connManager = new PoolingHttpClientConnectionManager(registry);
                 return HttpClients.custom().setConnectionManager(connManager).build();
             } else {
@@ -411,15 +410,15 @@ public class HttpClientUtil {
             int filenameIndex = disposition.indexOf("filename=");
             if (filenameIndex > 0) {
                 fileName = disposition.substring(filenameIndex + 9)
-                        .replaceAll("\"", "") // 去除引号
-                        .trim();
+                    .replaceAll("\"", "") // 去除引号
+                    .trim();
             }
         }
         if (fileName.isEmpty()) {
             url = url.split("\\?")[0];
             fileName = url.contains("/")
-                    ? url.substring(url.lastIndexOf('/') + 1)
-                    : "download_" + System.currentTimeMillis();
+                ? url.substring(url.lastIndexOf('/') + 1)
+                : "download_" + System.currentTimeMillis();
         }
         if (fileName.trim().isEmpty()) {
             fileName = "download_" + System.currentTimeMillis();

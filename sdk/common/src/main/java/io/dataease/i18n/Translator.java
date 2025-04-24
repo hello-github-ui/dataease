@@ -29,11 +29,6 @@ public class Translator {
 
     private static MessageSource messageSource;
 
-    @Resource
-    public void setMessageSource(MessageSource messageSource) {
-        Translator.messageSource = messageSource;
-    }
-
     /**
      * 单Key翻译
      */
@@ -159,5 +154,10 @@ public class Translator {
         } catch (StackOverflowError stackOverflowError) {
             return javaObject;
         }
+    }
+
+    @Resource
+    public void setMessageSource(MessageSource messageSource) {
+        Translator.messageSource = messageSource;
     }
 }

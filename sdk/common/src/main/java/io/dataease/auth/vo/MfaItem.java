@@ -16,6 +16,6 @@ public class MfaItem implements Serializable {
 
     private boolean ready;
 
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long uid;
 }

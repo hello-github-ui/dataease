@@ -11,6 +11,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import static io.dataease.constant.StaticResourceConstants.*;
 import static io.dataease.utils.StaticResourceUtils.ensureBoth;
 import static io.dataease.utils.StaticResourceUtils.ensureSuffix;
+
 @Configuration
 public class DeMvcConfig implements WebMvcConfigurer {
 

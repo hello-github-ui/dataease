@@ -1,11 +1,12 @@
 package io.dataease.dataset.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author fit2cloud
@@ -211,21 +212,21 @@ public class CoreDatasetGroup implements Serializable {
     @Override
     public String toString() {
         return "CoreDatasetGroup{" +
-        "id = " + id +
-        ", name = " + name +
-        ", pid = " + pid +
-        ", level = " + level +
-        ", nodeType = " + nodeType +
-        ", type = " + type +
-        ", mode = " + mode +
-        ", info = " + info +
-        ", createBy = " + createBy +
-        ", createTime = " + createTime +
-        ", qrtzInstance = " + qrtzInstance +
-        ", syncStatus = " + syncStatus +
-        ", updateBy = " + updateBy +
-        ", lastUpdateTime = " + lastUpdateTime +
-        ", unionSql = " + unionSql +
-        "}";
+            "id = " + id +
+            ", name = " + name +
+            ", pid = " + pid +
+            ", level = " + level +
+            ", nodeType = " + nodeType +
+            ", type = " + type +
+            ", mode = " + mode +
+            ", info = " + info +
+            ", createBy = " + createBy +
+            ", createTime = " + createTime +
+            ", qrtzInstance = " + qrtzInstance +
+            ", syncStatus = " + syncStatus +
+            ", updateBy = " + updateBy +
+            ", lastUpdateTime = " + lastUpdateTime +
+            ", unionSql = " + unionSql +
+            "}";
     }
 }

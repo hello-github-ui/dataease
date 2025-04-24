@@ -16,6 +16,6 @@ public class VisualizationOuterParamsDTO extends VisualizationOuterParamsVO {
 
     private List<VisualizationOuterParamsInfoDTO> outerParamsInfoArray = new ArrayList<>();
 
-    private Map<String,VisualizationOuterParamsInfoDTO> mapOuterParamsInfoArray = new HashMap<>();
+    private Map<String, VisualizationOuterParamsInfoDTO> mapOuterParamsInfoArray = new HashMap<>();
 
 }

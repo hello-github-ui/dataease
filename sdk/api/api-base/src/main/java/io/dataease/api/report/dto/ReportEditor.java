@@ -9,11 +9,11 @@ import java.io.Serial;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
-public class ReportEditor extends ReportCreator{
+public class ReportEditor extends ReportCreator {
 
     @Serial
     private static final long serialVersionUID = 4580864230335912932L;
-    @JsonSerialize(using= ToStringSerializer.class)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long taskId;
 
 }

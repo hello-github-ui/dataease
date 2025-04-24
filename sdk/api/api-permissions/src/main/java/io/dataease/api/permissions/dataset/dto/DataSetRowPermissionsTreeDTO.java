@@ -12,7 +12,7 @@ import java.util.List;
 
 @Getter
 @Setter
-public class DataSetRowPermissionsTreeDTO  {
+public class DataSetRowPermissionsTreeDTO {
 
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
@@ -68,6 +68,6 @@ public class DataSetRowPermissionsTreeDTO  {
     private List<UserFormVO> whiteListUsers;
     private List<RoleVO> whiteListRoles;
     private List<Long> authTargetIds;
-    private  boolean exportData;
+    private boolean exportData;
 
 }

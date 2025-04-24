@@ -5,14 +5,14 @@ DROP TABLE IF EXISTS `core_datasource`;
 CREATE TABLE `core_datasource`
 (
     `id`            bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
-    `name`          varchar(255)    NOT NULL COMMENT '名称',
+    `name`          varchar(255) NOT NULL COMMENT '名称',
     `description`   varchar(255) DEFAULT NULL COMMENT '描述',
-    `type`          varchar(50)     NOT NULL COMMENT '类型',
+    `type`          varchar(50)  NOT NULL COMMENT '类型',
     `pid`           bigint       DEFAULT NULL COMMENT '父级ID',
     `edit_type`     varchar(50) COMMENT '更新方式：0：替换；1：追加',
-    `configuration` longtext        NOT NULL COMMENT '详细信息',
-    `create_time`   bigint          NOT NULL COMMENT '创建时间',
-    `update_time`   bigint          NOT NULL COMMENT '更新时间',
+    `configuration` longtext     NOT NULL COMMENT '详细信息',
+    `create_time`   bigint       NOT NULL COMMENT '创建时间',
+    `update_time`   bigint       NOT NULL COMMENT '更新时间',
     `create_by`     varchar(50)  DEFAULT NULL COMMENT '创建人ID',
     `status`        longtext COMMENT '状态',
     `qrtz_instance` longtext COMMENT '状态',
@@ -24,7 +24,7 @@ DROP TABLE IF EXISTS `core_driver`;
 CREATE TABLE `core_driver`
 (
     `id`           bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
-    `name`         varchar(50)     NOT NULL COMMENT '名称',
+    `name`         varchar(50) NOT NULL COMMENT '名称',
     `create_time`  bigint(13)      NOT NULL COMMENT '创建时间',
     `type`         varchar(255) DEFAULT NULL COMMENT '数据源类型',
     `driver_class` varchar(255) DEFAULT NULL COMMENT '驱动类',
@@ -36,7 +36,7 @@ DROP TABLE IF EXISTS `core_driver_jar`;
 CREATE TABLE `core_driver_jar`
 (
     `id`            bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
-    `de_driver_id`  varchar(50)     NOT NULL COMMENT '驱动主键',
+    `de_driver_id`  varchar(50) NOT NULL COMMENT '驱动主键',
     `file_name`     varchar(255) DEFAULT NULL COMMENT '名称',
     `version`       varchar(255) DEFAULT NULL COMMENT '版本',
     `driver_class`  longtext COMMENT '驱动类',
@@ -55,12 +55,12 @@ CREATE TABLE `core_menu`
 (
     `id`        bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
     `pid`       bigint unsigned NOT NULL COMMENT '父ID',
-    `type`      int                      DEFAULT NULL COMMENT '类型',
-    `name`      varchar(45)              DEFAULT NULL COMMENT '名称',
-    `component` varchar(45)              DEFAULT NULL COMMENT '组件',
-    `menu_sort` int                      DEFAULT NULL COMMENT '排序',
-    `icon`      varchar(45)              DEFAULT NULL COMMENT '图标',
-    `path`      varchar(45)              DEFAULT NULL COMMENT '路径',
+    `type`      int         DEFAULT NULL COMMENT '类型',
+    `name`      varchar(45) DEFAULT NULL COMMENT '名称',
+    `component` varchar(45) DEFAULT NULL COMMENT '组件',
+    `menu_sort` int         DEFAULT NULL COMMENT '排序',
+    `icon`      varchar(45) DEFAULT NULL COMMENT '图标',
+    `path`      varchar(45) DEFAULT NULL COMMENT '路径',
     `hidden`    tinyint(1)      NOT NULL DEFAULT '0' COMMENT '隐藏',
     `in_layout` tinyint(1)      NOT NULL DEFAULT '1' COMMENT '是否内部',
     `auth`      tinyint(1)      NOT NULL DEFAULT '0' COMMENT '参与授权',
@@ -195,11 +195,11 @@ DROP TABLE IF EXISTS `core_datasource_task`;
 CREATE TABLE `core_datasource_task`
 (
     `id`                bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
-    `ds_id`             bigint          NOT NULL COMMENT '数据源ID',
-    `name`              varchar(255)    NOT NULL COMMENT '任务名称',
-    `update_type`       varchar(50)     NOT NULL COMMENT '更新方式',
+    `ds_id`             bigint       NOT NULL COMMENT '数据源ID',
+    `name`              varchar(255) NOT NULL COMMENT '任务名称',
+    `update_type`       varchar(50)  NOT NULL COMMENT '更新方式',
     `start_time`        bigint(13)   DEFAULT NULL COMMENT '开始时间',
-    `sync_rate`         varchar(50)     NOT NULL COMMENT '执行频率：0 一次性 1 cron',
+    `sync_rate`         varchar(50)  NOT NULL COMMENT '执行频率：0 一次性 1 cron',
     `cron`              varchar(255) DEFAULT NULL COMMENT 'cron表达式',
     `simple_cron_value` bigint(13)   DEFAULT NULL COMMENT '简单重复间隔',
     `simple_cron_type`  varchar(50)  DEFAULT NULL COMMENT '简单重复类型：分、时、天',
@@ -221,14 +221,14 @@ CREATE TABLE `core_datasource_task_log`
     `task_id`      bigint(13)  DEFAULT NULL COMMENT '任务ID',
     `start_time`   bigint(13)  DEFAULT NULL COMMENT '开始时间',
     `end_time`     bigint(13)  DEFAULT NULL COMMENT '结束时间',
-    `task_status`  varchar(50)     NOT NULL COMMENT '执行状态',
-    `table_name`   varchar(255)    NOT NULL COMMENT '表名',
+    `task_status`  varchar(50)  NOT NULL COMMENT '执行状态',
+    `table_name`   varchar(255) NOT NULL COMMENT '表名',
     `info`         longtext COMMENT '错误信息',
     `create_time`  bigint(13)  DEFAULT NULL COMMENT '创建时间',
     `trigger_type` varchar(45) DEFAULT NULL,
     PRIMARY KEY (`id`),
-    KEY `idx_dataset_table_task_log_ds_id` (`ds_id`),
-    KEY `idx_dataset_table_task_log_task_id` (`task_id`)
+    KEY            `idx_dataset_table_task_log_ds_id` (`ds_id`),
+    KEY            `idx_dataset_table_task_log_task_id` (`task_id`)
 );
 
 DROP TABLE IF EXISTS `core_de_engine`;
@@ -237,8 +237,8 @@ CREATE TABLE `core_de_engine`
     `id`            bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
     `name`          varchar(50) DEFAULT NULL COMMENT '名称',
     `description`   varchar(50) DEFAULT NULL COMMENT '描述',
-    `type`          varchar(50)     NOT NULL COMMENT '类型',
-    `configuration` longtext        NOT NULL COMMENT '详细信息',
+    `type`          varchar(50) NOT NULL COMMENT '类型',
+    `configuration` longtext    NOT NULL COMMENT '详细信息',
     `create_time`   bigint(13)  DEFAULT NULL COMMENT 'Create timestamp',
     `update_time`   bigint(13)  DEFAULT NULL COMMENT 'Update timestamp',
     `create_by`     varchar(50) DEFAULT NULL COMMENT '创建人ID',
@@ -3748,8 +3748,8 @@ CREATE TABLE QRTZ_FIRED_TRIGGERS
     STATE             VARCHAR(16)  NOT NULL,
     JOB_NAME          VARCHAR(200) NULL,
     JOB_GROUP         VARCHAR(200) NULL,
-    IS_NONCONCURRENT  BOOLEAN      NULL,
-    REQUESTS_RECOVERY BOOLEAN      NULL
+    IS_NONCONCURRENT  BOOLEAN NULL,
+    REQUESTS_RECOVERY BOOLEAN NULL
 );
 
 CREATE TABLE QRTZ_PAUSED_TRIGGER_GRPS
@@ -3783,7 +3783,7 @@ CREATE TABLE QRTZ_JOB_DETAILS
     IS_NONCONCURRENT  BOOLEAN      NOT NULL,
     IS_UPDATE_DATA    BOOLEAN      NOT NULL,
     REQUESTS_RECOVERY BOOLEAN      NOT NULL,
-    JOB_DATA          BLOB         NULL
+    JOB_DATA          BLOB NULL
 );
 
 CREATE TABLE QRTZ_SIMPLE_TRIGGERS
@@ -3798,20 +3798,20 @@ CREATE TABLE QRTZ_SIMPLE_TRIGGERS
 
 CREATE TABLE qrtz_simprop_triggers
 (
-    SCHED_NAME    VARCHAR(120)   NOT NULL,
-    TRIGGER_NAME  VARCHAR(200)   NOT NULL,
-    TRIGGER_GROUP VARCHAR(200)   NOT NULL,
-    STR_PROP_1    VARCHAR(512)   NULL,
-    STR_PROP_2    VARCHAR(512)   NULL,
-    STR_PROP_3    VARCHAR(512)   NULL,
-    INT_PROP_1    INTEGER        NULL,
-    INT_PROP_2    INTEGER        NULL,
-    LONG_PROP_1   BIGINT         NULL,
-    LONG_PROP_2   BIGINT         NULL,
+    SCHED_NAME    VARCHAR(120) NOT NULL,
+    TRIGGER_NAME  VARCHAR(200) NOT NULL,
+    TRIGGER_GROUP VARCHAR(200) NOT NULL,
+    STR_PROP_1    VARCHAR(512) NULL,
+    STR_PROP_2    VARCHAR(512) NULL,
+    STR_PROP_3    VARCHAR(512) NULL,
+    INT_PROP_1    INTEGER NULL,
+    INT_PROP_2    INTEGER NULL,
+    LONG_PROP_1   BIGINT NULL,
+    LONG_PROP_2   BIGINT NULL,
     DEC_PROP_1    NUMERIC(13, 4) NULL,
     DEC_PROP_2    NUMERIC(13, 4) NULL,
-    BOOL_PROP_1   BOOLEAN        NULL,
-    BOOL_PROP_2   BOOLEAN        NULL
+    BOOL_PROP_1   BOOLEAN NULL,
+    BOOL_PROP_2   BOOLEAN NULL
 );
 
 CREATE TABLE QRTZ_BLOB_TRIGGERS
@@ -3819,7 +3819,7 @@ CREATE TABLE QRTZ_BLOB_TRIGGERS
     SCHED_NAME    VARCHAR(120) NOT NULL,
     TRIGGER_NAME  VARCHAR(200) NOT NULL,
     TRIGGER_GROUP VARCHAR(200) NOT NULL,
-    BLOB_DATA     BLOB         NULL
+    BLOB_DATA     BLOB NULL
 );
 
 CREATE TABLE QRTZ_TRIGGERS
@@ -3830,16 +3830,16 @@ CREATE TABLE QRTZ_TRIGGERS
     JOB_NAME       VARCHAR(200) NOT NULL,
     JOB_GROUP      VARCHAR(200) NOT NULL,
     DESCRIPTION    VARCHAR(250) NULL,
-    NEXT_FIRE_TIME BIGINT       NULL,
-    PREV_FIRE_TIME BIGINT       NULL,
-    PRIORITY       INTEGER      NULL,
+    NEXT_FIRE_TIME BIGINT NULL,
+    PREV_FIRE_TIME BIGINT NULL,
+    PRIORITY       INTEGER NULL,
     TRIGGER_STATE  VARCHAR(16)  NOT NULL,
     TRIGGER_TYPE   VARCHAR(8)   NOT NULL,
     START_TIME     BIGINT       NOT NULL,
-    END_TIME       BIGINT       NULL,
+    END_TIME       BIGINT NULL,
     CALENDAR_NAME  VARCHAR(200) NULL,
-    MISFIRE_INSTR  SMALLINT     NULL,
-    JOB_DATA       BLOB         NULL
+    MISFIRE_INSTR  SMALLINT NULL,
+    JOB_DATA       BLOB NULL
 );
 
 ALTER TABLE QRTZ_CALENDARS
@@ -4088,7 +4088,8 @@ CREATE TABLE `core_dataset_table_sql_log`
 );
 
 SET NAMES utf8mb4;
-SET FOREIGN_KEY_CHECKS = 0;
+SET
+FOREIGN_KEY_CHECKS = 0;
 
 -- ----------------------------
 -- Table structure for visualization_link_jump
@@ -4180,7 +4181,8 @@ CREATE TABLE `visualization_linkage_field`
     PRIMARY KEY (`id`)
 );
 
-SET FOREIGN_KEY_CHECKS = 1;
+SET
+FOREIGN_KEY_CHECKS = 1;
 
 
 INSERT INTO `visualization_subject` (`id`, `name`, `type`, `details`, `delete_flag`, `cover_url`, `create_num`,
@@ -4216,7 +4218,7 @@ CREATE TABLE `core_opt_recent`
     `resource_id`   bigint DEFAULT NULL COMMENT '资源ID',
     `uid`           bigint NOT NULL COMMENT '用户ID',
     `resource_type` int    NOT NULL COMMENT '资源类型',
-    `opt_type`      int DEFAULT NULL COMMENT '1 新建 2 修改',
+    `opt_type`      int    DEFAULT NULL COMMENT '1 新建 2 修改',
     `time`          bigint NOT NULL COMMENT '收藏时间',
     PRIMARY KEY (`id`)
 );

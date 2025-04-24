@@ -6,15 +6,15 @@ public enum BusiResourceEnum {
 
     private int flag;
 
+    BusiResourceEnum(int flag) {
+        this.flag = flag;
+    }
+
     public int getFlag() {
         return flag;
     }
 
     public void setFlag(int flag) {
-        this.flag = flag;
-    }
-
-    BusiResourceEnum(int flag) {
         this.flag = flag;
     }
 }
