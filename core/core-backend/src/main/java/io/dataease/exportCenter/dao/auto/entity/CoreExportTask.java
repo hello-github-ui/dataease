@@ -1,7 +1,6 @@
 package io.dataease.exportCenter.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
@@ -156,19 +155,19 @@ public class CoreExportTask implements Serializable {
     @Override
     public String toString() {
         return "CoreExportTask{" +
-            "id = " + id +
-            ", userId = " + userId +
-            ", fileName = " + fileName +
-            ", fileSize = " + fileSize +
-            ", fileSizeUnit = " + fileSizeUnit +
-            ", exportFrom = " + exportFrom +
-            ", exportStatus = " + exportStatus +
-            ", exportFromType = " + exportFromType +
-            ", exportTime = " + exportTime +
-            ", exportProgress = " + exportProgress +
-            ", exportMachineName = " + exportMachineName +
-            ", params = " + params +
-            ", msg = " + msg +
-            "}";
+        "id = " + id +
+        ", userId = " + userId +
+        ", fileName = " + fileName +
+        ", fileSize = " + fileSize +
+        ", fileSizeUnit = " + fileSizeUnit +
+        ", exportFrom = " + exportFrom +
+        ", exportStatus = " + exportStatus +
+        ", exportFromType = " + exportFromType +
+        ", exportTime = " + exportTime +
+        ", exportProgress = " + exportProgress +
+        ", exportMachineName = " + exportMachineName +
+        ", params = " + params +
+        ", msg = " + msg +
+        "}";
     }
 }

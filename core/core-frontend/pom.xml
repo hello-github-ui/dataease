@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xmlns="http://maven.apache.org/POM/4.0.0"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <artifactId>core</artifactId>
@@ -78,6 +78,7 @@
                         </configuration>
                     </execution>
 
+                    <!--参考自：https://kb.fit2cloud.com/?p=b0c9abc1-2ec8-4301-acac-cff50b2a50be-->
                     <execution>
                         <id>npm install -g win-node-env</id>
                         <goals>
@@ -87,6 +88,7 @@
                             <arguments>install -g win-node-env</arguments>
                         </configuration>
                     </execution>
+
                 </executions>
             </plugin>
         </plugins>

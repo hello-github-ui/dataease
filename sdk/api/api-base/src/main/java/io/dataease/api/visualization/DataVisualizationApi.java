@@ -62,18 +62,7 @@ public interface DataVisualizationApi {
     @PostMapping("/updateCanvas")
     @DePermit(value = {"#p0.id + ':manage'"}, busiFlag = "#p0.type")
     @Operation(summary = "画布更新")
-    DataVisualizationVO updateCanvas(@RequestBody DataVisualizationBaseRequest request);
-
-
-    @PostMapping("/updatePublishStatus")
-    @DePermit(value = {"#p0.id + ':manage'"}, busiFlag = "#p0.type")
-    @Operation(summary = "发布状态更新")
-    void updatePublishStatus(@RequestBody DataVisualizationBaseRequest request);
-
-    @PostMapping("/recoverToPublished")
-    @DePermit(value = {"#p0.id + ':manage'"}, busiFlag = "#p0.type")
-    @Operation(summary = "恢复到发布状态")
-    void recoverToPublished(@RequestBody DataVisualizationBaseRequest request);
+    void updateCanvas(@RequestBody DataVisualizationBaseRequest request);
 
     @PostMapping("/updateBase")
     @DePermit(value = {"#p0.id + ':manage'"}, busiFlag = "#p0.type")

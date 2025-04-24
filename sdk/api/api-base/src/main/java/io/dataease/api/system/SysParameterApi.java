@@ -34,10 +34,6 @@ public interface SysParameterApi {
     @GetMapping("/queryOnlineMap")
     OnlineMapEditor queryOnlineMap();
 
-    @Operation(summary = "查询在线地图")
-    @GetMapping("/queryOnlineMap/{type}")
-    OnlineMapEditor queryOnlineMapByMapType(@PathVariable("type") String type);
-
     @Operation(summary = "查询基础设置(非xpack)")
     @GetMapping("basic/query")
     List<SettingItemVO> queryBasicSetting();

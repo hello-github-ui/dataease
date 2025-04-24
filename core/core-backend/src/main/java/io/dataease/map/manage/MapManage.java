@@ -47,10 +47,10 @@ public class MapManage {
 
     static {
         WORLD = AreaNode.builder()
-            .id("000")
-            .level("world")
-            .name("世界村")
-            .build();
+                .id("000")
+                .level("world")
+                .name("世界村")
+                .build();
     }
 
     @Resource
@@ -103,9 +103,9 @@ public class MapManage {
                 var child = new ArrayList<AreaNode>();
                 child.add(node);
                 pNode = AreaNode.builder()
-                    .children(child)
-                    .id(area.getPid())
-                    .build();
+                        .children(child)
+                        .id(area.getPid())
+                        .build();
                 areaNodeMap.put(area.getPid(), pNode);
             } else {
                 if (pNode.getChildren() == null) {

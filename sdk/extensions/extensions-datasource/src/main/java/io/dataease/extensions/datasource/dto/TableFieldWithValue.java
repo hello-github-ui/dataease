@@ -21,7 +21,6 @@ public class TableFieldWithValue implements Serializable {
     private String typeName;
     private Integer type;
     private String columnTypeName;
-    private boolean autoIncrement;
 
     private String isDateTime;
     private String dateFormat;
@@ -31,7 +30,6 @@ public class TableFieldWithValue implements Serializable {
     public static TableFieldWithValue copy(TableFieldWithValue tableFieldWithValue) {
         return new TableFieldWithValue()
                 .setValue(tableFieldWithValue.getValue())
-                .setAutoIncrement(tableFieldWithValue.isAutoIncrement())
                 .setFiledName(tableFieldWithValue.getFiledName())
                 .setTypeName(tableFieldWithValue.getTypeName())
                 .setType(tableFieldWithValue.getType())

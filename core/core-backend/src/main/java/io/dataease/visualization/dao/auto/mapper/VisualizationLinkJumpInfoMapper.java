@@ -1,7 +1,7 @@
 package io.dataease.visualization.dao.auto.mapper;
 
-import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import io.dataease.visualization.dao.auto.entity.VisualizationLinkJumpInfo;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 
 /**

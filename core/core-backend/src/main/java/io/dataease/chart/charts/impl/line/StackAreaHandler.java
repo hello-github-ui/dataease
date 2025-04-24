@@ -1,6 +1,5 @@
 package io.dataease.chart.charts.impl.line;
 
-import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.chart.charts.impl.YoyChartHandler;
 import io.dataease.chart.utils.ChartDataBuild;
 import io.dataease.engine.utils.Utils;
@@ -12,7 +11,6 @@ import io.dataease.extensions.view.dto.*;
 import lombok.Getter;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -43,9 +41,9 @@ public class StackAreaHandler extends YoyChartHandler {
     @Override
     public Map<String, Object> buildNormalResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data) {
         boolean isDrill = filterResult
-            .getFilterList()
-            .stream()
-            .anyMatch(ele -> ele.getFilterType() == 1);
+                .getFilterList()
+                .stream()
+                .anyMatch(ele -> ele.getFilterType() == 1);
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
         var extStack = formatResult.getAxisMap().get(ChartAxis.extStack);
         var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);
@@ -62,18 +60,18 @@ public class StackAreaHandler extends YoyChartHandler {
         // 堆叠维度下钻
         if (ObjectUtils.isNotEmpty(drillRequestList) && (drillFields.size() > drillRequestList.size())) {
             List<ChartExtFilterDTO> noDrillFilterList = filterList
-                .stream()
-                .filter(ele -> ele.getFilterType() != 1)
-                .collect(Collectors.toList());
+                    .stream()
+                    .filter(ele -> ele.getFilterType() != 1)
+                    .collect(Collectors.toList());
             var noDrillFieldAxis = formatResult.getAxisMap().get(ChartAxis.xAxis)
-                .stream()
-                .filter(ele -> ele.getSource() != FieldSource.DRILL)
-                .collect(Collectors.toList());
+                    .stream()
+                    .filter(ele -> ele.getSource() != FieldSource.DRILL)
+                    .collect(Collectors.toList());
             List<ChartExtFilterDTO> drillFilters = new ArrayList<>();
             ArrayList<ChartViewFieldDTO> fieldsToFilter = new ArrayList<>();
             var extStack = formatResult.getAxisMap().get(ChartAxis.extStack);
             if (ObjectUtils.isNotEmpty(extStack) &&
-                Objects.equals(drillFields.get(0).getId(), extStack.get(0).getId())) {
+                    Objects.equals(drillFields.get(0).getId(), extStack.get(0).getId())) {
                 fieldsToFilter.addAll(view.getXAxis());
             }
             groupStackDrill(noDrillFieldAxis, noDrillFilterList, fieldsToFilter, drillFields, drillRequestList);
@@ -91,7 +89,7 @@ public class StackAreaHandler extends YoyChartHandler {
             dsList.add(next.getValue().getType());
         }
         boolean needOrder = Utils.isNeedOrder(dsList);
-        boolean crossDs = ((DatasetGroupInfoDTO) formatResult.getContext().get("dataset")).getIsCross();
+        boolean crossDs = Utils.isCrossDs(dsMap);
         var result = (T) super.calcChartResult(view, formatResult, filterResult, sqlMap, sqlMeta, provider);
         try {
             //如果有同环比过滤,应该用原始sql
@@ -101,28 +99,13 @@ public class StackAreaHandler extends YoyChartHandler {
             var assistFields = getAssistFields(dynamicAssistFields, yAxis);
             if (CollectionUtils.isNotEmpty(assistFields)) {
                 var req = new DatasourceRequest();
-                req.setIsCross(crossDs);
                 req.setDsList(dsMap);
-
-                List<ChartSeniorAssistDTO> assists = dynamicAssistFields.stream().filter(ele -> !StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
-                if (ObjectUtils.isNotEmpty(assists)) {
-                    var assistSql = assistSQL(originSql, assistFields, dsMap, crossDs);
-                    req.setQuery(assistSql);
-                    logger.debug("calcite assistSql sql: " + assistSql);
-                    var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
-                    result.setAssistData(assistData);
-                    result.setDynamicAssistFields(assists);
-                }
-
-                List<ChartSeniorAssistDTO> assistsOriginList = dynamicAssistFields.stream().filter(ele -> StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
-                if (ObjectUtils.isNotEmpty(assistsOriginList)) {
-                    var assistSqlOriginList = assistSQLOriginList(originSql, assistFields, dsMap, crossDs);
-                    req.setQuery(assistSqlOriginList);
-                    logger.debug("calcite assistSql sql origin list: " + assistSqlOriginList);
-                    var assistDataOriginList = (List<String[]>) provider.fetchResultField(req).get("data");
-                    result.setAssistDataOriginList(assistDataOriginList);
-                    result.setDynamicAssistFieldsOriginList(assistsOriginList);
-                }
+                var assistSql = assistSQL(originSql, assistFields, dsMap);
+                req.setQuery(assistSql);
+                logger.debug("calcite assist sql: " + assistSql);
+                var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
+                result.setAssistData(assistData);
+                result.setDynamicAssistFields(dynamicAssistFields);
             }
         } catch (Exception e) {
             e.printStackTrace();

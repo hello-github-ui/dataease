@@ -20,8 +20,8 @@ import org.springframework.stereotype.Component;
 @Component
 @Order(value = 9)
 public class ChartFilterDynamicListener implements ApplicationListener<ApplicationReadyEvent> {
-    public static final String JOB_ID = "chartFilterDynamic";
     private final Logger logger = LoggerFactory.getLogger(ChartFilterDynamicListener.class);
+    public static final String JOB_ID = "chartFilterDynamic";
     @Resource
     private CoreSysStartupJobMapper coreSysStartupJobMapper;
     @Resource

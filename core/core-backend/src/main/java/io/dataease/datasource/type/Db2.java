@@ -12,28 +12,28 @@ public class Db2 extends DatasourceConfiguration {
     private String extraParams = "";
 
     public String getJdbc() {
-        if (StringUtils.isNoneEmpty(getUrlType()) && !getUrlType().equalsIgnoreCase("hostName")) {
+        if(StringUtils.isNoneEmpty(getUrlType()) && !getUrlType().equalsIgnoreCase("hostName")){
             return getJdbcUrl();
         }
-        if (StringUtils.isEmpty(extraParams.trim())) {
+        if(StringUtils.isEmpty(extraParams.trim())){
             if (StringUtils.isEmpty(getSchema())) {
                 return "jdbc:db2://HOSTNAME:PORT/DATABASE"
-                    .replace("HOSTNAME", getLHost().trim())
-                    .replace("PORT", getLPort().toString().trim())
-                    .replace("DATABASE", getDataBase().trim());
+                        .replace("HOSTNAME", getLHost().trim())
+                        .replace("PORT", getLPort().toString().trim())
+                        .replace("DATABASE", getDataBase().trim());
             } else {
                 return "jdbc:db2://HOSTNAME:PORT/DATABASE:currentSchema=SCHEMA;"
+                        .replace("HOSTNAME", getLHost().trim())
+                        .replace("PORT", getLPort().toString().trim())
+                        .replace("DATABASE", getDataBase().trim())
+                        .replace("SCHEMA",getSchema().trim());
+            }
+        }else {
+            return "jdbc:db2://HOSTNAME:PORT/DATABASE:EXTRA_PARAMS"
                     .replace("HOSTNAME", getLHost().trim())
                     .replace("PORT", getLPort().toString().trim())
                     .replace("DATABASE", getDataBase().trim())
-                    .replace("SCHEMA", getSchema().trim());
-            }
-        } else {
-            return "jdbc:db2://HOSTNAME:PORT/DATABASE:EXTRA_PARAMS"
-                .replace("HOSTNAME", getLHost().trim())
-                .replace("PORT", getLPort().toString().trim())
-                .replace("DATABASE", getDataBase().trim())
-                .replace("EXTRA_PARAMS", getExtraParams().trim());
+                    .replace("EXTRA_PARAMS", getExtraParams().trim());
         }
     }
 }

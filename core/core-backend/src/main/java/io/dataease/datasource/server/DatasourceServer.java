@@ -12,6 +12,7 @@ import io.dataease.api.ds.DatasourceApi;
 import io.dataease.api.ds.vo.*;
 import io.dataease.api.permissions.relation.api.RelationApi;
 import io.dataease.commons.constants.TaskStatus;
+import io.dataease.constant.DataSourceType;
 import io.dataease.constant.LogOT;
 import io.dataease.constant.LogST;
 import io.dataease.constant.SQLConstants;
@@ -62,7 +63,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -74,11 +74,6 @@ import static io.dataease.datasource.server.DatasourceTaskServer.ScheduleType.RI
 @RestController
 @RequestMapping("/datasource")
 public class DatasourceServer implements DatasourceApi {
-    public static final List<String> notFullDs = List.of("folder", "Excel", "API");
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-    private static final Integer replace = 0;
-    private static final Integer append = 1;
-    private static List<Long> syncDsIds = new ArrayList<>();
     @Resource
     private CoreDatasourceMapper datasourceMapper;
     @Resource
@@ -91,6 +86,7 @@ public class DatasourceServer implements DatasourceApi {
     private DatasourceSyncManage datasourceSyncManage;
     @Resource
     private TaskLogExtMapper taskLogExtMapper;
+    private static final ObjectMapper objectMapper = new ObjectMapper();
     @Resource
     private DataSourceManage dataSourceManage;
     @Resource
@@ -109,56 +105,20 @@ public class DatasourceServer implements DatasourceApi {
     private PluginManageApi pluginManage;
     @Autowired(required = false)
     private RelationApi relationManage;
+
+    public enum UpdateType {
+        all_scope, add_scope
+    }
+
+    public static final List<String> notFullDs = List.of("folder", "Excel", "API");
+
     private TypeReference<List<ApiDefinition>> listTypeReference = new TypeReference<List<ApiDefinition>>() {
     };
     @Resource
     private CommonThreadPool commonThreadPool;
     private boolean isUpdatingStatus = false;
+    private static List<Long> syncDsIds = new ArrayList<>();
 
-    public static <T> List<T> deepCopy(List<T> originalList) {
-        try {
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ObjectOutputStream(bos);
-            oos.writeObject(originalList);
-            oos.close();
-
-            ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
-            ObjectInputStream ois = new ObjectInputStream(bis);
-            List<T> newList = (List<T>) ois.readObject();
-            ois.close();
-
-            return newList;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    private static void checkParams(String configurationStr) {
-        DatasourceConfiguration configuration = JsonUtil.parseObject(configurationStr, DatasourceConfiguration.class);
-        if (configuration.getInitialPoolSize() < configuration.getMinPoolSize()) {
-            DEException.throwException("初始连接数不能小于最小连接数！");
-        }
-        if (configuration.getInitialPoolSize() > configuration.getMaxPoolSize()) {
-            DEException.throwException("初始连接数不能大于最大连接数！");
-        }
-        if (configuration.getMaxPoolSize() < configuration.getMinPoolSize()) {
-            DEException.throwException("最大连接数不能小于最小连接数！");
-        }
-        if (configuration.getQueryTimeout() < 0) {
-            DEException.throwException("查询超时不能小于0！");
-        }
-    }
-
-    private static void checkName(List<String> tables) {
-        for (int i = 0; i < tables.size() - 1; i++) {
-            for (int j = i + 1; j < tables.size(); j++) {
-                if (tables.get(i).equalsIgnoreCase(tables.get(j))) {
-                    DEException.throwException(Translator.get("i18n_table_name_repeat") + tables.get(i));
-                }
-            }
-        }
-    }
 
     @Override
     public List<DatasourceDTO> query(String keyWord) {
@@ -528,6 +488,7 @@ public class DatasourceServer implements DatasourceApi {
         return dataSourceDTO;
     }
 
+
     @Override
     public List<DatasourceConfiguration.DatasourceType> datasourceTypes() {
         return Arrays.asList(DatasourceConfiguration.DatasourceType.values());
@@ -684,7 +645,7 @@ public class DatasourceServer implements DatasourceApi {
     @Override
     @XpackInteract(value = "datasourceResourceTree", before = false)
     public void delete(Long datasourceId) throws DEException {
-        Objects.requireNonNull(io.dataease.utils.CommonBeanFactory.getBean(DatasourceServer.class)).recursionDel(datasourceId);
+        Objects.requireNonNull(CommonBeanFactory.getBean(DatasourceServer.class)).recursionDel(datasourceId);
     }
 
     public void recursionDel(Long datasourceId) throws DEException {
@@ -740,6 +701,7 @@ public class DatasourceServer implements DatasourceApi {
         }
     }
 
+
     @Override
     public DatasourceDTO validate(Long datasourceId) throws DEException {
         CoreDatasource coreDatasource = new CoreDatasource();
@@ -767,9 +729,9 @@ public class DatasourceServer implements DatasourceApi {
                 cron = "0 0/minute * *  * ? *".replace("minute", interval.toString());
         }
         scheduleManager.addOrUpdateCronJob(new JobKey("Datasource", "check_status"),
-            new TriggerKey("Datasource", "check_status"),
-            CheckDsStatusJob.class,
-            cron, new Date(System.currentTimeMillis()), null, new JobDataMap());
+                new TriggerKey("Datasource", "check_status"),
+                CheckDsStatusJob.class,
+                cron, new Date(System.currentTimeMillis()), null, new JobDataMap());
     }
 
     @Override
@@ -879,6 +841,28 @@ public class DatasourceServer implements DatasourceApi {
         datasourceSyncManage.extractedData(null, coreDatasource, updateType, MANUAL.toString());
     }
 
+    public static <T> List<T> deepCopy(List<T> originalList) {
+        try {
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            ObjectOutputStream oos = new ObjectOutputStream(bos);
+            oos.writeObject(originalList);
+            oos.close();
+
+            ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
+            ObjectInputStream ois = new ObjectInputStream(bis);
+            List<T> newList = (List<T>) ois.readObject();
+            ois.close();
+
+            return newList;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private static final Integer replace = 0;
+    private static final Integer append = 1;
+
     public ExcelFileData uploadFile(@RequestParam("file") MultipartFile file, @RequestParam("id") long datasourceId, @RequestParam("editType") Integer editType) throws DEException {
         CoreDatasource coreDatasource = null;
         if (ObjectUtils.isNotEmpty(datasourceId) && 0L != datasourceId) {
@@ -968,6 +952,7 @@ public class DatasourceServer implements DatasourceApi {
         return excelFileData;
     }
 
+
     private boolean isEqual(List<TableField> newTableFields, List<TableField> oldTableFields) {
         if (CollectionUtils.isEmpty(newTableFields) || CollectionUtils.isEmpty(oldTableFields)) {
             return false;
@@ -1022,7 +1007,6 @@ public class DatasourceServer implements DatasourceApi {
 
     public ApiDefinition checkApiDatasource(Map<String, String> request) throws DEException {
         ApiDefinition apiDefinition = JsonUtil.parseObject(new String(java.util.Base64.getDecoder().decode(request.get("data"))), ApiDefinition.class);
-        apiDefinition.setType("table");
         if (request.keySet().contains("type") && request.get("type").equals("apiStructure")) {
             apiDefinition.setShowApiStructure(true);
         }
@@ -1093,6 +1077,7 @@ public class DatasourceServer implements DatasourceApi {
         }
     }
 
+
     public void updateDemoDs() {
     }
 
@@ -1108,7 +1093,6 @@ public class DatasourceServer implements DatasourceApi {
         PreviewSqlDTO previewSqlDTO = new PreviewSqlDTO();
         previewSqlDTO.setSql(sql);
         previewSqlDTO.setDatasourceId(id);
-        previewSqlDTO.setIsCross(false);
         return datasetDataManage.previewSql(previewSqlDTO);
     }
 
@@ -1155,6 +1139,7 @@ public class DatasourceServer implements DatasourceApi {
         }
         return pager;
     }
+
 
     public void updateDatasourceStatus() {
         QueryWrapper<CoreDatasource> wrapper = new QueryWrapper<>();
@@ -1227,6 +1212,7 @@ public class DatasourceServer implements DatasourceApi {
         return coreDsFinishPageMapper.selectById(AuthUtils.getUser().getUserId()) == null;
     }
 
+
     public void setShowFinishPage() throws DEException {
         CoreDsFinishPage coreDsFinishPage = new CoreDsFinishPage();
         coreDsFinishPage.setId(AuthUtils.getUser().getUserId());
@@ -1238,6 +1224,7 @@ public class DatasourceServer implements DatasourceApi {
         BeanUtils.copyBean(datasourceDTO, record);
         return datasourceDTO;
     }
+
 
     private void filterDs(List<BusiNodeVO> busiNodeVOS, List<Long> ids, String type, Long id) {
         for (BusiNodeVO busiNodeVO : busiNodeVOS) {
@@ -1252,6 +1239,32 @@ public class DatasourceServer implements DatasourceApi {
             }
             if (CollectionUtils.isNotEmpty(busiNodeVO.getChildren())) {
                 filterDs(busiNodeVO.getChildren(), ids, type, id);
+            }
+        }
+    }
+
+    private static void checkParams(String configurationStr) {
+        DatasourceConfiguration configuration = JsonUtil.parseObject(configurationStr, DatasourceConfiguration.class);
+        if (configuration.getInitialPoolSize() < configuration.getMinPoolSize()) {
+            DEException.throwException("初始连接数不能小于最小连接数！");
+        }
+        if (configuration.getInitialPoolSize() > configuration.getMaxPoolSize()) {
+            DEException.throwException("初始连接数不能大于最大连接数！");
+        }
+        if (configuration.getMaxPoolSize() < configuration.getMinPoolSize()) {
+            DEException.throwException("最大连接数不能小于最小连接数！");
+        }
+        if (configuration.getQueryTimeout() < 0) {
+            DEException.throwException("查询超时不能小于0！");
+        }
+    }
+
+    private static void checkName(List<String> tables) {
+        for (int i = 0; i < tables.size() - 1; i++) {
+            for (int j = i + 1; j < tables.size(); j++) {
+                if (tables.get(i).equalsIgnoreCase(tables.get(j))) {
+                    DEException.throwException(Translator.get("i18n_table_name_repeat") + tables.get(i));
+                }
             }
         }
     }
@@ -1382,9 +1395,9 @@ public class DatasourceServer implements DatasourceApi {
         DatasourceConfiguration config = null;
         String host = null;
         if (StringUtils.isBlank(configuration)
-            || StringUtils.equalsIgnoreCase("[]", configuration)
-            || ObjectUtils.isEmpty(config = JsonUtil.parseObject(configuration, DatasourceConfiguration.class))
-            || StringUtils.isBlank(host = config.getHost())) {
+                || StringUtils.equalsIgnoreCase("[]", configuration)
+                || ObjectUtils.isEmpty(config = JsonUtil.parseObject(configuration, DatasourceConfiguration.class))
+                || StringUtils.isBlank(host = config.getHost())) {
             return vo;
         }
         vo.setHost(host);
@@ -1432,6 +1445,11 @@ public class DatasourceServer implements DatasourceApi {
         Object resObj = null;
         try {
             Method method = getMethod(dsType, methodName, classes);
+            if (object instanceof DatasourceRequest && dsType.equals(DataSourceType.APILark.name())) {
+                Class<?> clazz = Class.forName(DatasourceRequest.class.getName());
+                Method setToken = clazz.getMethod("setToken", String.class);
+                setToken.invoke(object, dataSourceManage.getTenantAccessToken());
+            }
             resObj = method.invoke(null, object);
         } catch (Exception e) {
             DEException.throwException(msg(e));
@@ -1445,15 +1463,11 @@ public class DatasourceServer implements DatasourceApi {
             if (exception.getCause() == null) {
                 return exception.getMessage();
             }
-            if (exception instanceof DEException && (!(exception.getCause() instanceof DEException) && !(exception.getCause() instanceof InvocationTargetException))) {
+            if (exception instanceof DEException && !(exception.getCause() instanceof DEException)) {
                 return exception.getMessage();
             }
             exception = exception.getCause();
 
         }
-    }
-
-    public enum UpdateType {
-        all_scope, add_scope
     }
 }

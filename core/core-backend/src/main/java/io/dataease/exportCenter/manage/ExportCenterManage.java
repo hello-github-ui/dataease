@@ -2,9 +2,8 @@ package io.dataease.exportCenter.manage;
 
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.gson.Gson;
 import io.dataease.api.chart.dto.ViewDetailField;
 import io.dataease.api.chart.request.ChartExcelRequest;
 import io.dataease.api.chart.request.ChartExcelRequestInner;
@@ -13,18 +12,17 @@ import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.api.dataset.union.UnionDTO;
 import io.dataease.api.export.BaseExportApi;
 import io.dataease.api.permissions.dataset.dto.DataSetRowPermissionsTreeDTO;
-import io.dataease.api.permissions.user.vo.UserFormVO;
 import io.dataease.api.xpack.dataFilling.DataFillingApi;
 import io.dataease.api.xpack.dataFilling.dto.DataFillFormTableDataRequest;
 import io.dataease.auth.bo.TokenUserBO;
 import io.dataease.chart.dao.auto.mapper.CoreChartViewMapper;
 import io.dataease.chart.server.ChartDataServer;
 import io.dataease.commons.utils.ExcelWatermarkUtils;
-import io.dataease.constant.DeTypeConstants;
 import io.dataease.dataset.dao.auto.entity.CoreDatasetGroup;
 import io.dataease.dataset.dao.auto.mapper.CoreDatasetGroupMapper;
 import io.dataease.dataset.manage.*;
 import io.dataease.datasource.utils.DatasourceUtils;
+import io.dataease.constant.DeTypeConstants;
 import io.dataease.engine.sql.SQLProvider;
 import io.dataease.engine.trans.Field2SQLObj;
 import io.dataease.engine.trans.Order2SQLObj;
@@ -34,7 +32,6 @@ import io.dataease.engine.utils.Utils;
 import io.dataease.exception.DEException;
 import io.dataease.exportCenter.dao.auto.entity.CoreExportTask;
 import io.dataease.exportCenter.dao.auto.mapper.CoreExportTaskMapper;
-import io.dataease.exportCenter.dao.ext.mapper.ExportTaskExtMapper;
 import io.dataease.exportCenter.util.ExportCenterUtils;
 import io.dataease.extensions.datasource.api.PluginManageApi;
 import io.dataease.extensions.datasource.dto.DatasetTableFieldDTO;
@@ -43,9 +40,7 @@ import io.dataease.extensions.datasource.dto.DatasourceSchemaDTO;
 import io.dataease.extensions.datasource.factory.ProviderFactory;
 import io.dataease.extensions.datasource.model.SQLMeta;
 import io.dataease.extensions.datasource.provider.Provider;
-import io.dataease.extensions.view.dto.ChartViewDTO;
-import io.dataease.extensions.view.dto.ColumnPermissionItem;
-import io.dataease.extensions.view.dto.DatasetRowPermissionsTreeObj;
+import io.dataease.extensions.view.dto.*;
 import io.dataease.i18n.Translator;
 import io.dataease.license.config.XpackInteract;
 import io.dataease.license.utils.LicenseUtil;
@@ -56,7 +51,6 @@ import io.dataease.utils.*;
 import io.dataease.visualization.dao.auto.entity.VisualizationWatermark;
 import io.dataease.visualization.dao.auto.mapper.VisualizationWatermarkMapper;
 import io.dataease.visualization.dao.ext.mapper.ExtDataVisualizationMapper;
-import io.dataease.visualization.dto.WatermarkContentDTO;
 import io.dataease.visualization.server.DataVisualizationServer;
 import io.dataease.websocket.WsMessage;
 import io.dataease.websocket.WsService;
@@ -73,6 +67,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import io.dataease.visualization.dto.WatermarkContentDTO;
+import io.dataease.api.permissions.user.vo.UserFormVO;
 
 import java.io.*;
 import java.net.InetAddress;
@@ -88,18 +84,12 @@ import java.util.stream.Collectors;
 @Component
 @Transactional(rollbackFor = Exception.class)
 public class ExportCenterManage implements BaseExportApi {
-    private final static String DATA_URL_TITLE = "data:image/jpeg;base64,";
-    private static final String LOG_RETENTION = "30";
-    static private List<String> STATUS = Arrays.asList("SUCCESS", "FAILED", "PENDING", "IN_PROGRESS", "ALL");
-    private final Long sheetLimit = 1000000L;
-    @Resource
-    DataVisualizationServer dataVisualizationServer;
     @Resource
     private CoreExportTaskMapper exportTaskMapper;
     @Resource
-    private ExportTaskExtMapper exportTaskExtMapper;
-    @Resource
     private DatasetGroupManage datasetGroupManage;
+    @Resource
+    DataVisualizationServer dataVisualizationServer;
     @Resource
     private CoreChartViewMapper coreChartViewMapper;
     @Resource
@@ -114,15 +104,23 @@ public class ExportCenterManage implements BaseExportApi {
     private int core;
     @Value("${dataease.export.max.size:10}")
     private int max;
-//    @Value("${dataease.path.exportData:/opt/dataease2.0/data/exportData/}")
-    @Value("${dataease.path.exportData:C:\\opt\\dataease2.0\\data\\exportData\\}")
+
+
+    private final static String DATA_URL_TITLE = "data:image/jpeg;base64,";
+    @Value("${dataease.path.exportData:/opt/dataease2.0/data/exportData/}")
     private String exportData_path;
     @Resource
     private VisualizationWatermarkMapper watermarkMapper;
     @Resource
     private ExtDataVisualizationMapper visualizationMapper;
+
+    public Integer getExtractPageSize() {
+        return extractPageSize;
+    }
+
     @Value("${dataease.export.page.size:50000}")
     private Integer extractPageSize;
+    static private List<String> STATUS = Arrays.asList("SUCCESS", "FAILED", "PENDING", "IN_PROGRESS", "ALL");
     private ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
     private int keepAliveSeconds = 600;
     private Map<String, Future> Running_Task = new HashMap<>();
@@ -138,16 +136,14 @@ public class ExportCenterManage implements BaseExportApi {
     private DatasetTableFieldManage datasetTableFieldManage;
     @Resource
     private DatasetDataManage datasetDataManage;
+    private final Long sheetLimit = 1000000L;
     @Autowired(required = false)
     private DataFillingApi dataFillingApi = null;
-
-    public Integer getExtractPageSize() {
-        return extractPageSize;
-    }
 
     private DataFillingApi getDataFillingApi() {
         return dataFillingApi;
     }
+
 
     @PostConstruct
     public void init() {
@@ -176,6 +172,7 @@ public class ExportCenterManage implements BaseExportApi {
             }
         }
     }
+
 
     public void download(String id, HttpServletResponse response) throws Exception {
         CoreExportTask exportTask = exportTaskMapper.selectById(id);
@@ -267,57 +264,27 @@ public class ExportCenterManage implements BaseExportApi {
         }
     }
 
-    public IPage<ExportTaskDTO> pager(Page<ExportTaskDTO> page, String status) {
+    public List<ExportTaskDTO> exportTasks(String status) {
         if (!STATUS.contains(status)) {
             DEException.throwException("Invalid status: " + status);
         }
-
         QueryWrapper<CoreExportTask> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_id", AuthUtils.getUser().getUserId());
-        if (!status.equalsIgnoreCase("ALL")) {
-            queryWrapper.eq("export_status", status);
-        }
         queryWrapper.orderByDesc("export_time");
-        IPage<ExportTaskDTO> pager = exportTaskExtMapper.pager(page, queryWrapper);
-
-        List<ExportTaskDTO> records = pager.getRecords();
-        records.forEach(exportTask -> {
-            if (status.equalsIgnoreCase("ALL") || status.equalsIgnoreCase(exportTask.getExportStatus())) {
-                setExportFromAbsName(exportTask);
+        List<CoreExportTask> exportTasks = exportTaskMapper.selectList(queryWrapper);
+        List<ExportTaskDTO> result = new ArrayList<>();
+        exportTasks.forEach(exportTask -> {
+            ExportTaskDTO exportTaskDTO = new ExportTaskDTO();
+            BeanUtils.copyBean(exportTaskDTO, exportTask);
+            if (status.equalsIgnoreCase("ALL") || status.equalsIgnoreCase(exportTaskDTO.getExportStatus())) {
+                setExportFromAbsName(exportTaskDTO);
             }
-            if (status.equalsIgnoreCase("ALL") || status.equalsIgnoreCase(exportTask.getExportStatus())) {
-                proxy().setOrg(exportTask);
+            if (status.equalsIgnoreCase("ALL") || status.equalsIgnoreCase(exportTaskDTO.getExportStatus())) {
+                proxy().setOrg(exportTaskDTO);
             }
+            result.add(exportTaskDTO);
         });
 
-        return pager;
-    }
-
-    public Map<String, Long> exportTasks() {
-        Map<String, Long> result = new HashMap<>();
-        QueryWrapper<CoreExportTask> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("user_id", AuthUtils.getUser().getUserId());
-        queryWrapper.eq("export_status", "IN_PROGRESS");
-        result.put("IN_PROGRESS", exportTaskMapper.selectCount(queryWrapper));
-
-        queryWrapper.clear();
-        queryWrapper.eq("user_id", AuthUtils.getUser().getUserId());
-        queryWrapper.eq("export_status", "SUCCESS");
-        result.put("SUCCESS", exportTaskMapper.selectCount(queryWrapper));
-
-        queryWrapper.clear();
-        queryWrapper.eq("user_id", AuthUtils.getUser().getUserId());
-        queryWrapper.eq("export_status", "FAILED");
-        result.put("FAILED", exportTaskMapper.selectCount(queryWrapper));
-
-        queryWrapper.clear();
-        queryWrapper.eq("user_id", AuthUtils.getUser().getUserId());
-        queryWrapper.eq("export_status", "PENDING");
-        result.put("PENDING", exportTaskMapper.selectCount(queryWrapper));
-
-        queryWrapper.clear();
-        queryWrapper.eq("user_id", AuthUtils.getUser().getUserId());
-        result.put("ALL", exportTaskMapper.selectCount(queryWrapper));
         return result;
     }
 
@@ -459,6 +426,7 @@ public class ExportCenterManage implements BaseExportApi {
         Running_Task.put(exportTask.getId(), future);
     }
 
+
     private void startDatasetTask(CoreExportTask exportTask, DataSetExportRequest request) {
         String dataPath = exportData_path + exportTask.getId();
         File directory = new File(dataPath);
@@ -508,7 +476,7 @@ public class ExportCenterManage implements BaseExportApi {
                     dsList.add(next.getValue().getType());
                 }
                 boolean needOrder = Utils.isNeedOrder(dsList);
-                boolean crossDs = dto.getIsCross();
+                boolean crossDs = Utils.isCrossDs(dsMap);
                 if (!crossDs) {
                     if (datasetDataManage.notFullDs.contains(dsMap.entrySet().iterator().next().getValue().getType()) && (boolean) sqlMap.get("isFullJoin")) {
                         DEException.throwException(Translator.get("i18n_not_full"));
@@ -521,6 +489,7 @@ public class ExportCenterManage implements BaseExportApi {
                     rowPermissionsTree = permissionManage.getRowPermissionsTree(dto.getId(), user.getUserId());
                 }
                 if (StringUtils.isNotEmpty(request.getExpressionTree())) {
+                    Gson gson = new Gson();
                     DatasetRowPermissionsTreeObj datasetRowPermissionsTreeObj = JsonUtil.parseObject(request.getExpressionTree(), DatasetRowPermissionsTreeObj.class);
                     permissionManage.getField(datasetRowPermissionsTreeObj);
                     DataSetRowPermissionsTreeDTO dataSetRowPermissionsTreeDTO = new DataSetRowPermissionsTreeDTO();
@@ -575,8 +544,7 @@ public class ExportCenterManage implements BaseExportApi {
                         DatasourceRequest datasourceRequest = new DatasourceRequest();
                         datasourceRequest.setQuery(querySQL);
                         datasourceRequest.setDsList(dsMap);
-                        datasourceRequest.setIsCross(coreDatasetGroup.getIsCross());
-                        Map<String, Object> previewData = datasetDataManage.buildPreviewData(provider.fetchResultField(datasourceRequest), allFields, desensitizationList, false);
+                        Map<String, Object> previewData = datasetDataManage.buildPreviewData(provider.fetchResultField(datasourceRequest), allFields, desensitizationList);
                         List<Map<String, Object>> data = (List<Map<String, Object>>) previewData.get("data");
                         if (p.equals(0L)) {
                             detailsSheet = wb.createSheet("数据" + s);
@@ -671,6 +639,7 @@ public class ExportCenterManage implements BaseExportApi {
         Running_Task.put(exportTask.getId(), future);
     }
 
+
     private void startViewTask(CoreExportTask exportTask, ChartExcelRequest request) {
         String dataPath = exportData_path + exportTask.getId();
         File directory = new File(dataPath);
@@ -694,7 +663,7 @@ public class ExportCenterManage implements BaseExportApi {
                 List<Object[]> details = new ArrayList<>();
                 Sheet detailsSheet;
                 Integer sheetIndex = 1;
-                if ("dataset".equals(request.getDownloadType()) || request.getViewInfo().getType().equalsIgnoreCase("table-info") || request.getViewInfo().getType().equalsIgnoreCase("table-normal")) {
+                if ("dataset".equals(request.getDownloadType()) || request.getViewInfo().getType().equalsIgnoreCase("table-info")) {
                     request.getViewInfo().getChartExtRequest().setPageSize(Long.valueOf(extractPageSize));
                     ChartViewDTO chartViewDTO = chartDataServer.findExcelData(request);
                     for (long i = 1; i < chartViewDTO.getTotalPage() + 1; i++) {
@@ -809,6 +778,9 @@ public class ExportCenterManage implements BaseExportApi {
         exportTask.setFileSize(size);
         exportTask.setFileSizeUnit(unit);
     }
+
+
+    private static final String LOG_RETENTION = "30";
 
     public void cleanLog() {
         String key = "basic.exportFileLiveTime";

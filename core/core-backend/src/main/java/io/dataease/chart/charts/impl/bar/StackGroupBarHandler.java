@@ -12,6 +12,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import static io.dataease.extensions.view.dto.ChartAxis.extStack;
+import static io.dataease.extensions.view.dto.ChartAxis.xAxisExt;
+
 @Component
 public class StackGroupBarHandler extends BarHandler {
     @Getter
@@ -41,13 +44,13 @@ public class StackGroupBarHandler extends BarHandler {
         // 分组维度下钻
         if (ObjectUtils.isNotEmpty(drillRequestList) && (drillFields.size() > drillRequestList.size())) {
             List<ChartExtFilterDTO> noDrillFilterList = filterList
-                .stream()
-                .filter(ele -> ele.getFilterType() != 1)
-                .collect(Collectors.toList());
+                    .stream()
+                    .filter(ele -> ele.getFilterType() != 1)
+                    .collect(Collectors.toList());
             var noDrillFieldAxis = formatResult.getAxisMap().get(ChartAxis.xAxis)
-                .stream()
-                .filter(ele -> ele.getSource() != FieldSource.DRILL)
-                .collect(Collectors.toList());
+                    .stream()
+                    .filter(ele -> ele.getSource() != FieldSource.DRILL)
+                    .collect(Collectors.toList());
             ArrayList<ChartViewFieldDTO> fieldsToFilter = new ArrayList<>();
             var xAxisExt = formatResult.getAxisMap().get(ChartAxis.xAxisExt);
             var extStack = formatResult.getAxisMap().get(ChartAxis.extStack);
@@ -71,9 +74,9 @@ public class StackGroupBarHandler extends BarHandler {
     @Override
     public Map<String, Object> buildNormalResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data) {
         boolean isDrill = filterResult
-            .getFilterList()
-            .stream()
-            .anyMatch(ele -> ele.getFilterType() == 1);
+                .getFilterList()
+                .stream()
+                .anyMatch(ele -> ele.getFilterType() == 1);
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
         var xAxisExt = formatResult.getAxisMap().get(ChartAxis.xAxisExt);
         var extStack = formatResult.getAxisMap().get(ChartAxis.extStack);

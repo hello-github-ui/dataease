@@ -14,7 +14,6 @@ public class GeoServer implements GeoApi {
 
     @Resource
     private MapManage mapManage;
-
     @Override
     public void saveMapGeo(GeometryNodeCreator request, MultipartFile file) {
         mapManage.saveMapGeo(request, file);

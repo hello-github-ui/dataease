@@ -1,0 +1,1 @@
+import{E as e}from"./EmptyBackground-0.0.0-dataease.js";import{d as r,f as o,g as t}from"./vue-0.0.0-dataease.js";const s=r({__name:"IframeError",setup(n){return(a,m)=>(o(),t(e,{"img-type":"noneWhite",description:"仅嵌入式版和企业版支持iframe方式内嵌公共链接"}))}});export{s as _};

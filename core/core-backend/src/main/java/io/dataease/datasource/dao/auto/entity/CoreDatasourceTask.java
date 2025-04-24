@@ -215,21 +215,21 @@ public class CoreDatasourceTask implements Serializable {
     @Override
     public String toString() {
         return "CoreDatasourceTask{" +
-            "id = " + id +
-            ", dsId = " + dsId +
-            ", name = " + name +
-            ", updateType = " + updateType +
-            ", startTime = " + startTime +
-            ", syncRate = " + syncRate +
-            ", cron = " + cron +
-            ", simpleCronValue = " + simpleCronValue +
-            ", simpleCronType = " + simpleCronType +
-            ", endTime = " + endTime +
-            ", createTime = " + createTime +
-            ", lastExecTime = " + lastExecTime +
-            ", lastExecStatus = " + lastExecStatus +
-            ", extraData = " + extraData +
-            ", taskStatus = " + taskStatus +
-            "}";
+                "id = " + id +
+                ", dsId = " + dsId +
+                ", name = " + name +
+                ", updateType = " + updateType +
+                ", startTime = " + startTime +
+                ", syncRate = " + syncRate +
+                ", cron = " + cron +
+                ", simpleCronValue = " + simpleCronValue +
+                ", simpleCronType = " + simpleCronType +
+                ", endTime = " + endTime +
+                ", createTime = " + createTime +
+                ", lastExecTime = " + lastExecTime +
+                ", lastExecStatus = " + lastExecStatus +
+                ", extraData = " + extraData +
+                ", taskStatus = " + taskStatus +
+                "}";
     }
 }

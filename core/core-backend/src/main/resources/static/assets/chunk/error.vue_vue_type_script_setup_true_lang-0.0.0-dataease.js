@@ -1,0 +1,1 @@
+import{E as e}from"./EmptyBackground-0.0.0-dataease.js";import{d as o,f as r,g as t}from"./vue-0.0.0-dataease.js";const m=o({__name:"error",setup(n){return(p,a)=>(r(),t(e,{"img-type":"noneWhite",description:"链接不存在"}))}});export{m as _};

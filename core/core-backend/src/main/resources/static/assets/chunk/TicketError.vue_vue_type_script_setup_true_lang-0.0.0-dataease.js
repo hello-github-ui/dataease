@@ -1,0 +1,1 @@
+import{E as e}from"./EmptyBackground-0.0.0-dataease.js";import{d as o,f as r,g as t}from"./vue-0.0.0-dataease.js";const s=o({__name:"TicketError",setup(n){return(c,p)=>(r(),t(e,{"img-type":"noneWhite",description:"Ticket参数错误"}))}});export{s as _};

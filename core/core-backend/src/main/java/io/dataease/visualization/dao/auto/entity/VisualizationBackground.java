@@ -1,12 +1,11 @@
 package io.dataease.visualization.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
  * <p>
- *
+ * 
  * </p>
  *
  * @author fit2cloud
@@ -110,15 +109,15 @@ public class VisualizationBackground implements Serializable {
     @Override
     public String toString() {
         return "VisualizationBackground{" +
-            "id = " + id +
-            ", name = " + name +
-            ", classification = " + classification +
-            ", content = " + content +
-            ", remark = " + remark +
-            ", sort = " + sort +
-            ", uploadTime = " + uploadTime +
-            ", baseUrl = " + baseUrl +
-            ", url = " + url +
-            "}";
+        "id = " + id +
+        ", name = " + name +
+        ", classification = " + classification +
+        ", content = " + content +
+        ", remark = " + remark +
+        ", sort = " + sort +
+        ", uploadTime = " + uploadTime +
+        ", baseUrl = " + baseUrl +
+        ", url = " + url +
+        "}";
     }
 }

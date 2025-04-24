@@ -1,7 +1,6 @@
 package io.dataease.visualization.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
@@ -138,6 +137,10 @@ public class DataVisualizationInfo implements Serializable {
      * 内容检查标识
      */
     private String checkVersion;
+
+    public void setContentId(String contentId) {
+        this.contentId = contentId;
+    }
 
     public Long getId() {
         return id;
@@ -327,10 +330,6 @@ public class DataVisualizationInfo implements Serializable {
         return contentId;
     }
 
-    public void setContentId(String contentId) {
-        this.contentId = contentId;
-    }
-
     public String getCheckVersion() {
         return checkVersion;
     }
@@ -342,31 +341,31 @@ public class DataVisualizationInfo implements Serializable {
     @Override
     public String toString() {
         return "DataVisualizationInfo{" +
-            "id = " + id +
-            ", name = " + name +
-            ", pid = " + pid +
-            ", orgId = " + orgId +
-            ", level = " + level +
-            ", nodeType = " + nodeType +
-            ", type = " + type +
-            ", canvasStyleData = " + canvasStyleData +
-            ", componentData = " + componentData +
-            ", mobileLayout = " + mobileLayout +
-            ", status = " + status +
-            ", selfWatermarkStatus = " + selfWatermarkStatus +
-            ", sort = " + sort +
-            ", createTime = " + createTime +
-            ", createBy = " + createBy +
-            ", updateTime = " + updateTime +
-            ", updateBy = " + updateBy +
-            ", remark = " + remark +
-            ", source = " + source +
-            ", deleteFlag = " + deleteFlag +
-            ", deleteTime = " + deleteTime +
-            ", deleteBy = " + deleteBy +
-            ", version = " + version +
-            ", contentId = " + contentId +
-            ", checkVersion = " + checkVersion +
-            "}";
+        "id = " + id +
+        ", name = " + name +
+        ", pid = " + pid +
+        ", orgId = " + orgId +
+        ", level = " + level +
+        ", nodeType = " + nodeType +
+        ", type = " + type +
+        ", canvasStyleData = " + canvasStyleData +
+        ", componentData = " + componentData +
+        ", mobileLayout = " + mobileLayout +
+        ", status = " + status +
+        ", selfWatermarkStatus = " + selfWatermarkStatus +
+        ", sort = " + sort +
+        ", createTime = " + createTime +
+        ", createBy = " + createBy +
+        ", updateTime = " + updateTime +
+        ", updateBy = " + updateBy +
+        ", remark = " + remark +
+        ", source = " + source +
+        ", deleteFlag = " + deleteFlag +
+        ", deleteTime = " + deleteTime +
+        ", deleteBy = " + deleteBy +
+        ", version = " + version +
+        ", contentId = " + contentId +
+        ", checkVersion = " + checkVersion +
+        "}";
     }
 }

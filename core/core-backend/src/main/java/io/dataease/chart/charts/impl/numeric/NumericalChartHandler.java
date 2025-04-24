@@ -1,6 +1,5 @@
 package io.dataease.chart.charts.impl.numeric;
 
-import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.chart.charts.impl.DefaultChartHandler;
 import io.dataease.chart.utils.ChartDataBuild;
 import io.dataease.engine.sql.SQLProvider;
@@ -34,7 +33,6 @@ public class NumericalChartHandler extends DefaultChartHandler {
         boolean needOrder = Utils.isNeedOrder(dsList);
         boolean crossDs = Utils.isCrossDs(dsMap);
         DatasourceRequest datasourceRequest = new DatasourceRequest();
-        datasourceRequest.setIsCross(((DatasetGroupInfoDTO) formatResult.getContext().get("dataset")).getIsCross());
         datasourceRequest.setDsList(dsMap);
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
         var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);
@@ -46,9 +44,9 @@ public class NumericalChartHandler extends DefaultChartHandler {
         logger.debug("calcite chart sql: " + querySql);
         List<String[]> data = (List<String[]>) provider.fetchResultField(datasourceRequest).get("data");
         boolean isdrill = filterResult
-            .getFilterList()
-            .stream()
-            .anyMatch(ele -> ele.getFilterType() == 1);
+                .getFilterList()
+                .stream()
+                .anyMatch(ele -> ele.getFilterType() == 1);
         Map<String, Object> result = ChartDataBuild.transNormalChartData(xAxis, yAxis, view, data, isdrill);
         T calcResult = (T) new ChartCalcDataResult();
         calcResult.setData(result);
@@ -69,11 +67,14 @@ public class NumericalChartHandler extends DefaultChartHandler {
             String summary = (String) maxField.get("summary");
             DatasetTableFieldDTO datasetTableField = datasetTableFieldManage.selectById(id);
             if (ObjectUtils.isNotEmpty(datasetTableField)) {
+                if (datasetTableField.getDeType() == 0 || datasetTableField.getDeType() == 1 || datasetTableField.getDeType() == 5) {
+                    if (!StringUtils.containsIgnoreCase(summary, "count")) {
+                        DEException.throwException(Translator.get("i18n_gauge_field_change"));
+                    }
+                }
                 ChartViewFieldDTO dto = new ChartViewFieldDTO();
                 BeanUtils.copyBean(dto, datasetTableField);
-                if (StringUtils.isEmpty(dto.getSummary())) {
-                    dto.setSummary(summary);
-                }
+                dto.setSummary(summary);
                 return dto;
             } else {
                 DEException.throwException(Translator.get("i18n_gauge_field_delete"));

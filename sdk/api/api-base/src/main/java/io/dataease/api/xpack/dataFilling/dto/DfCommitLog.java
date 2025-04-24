@@ -34,6 +34,4 @@ public class DfCommitLog implements Serializable {
     private String committer;
 
     private Long commitTime;
-
-    private Integer count;
 }

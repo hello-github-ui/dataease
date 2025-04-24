@@ -1,6 +1,5 @@
 package io.dataease.chart.charts.impl.bar;
 
-import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.chart.charts.impl.YoyChartHandler;
 import io.dataease.engine.utils.Utils;
 import io.dataease.extensions.datasource.dto.DatasourceRequest;
@@ -9,8 +8,6 @@ import io.dataease.extensions.datasource.model.SQLMeta;
 import io.dataease.extensions.datasource.provider.Provider;
 import io.dataease.extensions.view.dto.*;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -45,7 +42,7 @@ public class BarHandler extends YoyChartHandler {
             dsList.add(next.getValue().getType());
         }
         boolean needOrder = Utils.isNeedOrder(dsList);
-        boolean crossDs = ((DatasetGroupInfoDTO) formatResult.getContext().get("dataset")).getIsCross();
+        boolean crossDs = Utils.isCrossDs(dsMap);
         var result = (T) super.calcChartResult(view, formatResult, filterResult, sqlMap, sqlMeta, provider);
         try {
             //如果有同环比过滤,应该用原始sql
@@ -55,28 +52,13 @@ public class BarHandler extends YoyChartHandler {
             var assistFields = getAssistFields(dynamicAssistFields, yAxis);
             if (CollectionUtils.isNotEmpty(assistFields)) {
                 var req = new DatasourceRequest();
-                req.setIsCross(crossDs);
                 req.setDsList(dsMap);
-
-                List<ChartSeniorAssistDTO> assists = dynamicAssistFields.stream().filter(ele -> !StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
-                if (ObjectUtils.isNotEmpty(assists)) {
-                    var assistSql = assistSQL(originSql, assistFields, dsMap, crossDs);
-                    req.setQuery(assistSql);
-                    logger.debug("calcite assistSql sql: " + assistSql);
-                    var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
-                    result.setAssistData(assistData);
-                    result.setDynamicAssistFields(assists);
-                }
-
-                List<ChartSeniorAssistDTO> assistsOriginList = dynamicAssistFields.stream().filter(ele -> StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
-                if (ObjectUtils.isNotEmpty(assistsOriginList)) {
-                    var assistSqlOriginList = assistSQLOriginList(originSql, assistFields, dsMap, crossDs);
-                    req.setQuery(assistSqlOriginList);
-                    logger.debug("calcite assistSql sql origin list: " + assistSqlOriginList);
-                    var assistDataOriginList = (List<String[]>) provider.fetchResultField(req).get("data");
-                    result.setAssistDataOriginList(assistDataOriginList);
-                    result.setDynamicAssistFieldsOriginList(assistsOriginList);
-                }
+                var assistSql = assistSQL(originSql, assistFields, dsMap);
+                req.setQuery(assistSql);
+                logger.debug("calcite assistSql sql: " + assistSql);
+                var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
+                result.setAssistData(assistData);
+                result.setDynamicAssistFields(dynamicAssistFields);
             }
         } catch (Exception e) {
             e.printStackTrace();

@@ -89,8 +89,4 @@ public interface InteractiveAuthApi {
 
     @PostMapping("/batchAuthorize")
     void batchAuthorize(@RequestBody BusiBatchAuthorizeRequest request);
-
-    @Hidden
-    @PostMapping("/revert")
-    void revert();
 }

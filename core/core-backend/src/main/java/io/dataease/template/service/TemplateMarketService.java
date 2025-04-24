@@ -21,12 +21,10 @@ public class TemplateMarketService implements TemplateMarketApi {
 
     @Resource
     private TemplateCenterManage templateCenterManage;
-
     @Override
     public MarketBaseResponse searchTemplate() {
         return templateCenterManage.searchTemplate();
     }
-
     @Override
     public MarketBaseResponse searchTemplateRecommend() {
         return templateCenterManage.searchTemplateRecommend();

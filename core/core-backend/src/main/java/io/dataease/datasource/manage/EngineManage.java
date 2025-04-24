@@ -12,8 +12,6 @@ import io.dataease.extensions.datasource.dto.DatasourceDTO;
 import io.dataease.extensions.datasource.dto.DatasourceRequest;
 import io.dataease.extensions.datasource.factory.ProviderFactory;
 import io.dataease.result.ResultMessage;
-import io.dataease.template.dao.auto.entity.DeTemplateVersion;
-import io.dataease.template.dao.auto.mapper.DeTemplateVersionMapper;
 import io.dataease.utils.BeanUtils;
 import io.dataease.utils.JsonUtil;
 import io.dataease.utils.ModelUtils;
@@ -25,8 +23,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,9 +42,6 @@ public class EngineManage {
 
     @Value("${dataease.path.engine:jdbc:h2:/opt/dataease2.0/desktop_data;AUTO_SERVER=TRUE;AUTO_RECONNECT=TRUE;MODE=MySQL;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DATABASE_TO_UPPER=FALSE}")
     private String engineUrl;
-
-    @Resource
-    private DeTemplateVersionMapper deTemplateVersionMapper;
 
 
     public CoreDeEngine info() throws DEException {
@@ -151,14 +144,26 @@ public class EngineManage {
         deEngineMapper.insert(engine);
     }
 
+
+    public enum engineType {
+        mysql("Mysql"),
+        h2("h2");
+        private String alias;
+
+        private engineType(String alias) {
+            this.alias = alias;
+        }
+
+        public String getAlias() {
+            return alias;
+        }
+    }
+
     public void initLocalDataSource() {
         QueryWrapper<CoreDatasource> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("id", 985188400292302848L);
         queryWrapper.ne("create_time", 1715053684176L);
-        // 版本检查
-        QueryWrapper<DeTemplateVersion> queryVersionWrapper = new QueryWrapper<>();
-        queryVersionWrapper.eq("version", "985188400292302848");
-        if (!datasourceMapper.exists(queryWrapper) && !deTemplateVersionMapper.exists(queryVersionWrapper) && !ModelUtils.isDesktop()) {
+        if (!datasourceMapper.exists(queryWrapper) && !ModelUtils.isDesktop()) {
             Pattern WITH_SQL_FRAGMENT = Pattern.compile("jdbc:mysql://(.*):(\\d+)/(.*)\\?(.*)");
             Matcher matcher = WITH_SQL_FRAGMENT.matcher(env.getProperty("spring.datasource.url"));
             if (!matcher.find()) {
@@ -186,28 +191,7 @@ public class EngineManage {
             initDatasource.setTaskStatus("WaitingForExecution");
             datasourceMapper.deleteById(985188400292302848L);
             datasourceMapper.insert(initDatasource);
-
-            DeTemplateVersion version = new DeTemplateVersion();
-            version.setVersion("985188400292302848");
-            version.setScript("Demo");
-            version.setInstalledOn(LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES));
-            version.setSuccess(true);
-            deTemplateVersionMapper.insert(version);
         }
 
-    }
-
-    public enum engineType {
-        mysql("Mysql"),
-        h2("h2");
-        private String alias;
-
-        private engineType(String alias) {
-            this.alias = alias;
-        }
-
-        public String getAlias() {
-            return alias;
-        }
     }
 }

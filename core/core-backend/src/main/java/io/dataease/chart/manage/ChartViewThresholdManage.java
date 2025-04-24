@@ -34,8 +34,8 @@ public class ChartViewThresholdManage {
     @Resource
     private ChartViewManege chartViewManege;
 
-    public String convertThresholdRules(Long chartId, String thresholdRules, String resourceTable) {
-        ChartViewDTO details = chartViewManege.getDetails(chartId, resourceTable);
+    public String convertThresholdRules(Long chartId, String thresholdRules) {
+        ChartViewDTO details = chartViewManege.getDetails(chartId);
         return convertThresholdRules(details, thresholdRules);
     }
 
@@ -199,15 +199,15 @@ public class ChartViewThresholdManage {
                     shortLabels = List.of(Translator.get("i18n_time_year_current"), Translator.get("i18n_time_year_last"), Translator.get("i18n_time_year_next"));
                 } else if (StringUtils.equalsIgnoreCase("YYYY-MM", format)) {
                     shortLabels = List.of(Translator.get("i18n_time_month_current"), Translator.get("i18n_time_month_last"), Translator.get("i18n_time_month_next"),
-                        Translator.get("i18n_time_month_start"), Translator.get("i18n_time_month_end"));
+                            Translator.get("i18n_time_month_start"), Translator.get("i18n_time_month_end"));
                 } else if (StringUtils.equalsIgnoreCase("YYYY-MM-DD", format)) {
                     shortLabels = List.of(Translator.get("i18n_time_date_current"), Translator.get("i18n_time_date_last"), Translator.get("i18n_time_date_next"),
-                        Translator.get("i18n_time_date_start"), Translator.get("i18n_time_date_end"));
+                            Translator.get("i18n_time_date_start"), Translator.get("i18n_time_date_end"));
                 } else if (StringUtils.equalsIgnoreCase("HH:mm:ss", format)) {
                     shortLabels = List.of("当前", "1小时前", "1小时后");
                 } else {
                     shortLabels = List.of(Translator.get("i18n_time_date_current"), Translator.get("i18n_time_date_last"), Translator.get("i18n_time_date_next"),
-                        Translator.get("i18n_time_date_start"), Translator.get("i18n_time_date_end"));
+                            Translator.get("i18n_time_date_start"), Translator.get("i18n_time_date_end"));
                 }
                 return shortLabels.get(timeFlag - 1);
             }
@@ -240,7 +240,7 @@ public class ChartViewThresholdManage {
         if (matcher.find()) {
             String styleAttribute = matcher.group();
             String newStyle = styleAttribute.replace("background: #3370FF33", "background: #FFFFFF")
-                .replace("color: #2b5fd9", "color: #000000");
+                    .replace("color: #2b5fd9", "color: #000000");
             return matcher.replaceAll(Matcher.quoteReplacement(newStyle));
         }
         return htmlString;
@@ -251,7 +251,7 @@ public class ChartViewThresholdManage {
         String thresholdRules = request.getThresholdRules();
         Long chartId = request.getChartId();
         try {
-            ChartViewDTO chart = chartViewManege.getChart(chartId, request.getResourceTable());
+            ChartViewDTO chart = chartViewManege.getChart(chartId);
             Map<String, Object> data = null;
             if (ObjectUtils.isEmpty(chart) || MapUtils.isEmpty(data = chart.getData())) {
                 return new ThresholdCheckVO(false, null, "查询图表异常！", null);

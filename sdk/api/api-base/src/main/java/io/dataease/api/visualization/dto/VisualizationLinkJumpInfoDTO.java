@@ -22,9 +22,6 @@ public class VisualizationLinkJumpInfoDTO extends VisualizationLinkJumpInfoVO {
     //存在公共链接的目标仪表板
     private String publicJumpId;
 
-    // 目标类型
-    private String targetDvType;
-
     private List<VisualizationLinkJumpTargetViewInfoVO> targetViewInfoList=new ArrayList<>();// linkType = inner 时使用
 
 }

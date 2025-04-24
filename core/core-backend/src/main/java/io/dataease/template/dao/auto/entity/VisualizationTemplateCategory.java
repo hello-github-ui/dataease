@@ -1,7 +1,6 @@
 package io.dataease.template.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
@@ -147,16 +146,16 @@ public class VisualizationTemplateCategory implements Serializable {
     @Override
     public String toString() {
         return "VisualizationTemplateCategory{" +
-            "id = " + id +
-            ", name = " + name +
-            ", pid = " + pid +
-            ", level = " + level +
-            ", dvType = " + dvType +
-            ", nodeType = " + nodeType +
-            ", createBy = " + createBy +
-            ", createTime = " + createTime +
-            ", snapshot = " + snapshot +
-            ", templateType = " + templateType +
-            "}";
+        "id = " + id +
+        ", name = " + name +
+        ", pid = " + pid +
+        ", level = " + level +
+        ", dvType = " + dvType +
+        ", nodeType = " + nodeType +
+        ", createBy = " + createBy +
+        ", createTime = " + createTime +
+        ", snapshot = " + snapshot +
+        ", templateType = " + templateType +
+        "}";
     }
 }

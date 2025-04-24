@@ -1,7 +1,5 @@
 package io.dataease.exportCenter.server;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.dataease.api.exportCenter.ExportCenterApi;
 import io.dataease.exportCenter.manage.ExportCenterManage;
 import io.dataease.exportCenter.util.ExportCenterUtils;
@@ -13,7 +11,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/exportCenter")
@@ -23,14 +20,8 @@ public class ExportCenterServer implements ExportCenterApi {
     private ExportCenterManage exportCenterManage;
 
     @Override
-    public Map<String, Long> exportTasks() {
-        return exportCenterManage.exportTasks();
-    }
-
-    @Override
-    public IPage<ExportTaskDTO> pager(int goPage, int pageSize, String status) {
-        Page<ExportTaskDTO> page = new Page<>(goPage, pageSize);
-        return exportCenterManage.pager(page, status);
+    public List<ExportTaskDTO> exportTasks(String status) {
+        return exportCenterManage.exportTasks(status);
     }
 
     @Override

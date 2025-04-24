@@ -34,6 +34,4 @@ public class DataSetBarVO implements Serializable {
     private String updater;
 
     private List<DatasourceDTO> datasourceDTOList;
-
-    private Boolean isCross;
 }

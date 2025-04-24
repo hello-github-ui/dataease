@@ -17,14 +17,14 @@ public class Mongo extends DatasourceConfiguration {
     private List<String> showTableSqls = Arrays.asList("show tables");
 
     public String getJdbc() {
-        if (StringUtils.isNoneEmpty(getUrlType()) && !getUrlType().equalsIgnoreCase("hostName")) {
+        if(StringUtils.isNoneEmpty(getUrlType()) && !getUrlType().equalsIgnoreCase("hostName")){
             return getJdbcUrl();
         }
         if (StringUtils.isEmpty(extraParams.trim())) {
             return "jdbc:mysql://HOSTNAME:PORT/DATABASE"
-                .replace("HOSTNAME", getLHost().trim())
-                .replace("PORT", getLPort().toString().trim())
-                .replace("DATABASE", getDataBase().trim());
+                    .replace("HOSTNAME", getLHost().trim())
+                    .replace("PORT", getLPort().toString().trim())
+                    .replace("DATABASE", getDataBase().trim());
         } else {
             for (String illegalParameter : illegalParameters) {
                 if (getExtraParams().contains(illegalParameter)) {
@@ -33,10 +33,10 @@ public class Mongo extends DatasourceConfiguration {
             }
 
             return "jdbc:mysql://HOSTNAME:PORT/DATABASE?EXTRA_PARAMS"
-                .replace("HOSTNAME", getLHost().trim())
-                .replace("PORT", getLPort().toString().trim())
-                .replace("DATABASE", getDataBase().trim())
-                .replace("EXTRA_PARAMS", getExtraParams().trim());
+                    .replace("HOSTNAME", getLHost().trim())
+                    .replace("PORT", getLPort().toString().trim())
+                    .replace("DATABASE", getDataBase().trim())
+                    .replace("EXTRA_PARAMS", getExtraParams().trim());
         }
     }
 }

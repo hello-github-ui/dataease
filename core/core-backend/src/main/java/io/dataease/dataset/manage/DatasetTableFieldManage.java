@@ -5,7 +5,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.dataset.dao.auto.entity.CoreDatasetTableField;
 import io.dataease.dataset.dao.auto.mapper.CoreDatasetTableFieldMapper;
-import io.dataease.dataset.utils.DatasetUtils;
 import io.dataease.dataset.utils.TableUtils;
 import io.dataease.engine.constant.ExtFieldConstant;
 import io.dataease.engine.func.FunctionConstant;
@@ -245,10 +244,10 @@ public class DatasetTableFieldManage {
         Map<String, ColumnPermissionItem> desensitizationList = new HashMap<>();
         Long userId = AuthUtils.getUser() == null ? null : AuthUtils.getUser().getUserId();
         List<DatasetTableFieldDTO> tmp = permissionManage
-            .filterColumnPermissions(fields, desensitizationList, id, userId)
-            .stream()
-            .sorted(Comparator.comparing(DatasetTableFieldDTO::getGroupType))
-            .toList();
+                .filterColumnPermissions(fields, desensitizationList, id, userId)
+                .stream()
+                .sorted(Comparator.comparing(DatasetTableFieldDTO::getGroupType))
+                .toList();
         tmp.forEach(ele -> ele.setDesensitized(desensitizationList.containsKey(ele.getDataeaseName())));
         return tmp;
     }
@@ -260,25 +259,24 @@ public class DatasetTableFieldManage {
         SQLObj tableObj = new SQLObj();
         tableObj.setTableAlias("");
         List<DatasetTableFieldDTO> tmp = permissionManage
-            .filterColumnPermissions(fields, desensitizationList, id, userId)
-            .stream()
-            .filter(ele -> {
-                boolean flag = true;
-                if (Objects.equals(ele.getExtField(), ExtFieldConstant.EXT_CALC)) {
-                    String originField = Utils.calcFieldRegex(ele, tableObj, fields, true, null, Utils.mergeParam(Utils.getParams(fields), null), pluginManage);
-                    for (String func : FunctionConstant.AGG_FUNC) {
-                        if (Utils.matchFunction(func, originField)) {
-                            flag = false;
-                            break;
+                .filterColumnPermissions(fields, desensitizationList, id, userId)
+                .stream()
+                .filter(ele -> {
+                    boolean flag = true;
+                    if (Objects.equals(ele.getExtField(), ExtFieldConstant.EXT_CALC)) {
+                        String originField = Utils.calcFieldRegex(ele, tableObj, fields, true, null, Utils.mergeParam(Utils.getParams(fields), null), pluginManage);
+                        for (String func : FunctionConstant.AGG_FUNC) {
+                            if (Utils.matchFunction(func, originField)) {
+                                flag = false;
+                                break;
+                            }
                         }
                     }
-                }
-                return flag;
-            })
-            .sorted(Comparator.comparing(DatasetTableFieldDTO::getGroupType))
-            .toList();
+                    return flag;
+                })
+                .sorted(Comparator.comparing(DatasetTableFieldDTO::getGroupType))
+                .toList();
         tmp.forEach(ele -> ele.setDesensitized(desensitizationList.containsKey(ele.getDataeaseName())));
-        DatasetUtils.listEncode(tmp);
         return tmp;
     }
 

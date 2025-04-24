@@ -29,9 +29,9 @@ public class Mysql extends DatasourceConfiguration {
         }
         if (StringUtils.isEmpty(extraParams.trim())) {
             return "jdbc:mysql://HOSTNAME:PORT/DATABASE"
-                .replace("HOSTNAME", getLHost().trim())
-                .replace("PORT", getLPort().toString().trim())
-                .replace("DATABASE", getDataBase().trim());
+                    .replace("HOSTNAME", getLHost().trim())
+                    .replace("PORT", getLPort().toString().trim())
+                    .replace("DATABASE", getDataBase().trim());
         } else {
             for (String illegalParameter : illegalParameters) {
                 if (URLDecoder.decode(getExtraParams()).toLowerCase().contains(illegalParameter.toLowerCase()) || URLDecoder.decode(getExtraParams()).contains(illegalParameter.toLowerCase())) {
@@ -39,10 +39,10 @@ public class Mysql extends DatasourceConfiguration {
                 }
             }
             return "jdbc:mysql://HOSTNAME:PORT/DATABASE?EXTRA_PARAMS"
-                .replace("HOSTNAME", getLHost().trim())
-                .replace("PORT", getLPort().toString().trim())
-                .replace("DATABASE", getDataBase().trim())
-                .replace("EXTRA_PARAMS", getExtraParams().trim());
+                    .replace("HOSTNAME", getLHost().trim())
+                    .replace("PORT", getLPort().toString().trim())
+                    .replace("DATABASE", getDataBase().trim())
+                    .replace("EXTRA_PARAMS", getExtraParams().trim());
         }
     }
 }

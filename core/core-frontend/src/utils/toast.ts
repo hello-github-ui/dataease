@@ -1,5 +1,5 @@
-import {ElMessage} from 'element-plus-secondary'
+import { ElMessage } from 'element-plus-secondary'
 
 export default function toast(message = '') {
-    ElMessage.error(message)
+  ElMessage.error(message)
 }

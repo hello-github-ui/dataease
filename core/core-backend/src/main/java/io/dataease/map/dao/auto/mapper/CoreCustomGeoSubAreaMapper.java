@@ -1,7 +1,7 @@
 package io.dataease.map.dao.auto.mapper;
 
-import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import io.dataease.map.dao.auto.entity.CoreCustomGeoSubArea;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 
 /**

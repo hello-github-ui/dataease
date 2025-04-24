@@ -48,15 +48,15 @@ public class IndicatorHandler extends YoyChartHandler {
         ChartViewFieldDTO yAxisChartViewFieldDTO = yAxis.get(0);
         ChartFieldCompareDTO compareCalc = yAxisChartViewFieldDTO.getCompareCalc();
         boolean isYoy = org.apache.commons.lang3.StringUtils.isNotEmpty(compareCalc.getType())
-            && !org.apache.commons.lang3.StringUtils.equalsIgnoreCase(compareCalc.getType(), "none");
+                && !org.apache.commons.lang3.StringUtils.equalsIgnoreCase(compareCalc.getType(), "none");
         if (isYoy) {
             xAxis.clear();
             // 设置维度字段，从同环比中获取用户选择的字段
             xAxis.addAll(allFields.stream().filter(i -> org.springframework.util.StringUtils.endsWithIgnoreCase(i.getId().toString(), compareCalc.getField().toString())).toList());
             xAxis.get(0).setSort("desc");
-            if (Objects.isNull(compareCalc.getCustom())) {
+            if(Objects.isNull(compareCalc.getCustom())){
                 xAxis.get(0).setDateStyle("y_M_d");
-            } else {
+            }else{
                 xAxis.get(0).setDateStyle(compareCalc.getCustom().getTimeType());
             }
         }

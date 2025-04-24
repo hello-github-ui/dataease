@@ -1,8 +1,8 @@
 package io.dataease.engine.trans;
 
 import io.dataease.constant.DeTypeConstants;
-import io.dataease.constant.SQLConstants;
 import io.dataease.engine.constant.ExtFieldConstant;
+import io.dataease.constant.SQLConstants;
 import io.dataease.engine.utils.Utils;
 import io.dataease.extensions.datasource.api.PluginManageApi;
 import io.dataease.extensions.datasource.constant.SqlPlaceholderConstants;
@@ -90,11 +90,11 @@ public class Quota2SQLObj {
                 // 处理纵轴排序
                 if (StringUtils.isNotEmpty(y.getSort()) && Utils.joinSort(y.getSort())) {
                     yOrders.add(SQLObj.builder()
-                        .orderField(originField)
-                        .orderAlias(fieldAlias)
-                        .orderDirection(y.getSort())
-                        .id(y.getId())
-                        .build());
+                            .orderField(originField)
+                            .orderAlias(fieldAlias)
+                            .orderDirection(y.getSort())
+                            .id(y.getId())
+                            .build());
                 }
             }
         }
@@ -134,9 +134,9 @@ public class Quota2SQLObj {
         }
 
         return SQLObj.builder()
-            .fieldName(fieldName)
-            .fieldAlias(fieldAlias)
-            .build();
+                .fieldName(fieldName)
+                .fieldAlias(fieldAlias)
+                .build();
     }
 
     private static String getYWheres(ChartViewFieldDTO y, String originField, String fieldAlias) {
@@ -162,10 +162,10 @@ public class Quota2SQLObj {
                     whereValue = String.format(SQLConstants.WHERE_VALUE_VALUE, f.getValue());
                 }
                 list.add(SQLObj.builder()
-                    .whereField(fieldAlias)
-                    .whereAlias(fieldAlias)
-                    .whereTermAndValue(whereTerm + whereValue)
-                    .build());
+                        .whereField(fieldAlias)
+                        .whereAlias(fieldAlias)
+                        .whereTermAndValue(whereTerm + whereValue)
+                        .build());
             });
         }
         List<String> strList = new ArrayList<>();

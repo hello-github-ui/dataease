@@ -16,7 +16,6 @@ import io.dataease.constant.SQLConstants;
 import io.dataease.dataset.constant.DatasetTableType;
 import io.dataease.dataset.utils.DatasetUtils;
 import io.dataease.dataset.utils.FieldUtils;
-import io.dataease.dataset.utils.SqlUtils;
 import io.dataease.dataset.utils.TableUtils;
 import io.dataease.datasource.dao.auto.entity.CoreDatasource;
 import io.dataease.datasource.dao.auto.mapper.CoreDatasourceMapper;
@@ -66,8 +65,6 @@ import static io.dataease.chart.manage.ChartDataManage.START_END_SEPARATOR;
  */
 @Component
 public class DatasetDataManage {
-    public static final List<String> notFullDs = List.of("mysql", "mariadb", "Excel", "API", "H2", "h2");
-    private static Logger logger = LoggerFactory.getLogger(DatasetDataManage.class);
     @Resource
     private DatasetSQLManage datasetSQLManage;
     @Resource
@@ -91,9 +88,13 @@ public class DatasetDataManage {
     @Resource
     private DataSourceManage dataSourceManage;
 
+    private static Logger logger = LoggerFactory.getLogger(DatasetDataManage.class);
+
     private RowPermissionsApi getRowPermissionsApi() {
         return rowPermissionsApi;
     }
+
+    public static final List<String> notFullDs = List.of("mysql", "mariadb", "Excel", "API");
 
     public List<DatasetTableFieldDTO> getTableFields(DatasetTableDTO datasetTableDTO) throws Exception {
         List<DatasetTableFieldDTO> list = null;
@@ -114,7 +115,6 @@ public class DatasetDataManage {
             Provider provider = ProviderFactory.getProvider(coreDatasource.getType());
 
             DatasourceRequest datasourceRequest = new DatasourceRequest();
-            datasourceRequest.setIsCross(datasetTableDTO.getIsCross());
             datasourceRequest.setDsList(Map.of(datasourceSchemaDTO.getId(), datasourceSchemaDTO));
             String sql;
             if (StringUtils.equalsIgnoreCase(type, DatasetTableType.DB)) {
@@ -122,37 +122,26 @@ public class DatasetDataManage {
                 sql = TableUtils.tableName2Sql(datasourceSchemaDTO, tableInfoDTO.getTable()) + " LIMIT 0 OFFSET 0";
                 // replace schema alias, trans dialect
                 Map map = JsonUtil.parseObject(datasourceSchemaDTO.getConfiguration(), Map.class);
-                if (!datasourceRequest.getIsCross()) {
-                    if (ObjectUtils.isNotEmpty(map.get("schema"))) {
-                        sql = sql.replaceAll(SqlPlaceholderConstants.KEYWORD_PREFIX_REGEX + datasourceSchemaDTO.getSchemaAlias() + SqlPlaceholderConstants.KEYWORD_SUFFIX_REGEX, map.get("schema").toString());
-                    } else {
-                        sql = sql.replaceAll(SqlPlaceholderConstants.KEYWORD_PREFIX_REGEX + datasourceSchemaDTO.getSchemaAlias() + SqlPlaceholderConstants.KEYWORD_SUFFIX_REGEX + "\\.", "");
-                    }
-                    sql = provider.transSqlDialect(sql, datasourceRequest.getDsList());
+                if (ObjectUtils.isNotEmpty(map.get("schema"))) {
+                    sql = sql.replaceAll(SqlPlaceholderConstants.KEYWORD_PREFIX_REGEX + datasourceSchemaDTO.getSchemaAlias() + SqlPlaceholderConstants.KEYWORD_SUFFIX_REGEX, map.get("schema").toString());
                 } else {
                     sql = sql.replaceAll(SqlPlaceholderConstants.KEYWORD_PREFIX_REGEX + datasourceSchemaDTO.getSchemaAlias() + SqlPlaceholderConstants.KEYWORD_SUFFIX_REGEX + "\\.", "");
-                    String tableSchema = datasetSQLManage.putObj2Map(datasourceRequest.getDsList(), datasetTableDTO, datasourceRequest.getIsCross());
-                    sql = SqlUtils.addSchema(sql, tableSchema);
                 }
+                sql = provider.transSqlDialect(sql, datasourceRequest.getDsList());
             } else {
                 // parser sql params and replace default value
                 String s = new String(Base64.getDecoder().decode(tableInfoDTO.getSql()));
-                String originSql = new SqlparserUtils().handleVariableDefaultValue(s, datasetTableDTO.getSqlVariableDetails(), false, false, null, datasourceRequest.getIsCross(), datasourceRequest.getDsList(), pluginManage, getUserEntity());
+                String originSql = new SqlparserUtils().handleVariableDefaultValue(s, datasetTableDTO.getSqlVariableDetails(), false, false, null, false, datasourceRequest.getDsList(), pluginManage, getUserEntity());
                 originSql = provider.replaceComment(originSql);
                 // add sql table schema
 
-                if (!datasourceRequest.getIsCross()) {
-                    sql = SQLUtils.buildOriginPreviewSql(SqlPlaceholderConstants.TABLE_PLACEHOLDER, 0, 0);
-                    sql = provider.transSqlDialect(sql, datasourceRequest.getDsList());
-                    // replace placeholder
-                    sql = provider.replaceTablePlaceHolder(sql, originSql);
-                } else {
-                    String tableSchema = datasetSQLManage.putObj2Map(datasourceRequest.getDsList(), datasetTableDTO, datasourceRequest.getIsCross());
-                    sql = SqlUtils.addSchema(originSql, tableSchema);
-                }
+                sql = SQLUtils.buildOriginPreviewSql(SqlPlaceholderConstants.TABLE_PLACEHOLDER, 0, 0);
+                sql = provider.transSqlDialect(sql, datasourceRequest.getDsList());
+                // replace placeholder
+                sql = provider.replaceTablePlaceHolder(sql, originSql);
             }
             datasourceRequest.setQuery(sql.replaceAll("\r\n", " ")
-                .replaceAll("\n", " "));
+                    .replaceAll("\n", " "));
             logger.debug("calcite data table field sql: " + datasourceRequest.getQuery());
             // 获取数据源表的原始字段
             if (StringUtils.equalsIgnoreCase(type, DatasetTableType.DB)) {
@@ -207,11 +196,7 @@ public class DatasetDataManage {
         }).collect(Collectors.toList());
     }
 
-    public Map<String, Object> previewDataWithLimit(DatasetGroupInfoDTO datasetGroupInfoDTO, Integer start, Integer count, boolean checkPermission, boolean encode) throws Exception {
-        if (encode) {
-            DatasetUtils.dsDecode(datasetGroupInfoDTO);
-        }
-
+    public Map<String, Object> previewDataWithLimit(DatasetGroupInfoDTO datasetGroupInfoDTO, Integer start, Integer count, boolean checkPermission) throws Exception {
         Map<String, Object> sqlMap = datasetSQLManage.getUnionSQLForEdit(datasetGroupInfoDTO, null);
         String sql = (String) sqlMap.get("sql");
 
@@ -236,7 +221,7 @@ public class DatasetDataManage {
             dsList.add(next.getValue().getType());
         }
         boolean needOrder = Utils.isNeedOrder(dsList);
-        boolean crossDs = datasetGroupInfoDTO.getIsCross();
+        boolean crossDs = Utils.isCrossDs(dsMap);
         if (!crossDs) {
             if (notFullDs.contains(dsMap.entrySet().iterator().next().getValue().getType()) && (boolean) sqlMap.get("isFullJoin")) {
                 DEException.throwException(Translator.get("i18n_not_full"));
@@ -275,20 +260,16 @@ public class DatasetDataManage {
         DatasourceRequest datasourceRequest = new DatasourceRequest();
         datasourceRequest.setQuery(querySQL);
         datasourceRequest.setDsList(dsMap);
-        datasourceRequest.setIsCross(crossDs);
         Map<String, Object> data = provider.fetchResultField(datasourceRequest);
 
         Map<String, Object> map = new LinkedHashMap<>();
         // 重新构造data
-        Map<String, Object> previewData = buildPreviewData(data, fields, desensitizationList, encode);
+        Map<String, Object> previewData = buildPreviewData(data, fields, desensitizationList);
         map.put("data", previewData);
         if (ObjectUtils.isEmpty(datasetGroupInfoDTO.getId())) {
             map.put("allFields", fields);
         } else {
             List<DatasetTableFieldDTO> fieldList = datasetTableFieldManage.selectByDatasetGroupId(datasetGroupInfoDTO.getId());
-            if (encode) {
-                DatasetUtils.listEncode(fieldList);
-            }
             map.put("allFields", fieldList);
         }
         map.put("sql", Base64.getEncoder().encodeToString(querySQL.getBytes()));
@@ -324,7 +305,7 @@ public class DatasetDataManage {
             for (Map.Entry<Long, DatasourceSchemaDTO> next : dsMap.entrySet()) {
                 dsList.add(next.getValue().getType());
             }
-            boolean crossDs = datasetGroupInfoDTO.getIsCross();
+            boolean crossDs = Utils.isCrossDs(dsMap);
             if (!crossDs) {
                 if (notFullDs.contains(dsMap.entrySet().iterator().next().getValue().getType()) && (boolean) sqlMap.get("isFullJoin")) {
                     DEException.throwException(Translator.get("i18n_not_full"));
@@ -361,7 +342,7 @@ public class DatasetDataManage {
     public Long getDatasetTotal(DatasetGroupInfoDTO datasetGroupInfoDTO, String s, ChartExtRequest request) throws Exception {
         Map<String, Object> sqlMap = datasetSQLManage.getUnionSQLForEdit(datasetGroupInfoDTO, request);
         Map<Long, DatasourceSchemaDTO> dsMap = (Map<Long, DatasourceSchemaDTO>) sqlMap.get("dsMap");
-        boolean crossDs = datasetGroupInfoDTO.getIsCross();
+        boolean crossDs = Utils.isCrossDs(dsMap);
         String sql;
         if (StringUtils.isEmpty(s)) {
             sql = (String) sqlMap.get("sql");
@@ -379,7 +360,6 @@ public class DatasetDataManage {
         DatasourceRequest datasourceRequest = new DatasourceRequest();
         datasourceRequest.setQuery(querySQL);
         datasourceRequest.setDsList(dsMap);
-        datasourceRequest.setIsCross(crossDs);
 
         Provider provider;
         if (crossDs) {
@@ -448,60 +428,38 @@ public class DatasetDataManage {
         dsMap.put(datasourceSchemaDTO.getId(), datasourceSchemaDTO);
         DatasourceRequest datasourceRequest = new DatasourceRequest();
         datasourceRequest.setDsList(dsMap);
-        datasourceRequest.setIsCross(dto.getIsCross());
         Provider provider = ProviderFactory.getProvider(datasourceSchemaDTO.getType());
 
         // parser sql params and replace default value
 
         String s = new String(Base64.getDecoder().decode(dto.getSql()));
-        String originSql = new SqlparserUtils().handleVariableDefaultValue(datasetSQLManage.subPrefixSuffixChar(s), dto.getSqlVariableDetails(), true, true, null, dto.getIsCross(), dsMap, pluginManage, getUserEntity());
+        String originSql = new SqlparserUtils().handleVariableDefaultValue(datasetSQLManage.subPrefixSuffixChar(s), dto.getSqlVariableDetails(), true, true, null, false, dsMap, pluginManage, getUserEntity());
         originSql = provider.replaceComment(originSql);
 
         // sql 作为临时表，外层加上limit
         String sql;
-        if (dto.getIsCross()) {
-            DatasetTableDTO currentDs = new DatasetTableDTO();
-            BeanUtils.copyBean(currentDs, dto);
-            currentDs.setType("sql");
-            String tableSchema = datasetSQLManage.putObj2Map(dsMap, currentDs, dto.getIsCross());
-            sql = SqlUtils.addSchema(originSql, tableSchema);
-            if (Utils.isNeedOrder(List.of(datasourceSchemaDTO.getType()))) {
-                // 先根据sql获取表字段
-                String sqlField = SQLUtils.buildOriginPreviewSql(sql, 0, 0);
-                datasourceRequest.setQuery(sqlField);
 
-                // 获取数据源表的原始字段
-                List<TableField> list = provider.fetchTableField(datasourceRequest);
-                if (ObjectUtils.isEmpty(list)) {
-                    return null;
-                }
-                sql = SQLUtils.buildOriginPreviewSqlWithOrderBy(sql, 100, 0, String.format(SQLConstants.FIELD_DOT_FIX, list.get(0).getOriginName()) + " ASC ");
-            } else {
-                sql = SQLUtils.buildOriginPreviewSql(sql, 100, 0);
-            }
-        } else {
-            if (Utils.isNeedOrder(List.of(datasourceSchemaDTO.getType()))) {
-                // 先根据sql获取表字段
-                String sqlField = SQLUtils.buildOriginPreviewSql(SqlPlaceholderConstants.TABLE_PLACEHOLDER, 0, 0);
+        if (Utils.isNeedOrder(List.of(datasourceSchemaDTO.getType()))) {
+            // 先根据sql获取表字段
+            String sqlField = SQLUtils.buildOriginPreviewSql(SqlPlaceholderConstants.TABLE_PLACEHOLDER, 0, 0);
 
-                sqlField = provider.transSqlDialect(sqlField, datasourceRequest.getDsList());
-                // replace placeholder
-                sqlField = provider.replaceTablePlaceHolder(sqlField, originSql);
-                datasourceRequest.setQuery(sqlField);
-
-                // 获取数据源表的原始字段
-                List<TableField> list = provider.fetchTableField(datasourceRequest);
-                if (ObjectUtils.isEmpty(list)) {
-                    return null;
-                }
-                sql = SQLUtils.buildOriginPreviewSqlWithOrderBy(SqlPlaceholderConstants.TABLE_PLACEHOLDER, 100, 0, String.format(SQLConstants.FIELD_DOT_FIX, list.get(0).getOriginName()) + " ASC ");
-            } else {
-                sql = SQLUtils.buildOriginPreviewSql(SqlPlaceholderConstants.TABLE_PLACEHOLDER, 100, 0);
-            }
-            sql = provider.transSqlDialect(sql, datasourceRequest.getDsList());
+            sqlField = provider.transSqlDialect(sqlField, datasourceRequest.getDsList());
             // replace placeholder
-            sql = provider.replaceTablePlaceHolder(sql, originSql);
+            sqlField = provider.replaceTablePlaceHolder(sqlField, originSql);
+            datasourceRequest.setQuery(sqlField);
+
+            // 获取数据源表的原始字段
+            List<TableField> list = provider.fetchTableField(datasourceRequest);
+            if (ObjectUtils.isEmpty(list)) {
+                return null;
+            }
+            sql = SQLUtils.buildOriginPreviewSqlWithOrderBy(SqlPlaceholderConstants.TABLE_PLACEHOLDER, 100, 0, String.format(SQLConstants.FIELD_DOT_FIX, list.get(0).getOriginName()) + " ASC ");
+        } else {
+            sql = SQLUtils.buildOriginPreviewSql(SqlPlaceholderConstants.TABLE_PLACEHOLDER, 100, 0);
         }
+        sql = provider.transSqlDialect(sql, datasourceRequest.getDsList());
+        // replace placeholder
+        sql = provider.replaceTablePlaceHolder(sql, originSql);
 
         logger.debug("calcite data preview sql: " + sql);
         datasourceRequest.setQuery(sql);
@@ -509,14 +467,14 @@ public class DatasetDataManage {
         // 重新构造data
         List<TableField> fList = (List<TableField>) data.get("fields");
         List<DatasetTableFieldDTO> fields = transFields(fList, false);
-        Map<String, Object> previewData = buildPreviewData(data, fields, new HashMap<>(), false);
+        Map<String, Object> previewData = buildPreviewData(data, fields, new HashMap<>());
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("data", previewData);
         map.put("sql", Base64.getEncoder().encodeToString(sql.getBytes()));
         return map;
     }
 
-    public Map<String, Object> buildPreviewData(Map<String, Object> data, List<DatasetTableFieldDTO> fields, Map<String, ColumnPermissionItem> desensitizationList, boolean isEncode) {
+    public Map<String, Object> buildPreviewData(Map<String, Object> data, List<DatasetTableFieldDTO> fields, Map<String, ColumnPermissionItem> desensitizationList) {
         Map<String, Object> map = new LinkedHashMap<>();
         List<String[]> dataList = (List<String[]>) data.get("data");
         List<LinkedHashMap<String, Object>> dataObjectList = new ArrayList<>();
@@ -536,16 +494,12 @@ public class DatasetDataManage {
                             obj.put(fields.get(j).getDataeaseName(), ChartDataBuild.desensitizationValue(desensitizationList.get(fields.get(j).getDataeaseName()), String.valueOf(res)));
                         } else {
                             obj.put(ObjectUtils.isNotEmpty(fields.get(j).getDataeaseName()) ?
-                                fields.get(j).getDataeaseName() : fields.get(j).getOriginName(), res);
+                                    fields.get(j).getDataeaseName() : fields.get(j).getOriginName(), res);
                         }
                     }
                 }
                 dataObjectList.add(obj);
             }
-        }
-
-        if (isEncode) {
-            DatasetUtils.listEncode(fields);
         }
 
         map.put("fields", fields);
@@ -562,7 +516,7 @@ public class DatasetDataManage {
                 if (Objects.equals(datasetTableFieldDTO.getExtField(), ExtFieldConstant.EXT_NORMAL)) {
                     for (DatasetTableFieldDTO fieldDTO : unionFields) {
                         if (Objects.equals(datasetTableFieldDTO.getDatasetTableId(), fieldDTO.getDatasetTableId())
-                            && Objects.equals(datasetTableFieldDTO.getOriginName(), fieldDTO.getOriginName())) {
+                                && Objects.equals(datasetTableFieldDTO.getOriginName(), fieldDTO.getOriginName())) {
                             datasetTableFieldDTO.setDataeaseName(fieldDTO.getDataeaseName());
                             datasetTableFieldDTO.setFieldShortName(fieldDTO.getFieldShortName());
                         }
@@ -603,7 +557,7 @@ public class DatasetDataManage {
         allFields.addAll(datasetGroupInfoDTO.getAllFields());
 
         Map<Long, DatasourceSchemaDTO> dsMap = (Map<Long, DatasourceSchemaDTO>) sqlMap.get("dsMap");
-        boolean crossDs = datasetGroupInfoDTO.getIsCross();
+        boolean crossDs = Utils.isCrossDs(dsMap);
         if (!crossDs) {
             sql = Utils.replaceSchemaAlias(sql, dsMap);
         }
@@ -648,7 +602,6 @@ public class DatasetDataManage {
         DatasourceRequest datasourceRequest = new DatasourceRequest();
         datasourceRequest.setQuery(querySQL);
         datasourceRequest.setDsList(dsMap);
-        datasourceRequest.setIsCross(crossDs);
 
         Map<String, Object> data = provider.fetchResultField(datasourceRequest);
         List<String[]> dataList = (List<String[]>) data.get("data");
@@ -711,7 +664,7 @@ public class DatasetDataManage {
             allFields.addAll(datasetGroupInfoDTO.getAllFields());
 
             Map<Long, DatasourceSchemaDTO> dsMap = (Map<Long, DatasourceSchemaDTO>) sqlMap.get("dsMap");
-            boolean crossDs = datasetGroupInfoDTO.getIsCross();
+            boolean crossDs = Utils.isCrossDs(dsMap);
             if (!crossDs) {
                 sql = Utils.replaceSchemaAlias(sql, dsMap);
             }
@@ -771,7 +724,6 @@ public class DatasetDataManage {
             DatasourceRequest datasourceRequest = new DatasourceRequest();
             datasourceRequest.setQuery(querySQL);
             datasourceRequest.setDsList(dsMap);
-            datasourceRequest.setIsCross(crossDs);
 
             Map<String, Object> data = provider.fetchResultField(datasourceRequest);
             List<String[]> dataList = (List<String[]>) data.get("data");
@@ -878,7 +830,7 @@ public class DatasetDataManage {
             allFields.addAll(datasetGroupInfoDTO.getAllFields());
 
             dsMap = (Map<Long, DatasourceSchemaDTO>) sqlMap.get("dsMap");
-            crossDs = datasetGroupInfoDTO.getIsCross();
+            crossDs = Utils.isCrossDs(dsMap);
             if (!crossDs) {
                 sql = Utils.replaceSchemaAlias(sql, dsMap);
             }
@@ -1034,7 +986,6 @@ public class DatasetDataManage {
         DatasourceRequest datasourceRequest = new DatasourceRequest();
         datasourceRequest.setQuery(querySQL);
         datasourceRequest.setDsList(dsMap);
-        datasourceRequest.setIsCross(crossDs);
 
         Map<String, Object> data = provider.fetchResultField(datasourceRequest);
         List<String[]> dataList = (List<String[]>) data.get("data");
@@ -1109,7 +1060,7 @@ public class DatasetDataManage {
         allFields.addAll(datasetGroupInfoDTO.getAllFields());
 
         Map<Long, DatasourceSchemaDTO> dsMap = (Map<Long, DatasourceSchemaDTO>) sqlMap.get("dsMap");
-        boolean crossDs = datasetGroupInfoDTO.getIsCross();
+        boolean crossDs = Utils.isCrossDs(dsMap);
         if (!crossDs) {
             sql = Utils.replaceSchemaAlias(sql, dsMap);
         }
@@ -1170,7 +1121,6 @@ public class DatasetDataManage {
         DatasourceRequest datasourceRequest = new DatasourceRequest();
         datasourceRequest.setQuery(querySQL);
         datasourceRequest.setDsList(dsMap);
-        datasourceRequest.setIsCross(crossDs);
 
         Map<String, Object> data = provider.fetchResultField(datasourceRequest);
         List<String[]> rows = (List<String[]>) data.get("data");

@@ -579,7 +579,7 @@ public class ChartDataBuild {
                 }
 
                 String category = StringUtils.defaultIfBlank(b.toString(),
-                    StringUtils.defaultIfBlank(yAxis.get(j).getChartShowName(), yAxis.get(j).getName()));
+                        StringUtils.defaultIfBlank(yAxis.get(j).getChartShowName(), yAxis.get(j).getName()));
 
                 if (isLine) {
                     if (ObjectUtils.isEmpty(xAxisExt)) {
@@ -1123,9 +1123,9 @@ public class ChartDataBuild {
                 if (ObjectUtils.isNotEmpty(extBubble) && extBubble.size() > 0) {
                     try {
                         scatterChartDataDTO.setValue(new Object[]{
-                            a.toString(),
-                            StringUtils.isEmpty(d[i]) ? null : new BigDecimal(d[i]),
-                            StringUtils.isEmpty(d[xAxis.size() + yAxis.size()]) ? null : new BigDecimal(d[xAxis.size() + yAxis.size()])
+                                a.toString(),
+                                StringUtils.isEmpty(d[i]) ? null : new BigDecimal(d[i]),
+                                StringUtils.isEmpty(d[xAxis.size() + yAxis.size()]) ? null : new BigDecimal(d[xAxis.size() + yAxis.size()])
                         });
                     } catch (Exception e) {
                         scatterChartDataDTO.setValue(new Object[]{a.toString(), new BigDecimal(0), new BigDecimal(0)});
@@ -1133,8 +1133,8 @@ public class ChartDataBuild {
                 } else {
                     try {
                         scatterChartDataDTO.setValue(new Object[]{
-                            a.toString(),
-                            StringUtils.isEmpty(d[i]) ? null : new BigDecimal(d[i])
+                                a.toString(),
+                                StringUtils.isEmpty(d[i]) ? null : new BigDecimal(d[i])
                         });
                     } catch (Exception e) {
                         scatterChartDataDTO.setValue(new Object[]{a.toString(), new BigDecimal(0)});
@@ -1804,8 +1804,8 @@ public class ChartDataBuild {
         });
         // 先过滤掉所有记录数字段
         List<ChartViewFieldDTO> filterCountAxis = fields.stream()
-            .filter(item -> !StringUtils.equalsIgnoreCase(item.getDataeaseName(), "*"))
-            .collect(Collectors.toList());
+                .filter(item -> !StringUtils.equalsIgnoreCase(item.getDataeaseName(), "*"))
+                .collect(Collectors.toList());
         // 如果气泡大小是记录数，添加到字段列表中
         if (ObjectUtils.isNotEmpty(extBubble) && "*".equals(extBubble.get(0).getDataeaseName())) {
             filterCountAxis.addAll(yAxis);

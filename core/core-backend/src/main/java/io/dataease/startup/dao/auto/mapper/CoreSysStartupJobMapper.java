@@ -1,7 +1,7 @@
 package io.dataease.startup.dao.auto.mapper;
 
-import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import io.dataease.startup.dao.auto.entity.CoreSysStartupJob;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 
 /**

@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Component
@@ -41,7 +40,6 @@ public class PieHandler extends YoyChartHandler {
 
     /**
      * 过滤正数数据根据data
-     *
      * @param result
      * @param key
      * @param clazz
@@ -50,24 +48,22 @@ public class PieHandler extends YoyChartHandler {
     private <T> void filterPositiveData(ChartViewDTO result, String key, Class<T> clazz) {
         if (result.getData().containsKey(key)) {
             List<T> list = ((List<T>) result.getData().get(key))
-                .stream()
-                .filter(item -> {
-                    if (clazz == AxisChartDataAntVDTO.class) {
-                        if (Objects.isNull(((AxisChartDataAntVDTO) item).getValue())) return false;
-                        return ((AxisChartDataAntVDTO) item).getValue().compareTo(BigDecimal.ZERO) >= 0;
-                    } else if (clazz == Map.class) {
-                        return isPositive(((Map<String, Object>) item).get("value"));
-                    }
-                    return false;
-                })
-                .collect(Collectors.toList());
+                    .stream()
+                    .filter(item -> {
+                        if (clazz == AxisChartDataAntVDTO.class) {
+                            return ((AxisChartDataAntVDTO) item).getValue().compareTo(BigDecimal.ZERO) >= 0;
+                        } else if (clazz == Map.class) {
+                            return isPositive(((Map<String, Object>) item).get("value"));
+                        }
+                        return false;
+                    })
+                    .collect(Collectors.toList());
             result.getData().put(key, list);
         }
     }
 
     /**
      * 过滤正数数据根据tableRow
-     *
      * @param result
      * @param key
      * @param clazz
@@ -77,15 +73,15 @@ public class PieHandler extends YoyChartHandler {
     private <T> void filterPositiveData(ChartViewDTO result, String key, Class<T> clazz, String yAxisName) {
         if (result.getData().containsKey(key)) {
             List<T> list = ((List<T>) result.getData().get(key))
-                .stream()
-                .filter(item -> {
-                    if (clazz == Map.class) {
-                        Object value = ((Map<String, Object>) item).get(yAxisName);
-                        return isPositive(value);
-                    }
-                    return false;
-                })
-                .collect(Collectors.toList());
+                    .stream()
+                    .filter(item -> {
+                        if (clazz == Map.class) {
+                            Object value = ((Map<String, Object>) item).get(yAxisName);
+                            return isPositive(value);
+                        }
+                        return false;
+                    })
+                    .collect(Collectors.toList());
             result.getData().put(key, list);
         }
     }

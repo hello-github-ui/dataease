@@ -1,7 +1,6 @@
 package io.dataease.map.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
@@ -46,8 +45,8 @@ public class CoreCustomGeoArea implements Serializable {
     @Override
     public String toString() {
         return "CoreCustomGeoArea{" +
-            "id = " + id +
-            ", name = " + name +
-            "}";
+        "id = " + id +
+        ", name = " + name +
+        "}";
     }
 }

@@ -1,6 +1,5 @@
 package io.dataease.chart.charts.impl.line;
 
-import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.chart.charts.impl.YoyChartHandler;
 import io.dataease.chart.utils.ChartDataBuild;
 import io.dataease.extensions.datasource.dto.DatasourceRequest;
@@ -10,8 +9,6 @@ import io.dataease.extensions.datasource.provider.Provider;
 import io.dataease.extensions.view.dto.*;
 import lombok.Getter;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -40,9 +37,9 @@ public class LineHandler extends YoyChartHandler {
     @Override
     public Map<String, Object> buildNormalResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data) {
         boolean isDrill = filterResult
-            .getFilterList()
-            .stream()
-            .anyMatch(ele -> ele.getFilterType() == 1);
+                .getFilterList()
+                .stream()
+                .anyMatch(ele -> ele.getFilterType() == 1);
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
         var xAxisExt = formatResult.getAxisMap().get(ChartAxis.xAxisExt);
         var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);
@@ -58,7 +55,6 @@ public class LineHandler extends YoyChartHandler {
         for (Map.Entry<Long, DatasourceSchemaDTO> next : dsMap.entrySet()) {
             dsList.add(next.getValue().getType());
         }
-        boolean crossDs = ((DatasetGroupInfoDTO) formatResult.getContext().get("dataset")).getIsCross();
         var result = (T) super.calcChartResult(view, formatResult, filterResult, sqlMap, sqlMeta, provider);
         try {
             //如果有同环比过滤,应该用原始sql
@@ -68,28 +64,13 @@ public class LineHandler extends YoyChartHandler {
             var assistFields = getAssistFields(dynamicAssistFields, yAxis);
             if (CollectionUtils.isNotEmpty(assistFields)) {
                 var req = new DatasourceRequest();
-                req.setIsCross(crossDs);
                 req.setDsList(dsMap);
-
-                List<ChartSeniorAssistDTO> assists = dynamicAssistFields.stream().filter(ele -> !StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
-                if (ObjectUtils.isNotEmpty(assists)) {
-                    var assistSql = assistSQL(originSql, assistFields, dsMap, crossDs);
-                    req.setQuery(assistSql);
-                    logger.debug("calcite assistSql sql: " + assistSql);
-                    var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
-                    result.setAssistData(assistData);
-                    result.setDynamicAssistFields(assists);
-                }
-
-                List<ChartSeniorAssistDTO> assistsOriginList = dynamicAssistFields.stream().filter(ele -> StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
-                if (ObjectUtils.isNotEmpty(assistsOriginList)) {
-                    var assistSqlOriginList = assistSQLOriginList(originSql, assistFields, dsMap, crossDs);
-                    req.setQuery(assistSqlOriginList);
-                    logger.debug("calcite assistSql sql origin list: " + assistSqlOriginList);
-                    var assistDataOriginList = (List<String[]>) provider.fetchResultField(req).get("data");
-                    result.setAssistDataOriginList(assistDataOriginList);
-                    result.setDynamicAssistFieldsOriginList(assistsOriginList);
-                }
+                var assistSql = assistSQL(originSql, assistFields, dsMap);
+                req.setQuery(assistSql);
+                logger.debug("calcite assistSql sql: " + assistSql);
+                var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
+                result.setAssistData(assistData);
+                result.setDynamicAssistFields(dynamicAssistFields);
             }
         } catch (Exception e) {
             e.printStackTrace();

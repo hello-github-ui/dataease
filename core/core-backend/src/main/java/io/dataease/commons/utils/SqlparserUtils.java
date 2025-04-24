@@ -22,6 +22,7 @@ import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.select.*;
 import net.sf.jsqlparser.util.deparser.ExpressionDeParser;
+import net.sf.jsqlparser.util.deparser.SelectDeParser;
 import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.util.SqlShuttle;
@@ -29,6 +30,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -40,31 +42,13 @@ import static org.apache.calcite.sql.SqlKind.*;
 
 public class SqlparserUtils {
     public static final String regex = "\\$\\{(.*?)\\}";
-    public static final String regex2 = "\\$f2cde\\[(.*?)\\]";
+    public static final String regex2 = "\\[(.*?)\\]";
     private static final String SubstitutedParams = "DATAEASE_PATAMS_BI";
     private static final String SysParamsSubstitutedParams = "DeSysParams_";
     private static final String SubstitutedSql = " 'DE-BI' = 'DE-BI' ";
-    private final List<Map<String, String>> sysParams = new ArrayList<>();
-    boolean hasVariables = false;
     private boolean removeSysParams;
     private UserFormVO userEntity;
-
-    private static boolean isParams(String paramId) {
-        if (Arrays.asList("userId", "userEmail", "userName").contains(paramId)) {
-            return true;
-        }
-        boolean isLong = false;
-        try {
-            Long.valueOf(paramId);
-            isLong = true;
-        } catch (Exception e) {
-            isLong = false;
-        }
-        if (paramId.length() >= 18 && isLong) {
-            return true;
-        }
-        return false;
-    }
+    private final List<Map<String, String>> sysParams = new ArrayList<>();
 
     public String handleVariableDefaultValue(String sql, String sqlVariableDetails, boolean isEdit, boolean isFromDataSet, List<SqlVariableDetails> parameters, boolean isCross, Map<Long, DatasourceSchemaDTO> dsMap, PluginManageApi pluginManage, UserFormVO userEntity) {
         DatasourceSchemaDTO ds = dsMap.entrySet().iterator().next().getValue();
@@ -78,7 +62,6 @@ public class SqlparserUtils {
         } catch (Exception e) {
             DEException.throwException(e);
         }
-        hasVariables = false;
         sql = sql.trim();
         if (sql.endsWith(";")) {
             sql = sql.substring(0, sql.length() - 1);
@@ -165,23 +148,37 @@ public class SqlparserUtils {
         return sql;
     }
 
+    private static boolean isParams(String paramId){
+        boolean isLong = false;
+        try {
+            Long.valueOf(paramId);
+            isLong = true;
+        }catch (Exception e){
+            isLong = false;
+        }
+        if(paramId.length() >= 18 && isLong){
+            return true;
+        }
+        return false;
+    }
     private String removeVariables(final String sql, String dsType) throws Exception {
         String tmpSql = sql.replaceAll("(?m)^\\s*$[\n\r]{0,}", "");
         Pattern pattern = Pattern.compile(regex);
         Matcher matcher = pattern.matcher(tmpSql);
+        boolean hasVariables = false;
         while (matcher.find()) {
             hasVariables = true;
             tmpSql = tmpSql.replace(matcher.group(), SubstitutedParams);
         }
         if (removeSysParams) {
             for (Map<String, String> sysParam : sysParams) {
-                tmpSql = tmpSql.replace(sysParam.get("replace"), sysParam.get("origin"));
+                tmpSql = tmpSql.replaceAll(sysParam.get("replace"), sysParam.get("origin"));
             }
             pattern = Pattern.compile(regex2);
             matcher = pattern.matcher(tmpSql);
             while (matcher.find()) {
-                String paramId = matcher.group().substring(7, matcher.group().length() - 1);
-                if (!isParams(paramId)) {
+                String paramId = matcher.group().substring(1, matcher.group().length() - 1);
+                if(!isParams(paramId)){
                     continue;
                 }
                 hasVariables = true;
@@ -191,19 +188,19 @@ public class SqlparserUtils {
             pattern = Pattern.compile(regex2);
             matcher = pattern.matcher(tmpSql);
             while (matcher.find()) {
-                String paramId = matcher.group().substring(7, matcher.group().length() - 1);
-                if (!isParams(paramId)) {
+                String paramId = matcher.group().substring(1, matcher.group().length() - 1);
+                if(!isParams(paramId)){
                     continue;
                 }
                 hasVariables = true;
-                tmpSql = tmpSql.replace(matcher.group(), SysParamsSubstitutedParams + matcher.group().substring(7, matcher.group().length() - 1));
+                tmpSql = tmpSql.replace(matcher.group(), SysParamsSubstitutedParams + matcher.group().substring(1, matcher.group().length() - 1));
                 Map<String, String> sysParam = new HashMap<>();
                 sysParam.put("origin", matcher.group());
-                sysParam.put("replace", SysParamsSubstitutedParams + matcher.group().substring(7, matcher.group().length() - 1));
+                sysParam.put("replace", SysParamsSubstitutedParams + matcher.group().substring(1, matcher.group().length() - 1));
                 sysParams.add(sysParam);
             }
         }
-        if (!hasVariables && !sql.contains(SubstitutedParams)) {
+        if(!hasVariables && !sql.contains(SubstitutedParams)){
             return sql;
         }
         Statement statement = CCJSqlParserUtil.parse(tmpSql);
@@ -690,7 +687,7 @@ public class SqlparserUtils {
     private String transFilter(SqlVariableDetails sqlVariableDetails, Map<Long, DatasourceSchemaDTO> dsMap) {
         if (sqlVariableDetails.getOperator().equals("in")) {
             if (StringUtils.equalsIgnoreCase(dsMap.entrySet().iterator().next().getValue().getType(), DatasourceConfiguration.DatasourceType.sqlServer.getType())
-                && sqlVariableDetails.getDeType() == 0) {
+                    && sqlVariableDetails.getDeType() == 0) {
                 return "N'" + String.join("', N'", sqlVariableDetails.getValue()) + "'";
             } else {
                 if (sqlVariableDetails.getDeType() == 2 || sqlVariableDetails.getDeType() == 3) {

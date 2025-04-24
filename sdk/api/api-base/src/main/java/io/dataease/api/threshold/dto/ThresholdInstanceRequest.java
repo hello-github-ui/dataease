@@ -1,6 +1,5 @@
 package io.dataease.api.threshold.dto;
 
-import io.dataease.constant.CommonConstants;
 import io.dataease.model.KeywordRequest;
 import lombok.Data;
 import lombok.EqualsAndHashCode;

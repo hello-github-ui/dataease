@@ -1,97 +1,91 @@
 <template>
-    <el-dialog
-        ref="canvasCacheDialogRef"
-        v-model="dialogShow"
-        :append-to-body="true"
-        :show-close="false"
-        class="canvasCacheDialog"
-        modal-class="canvasCacheDialog-modal"
-        trigger="click"
-        width="420px"
-    >
-        <div style="display: flex; flex-direction: row; align-items: flex-start">
-            <Icon name="warn-tree">
-                <warnTree class="svg-icon warn-tree"/>
-            </Icon>
-            <span class="tips">
+  <el-dialog
+    ref="canvasCacheDialogRef"
+    :append-to-body="true"
+    v-model="dialogShow"
+    width="420px"
+    :show-close="false"
+    trigger="click"
+    modal-class="canvasCacheDialog-modal"
+    class="canvasCacheDialog"
+  >
+    <div style="display: flex; flex-direction: row; align-items: flex-start">
+      <Icon name="warn-tree">
+        <warnTree class="svg-icon warn-tree" />
+      </Icon>
+      <span class="tips">
         {{ dialogInfo.tips }}
       </span>
-        </div>
+    </div>
 
-        <template #footer>
-            <div class="dialog-footer">
-                <el-button size="mini" @click="doUseCache(false)">{{ t('visualization.no') }}</el-button>
-                <el-button size="mini" type="primary" @click="doUseCache(true)"
-                >{{ t('visualization.yes') }}
-                </el-button>
-            </div>
-        </template>
-    </el-dialog>
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button size="mini" @click="doUseCache(false)">{{ t('visualization.no') }}</el-button>
+        <el-button type="primary" size="mini" @click="doUseCache(true)"
+          >{{ t('visualization.yes') }}
+        </el-button>
+      </div>
+    </template>
+  </el-dialog>
 </template>
 
-<script lang="ts" setup>
+<script setup lang="ts">
 import warnTree from '@/assets/svg/warn-tree.svg'
-import {ref} from 'vue'
-import {useI18n} from '@/hooks/web/useI18n'
-import {dvMainStoreWithOut} from '@/store/modules/data-visualization/dvMain'
-import {useCache} from '@/hooks/web/useCache'
-
+import { ref } from 'vue'
+import { useI18n } from '@/hooks/web/useI18n'
+import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 const dvMainStore = dvMainStoreWithOut()
 const dialogShow = ref(false)
-const {t} = useI18n()
-
-const {wsCache} = useCache()
+const { t } = useI18n()
+import { useCache } from '@/hooks/web/useCache'
+const { wsCache } = useCache()
 const emits = defineEmits(['doUseCache'])
 
 const dialogInfo = {
-    resourceId: null,
-    title: '',
-    tips: ''
+  resourceId: null,
+  title: '',
+  tips: ''
 }
 
 const dialogInit = initInfo => {
-    const canvasTypeName =
-        initInfo.canvasType === 'dataV' ? t('work_branch.big_data_screen') : t('work_branch.dashboard')
-    dialogInfo.resourceId = initInfo.resourceId
-    dialogInfo.title = t('visualization.no_save_tips', [canvasTypeName])
-    dialogInfo.tips = t('visualization.no_save_tips2')
-    dialogShow.value = true
+  const canvasTypeName =
+    initInfo.canvasType === 'dataV' ? t('work_branch.big_data_screen') : t('work_branch.dashboard')
+  dialogInfo.resourceId = initInfo.resourceId
+  dialogInfo.title = t('visualization.no_save_tips', [canvasTypeName])
+  dialogInfo.tips = t('visualization.no_save_tips2')
+  dialogShow.value = true
 }
 
 const doUseCache = flag => {
-    emits('doUseCache', flag)
-    dialogShow.value = false
+  emits('doUseCache', flag)
+  dialogShow.value = false
 }
 
 defineExpose({
-    dialogInit
+  dialogInit
 })
 </script>
 
 <style lang="less">
 .canvasCacheDialog-modal {
-    background: rgba(31, 35, 41, 0.4);
+  background: rgba(31, 35, 41, 0.4);
 }
-
 .canvasCacheDialog {
-    .warn-tree {
-        width: 24px;
-        height: 24px;
-    }
-
-    .tips {
-        margin-left: 16px;
-        font-size: 16px;
-        font-weight: 500;
-        line-height: 24px;
-    }
-
-    .ed-dialog__header {
-        display: none;
-    }
-
-    :deep(.ed-dialog__header) {
-        display: none;
-    }
+  .warn-tree {
+    width: 24px;
+    height: 24px;
+  }
+  .tips {
+    margin-left: 16px;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 24px;
+  }
+  .ed-dialog__header {
+    display: none;
+  }
+  :deep(.ed-dialog__header) {
+    display: none;
+  }
 }
 </style>

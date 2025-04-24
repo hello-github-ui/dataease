@@ -1,12 +1,11 @@
 package io.dataease.dataset.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
  * <p>
- *
+ * 
  * </p>
  *
  * @author fit2cloud
@@ -124,14 +123,14 @@ public class CoreDatasetTable implements Serializable {
     @Override
     public String toString() {
         return "CoreDatasetTable{" +
-            "id = " + id +
-            ", name = " + name +
-            ", tableName = " + tableName +
-            ", datasourceId = " + datasourceId +
-            ", datasetGroupId = " + datasetGroupId +
-            ", type = " + type +
-            ", info = " + info +
-            ", sqlVariableDetails = " + sqlVariableDetails +
-            "}";
+        "id = " + id +
+        ", name = " + name +
+        ", tableName = " + tableName +
+        ", datasourceId = " + datasourceId +
+        ", datasetGroupId = " + datasetGroupId +
+        ", type = " + type +
+        ", info = " + info +
+        ", sqlVariableDetails = " + sqlVariableDetails +
+        "}";
     }
 }

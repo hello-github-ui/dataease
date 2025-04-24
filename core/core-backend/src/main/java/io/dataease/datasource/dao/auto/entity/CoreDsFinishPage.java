@@ -3,12 +3,11 @@ package io.dataease.datasource.dao.auto.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
  * <p>
- *
+ * 
  * </p>
  *
  * @author fit2cloud
@@ -36,7 +35,7 @@ public class CoreDsFinishPage implements Serializable {
     @Override
     public String toString() {
         return "CoreDsFinishPage{" +
-            "id = " + id +
-            "}";
+        "id = " + id +
+        "}";
     }
 }

@@ -88,16 +88,6 @@ public class AppCoreDatasetTableFieldVO implements Serializable {
     private Integer deExtractType;
 
     /**
-     * 分组设置
-     */
-    private String groupList;
-
-    /**
-     * 未分组的值
-     */
-    private String otherGroup;
-
-    /**
      * 是否扩展字段 0原始 1复制 2计算字段...
      */
     private Integer extField;

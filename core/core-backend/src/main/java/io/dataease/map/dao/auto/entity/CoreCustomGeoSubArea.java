@@ -1,7 +1,6 @@
 package io.dataease.map.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
@@ -72,10 +71,10 @@ public class CoreCustomGeoSubArea implements Serializable {
     @Override
     public String toString() {
         return "CoreCustomGeoSubArea{" +
-            "id = " + id +
-            ", name = " + name +
-            ", scope = " + scope +
-            ", geoAreaId = " + geoAreaId +
-            "}";
+        "id = " + id +
+        ", name = " + name +
+        ", scope = " + scope +
+        ", geoAreaId = " + geoAreaId +
+        "}";
     }
 }

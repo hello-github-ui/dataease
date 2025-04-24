@@ -1,0 +1,1 @@
+import{_ as t}from"./_plugin-vue_export-helper-0.0.0-dataease.js";import{f as o,L as e}from"./vue-0.0.0-dataease.js";const _={},c={class:"not-support"};function s(r,n){return o(),e("div",c,"请注意，数据大屏不支持在移动端查阅！")}const d=t(_,[["render",s],["__scopeId","data-v-7c1b550c"]]);export{d as default};

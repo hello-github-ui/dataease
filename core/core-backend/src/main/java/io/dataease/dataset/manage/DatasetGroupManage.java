@@ -14,7 +14,6 @@ import io.dataease.dataset.dao.auto.mapper.CoreDatasetTableMapper;
 import io.dataease.dataset.dao.ext.mapper.CoreDataSetExtMapper;
 import io.dataease.dataset.dao.ext.po.DataSetNodePO;
 import io.dataease.dataset.dto.DataSetNodeBO;
-import io.dataease.dataset.utils.DatasetUtils;
 import io.dataease.dataset.utils.FieldUtils;
 import io.dataease.dataset.utils.TableUtils;
 import io.dataease.datasource.dao.auto.entity.CoreDatasource;
@@ -52,7 +51,6 @@ import java.util.stream.Collectors;
 @Component
 @Transactional(rollbackFor = Exception.class)
 public class DatasetGroupManage {
-    private static final String leafType = "dataset";
     @Resource
     private CoreDatasetGroupMapper coreDatasetGroupMapper;
     @Resource
@@ -71,17 +69,24 @@ public class DatasetGroupManage {
     private CoreDatasetTableMapper coreDatasetTableMapper;
     @Resource
     private CoreDatasourceMapper coreDatasourceMapper;
+
+
     @Resource
     private CoreUserManage coreUserManage;
+
     @Resource
     private CoreOptRecentManage coreOptRecentManage;
+
     @Autowired(required = false)
     private RelationApi relationManage;
+
+    private static final String leafType = "dataset";
+
     private Lock lock = new ReentrantLock();
 
 
     @Transactional
-    public DatasetGroupInfoDTO save(DatasetGroupInfoDTO datasetGroupInfoDTO, boolean rename, boolean encode) throws Exception {
+    public DatasetGroupInfoDTO save(DatasetGroupInfoDTO datasetGroupInfoDTO, boolean rename) throws Exception {
         lock.lock();
         try {
             boolean isCreate;
@@ -124,9 +129,6 @@ public class DatasetGroupManage {
             }
             // node_type=dataset需要创建dataset_table和field
             if (StringUtils.equalsIgnoreCase(datasetGroupInfoDTO.getNodeType(), "dataset")) {
-                if (encode) {
-                    DatasetUtils.dsDecode(datasetGroupInfoDTO);
-                }
                 List<Long> tableIds = new ArrayList<>();
                 List<Long> fieldIds = new ArrayList<>();
                 // 解析tree，保存
@@ -135,12 +137,6 @@ public class DatasetGroupManage {
                 // 删除不要的table和field
                 datasetTableManage.deleteByDatasetGroupUpdate(datasetGroupInfoDTO.getId(), tableIds);
                 datasetTableFieldManage.deleteByDatasetGroupUpdate(datasetGroupInfoDTO.getId(), fieldIds);
-                if (encode) {
-                    DatasetUtils.dsEncode(datasetGroupInfoDTO);
-                }
-            }
-            if (StringUtils.isNotEmpty(datasetGroupInfoDTO.getUnionSql())) {
-                datasetGroupInfoDTO.setUnionSql(DatasetUtils.getEncode(datasetGroupInfoDTO.getUnionSql()));
             }
             return datasetGroupInfoDTO;
         } catch (Exception e) {
@@ -343,7 +339,7 @@ public class DatasetGroupManage {
         if (ObjectUtils.isEmpty(datasetGroupInfoDTO.getUnion())) {
             return;
         }
-        datasetDataManage.previewDataWithLimit(datasetGroupInfoDTO, 0, 1, false, false);
+        datasetDataManage.previewDataWithLimit(datasetGroupInfoDTO, 0, 1, false);
         // table和field均由前端生成id（如果没有id）
         Long datasetGroupId = datasetGroupInfoDTO.getId();
         List<DatasetTableFieldDTO> allFields = datasetGroupInfoDTO.getAllFields();
@@ -358,7 +354,7 @@ public class DatasetGroupManage {
                     if (Objects.equals(datasetTableFieldDTO.getExtField(), ExtFieldConstant.EXT_NORMAL)) {
                         for (DatasetTableFieldDTO fieldDTO : unionFields) {
                             if (Objects.equals(datasetTableFieldDTO.getDatasetTableId(), fieldDTO.getDatasetTableId())
-                                && Objects.equals(datasetTableFieldDTO.getOriginName(), fieldDTO.getOriginName())) {
+                                    && Objects.equals(datasetTableFieldDTO.getOriginName(), fieldDTO.getOriginName())) {
                                 datasetTableFieldDTO.setDataeaseName(fieldDTO.getDataeaseName());
                                 datasetTableFieldDTO.setFieldShortName(fieldDTO.getFieldShortName());
                             }
@@ -444,8 +440,6 @@ public class DatasetGroupManage {
                 return datasetTableFieldDTO;
             }).collect(Collectors.toList());
 
-            DatasetUtils.listEncode(allFields);
-
             dto.setAllFields(allFields);
         }
         return dto;
@@ -486,7 +480,7 @@ public class DatasetGroupManage {
 
             if ("preview".equalsIgnoreCase(type)) {
                 // 请求数据
-                Map<String, Object> map = datasetDataManage.previewDataWithLimit(dto, 0, 100, true, false);
+                Map<String, Object> map = datasetDataManage.previewDataWithLimit(dto, 0, 100, true);
                 // 获取data,sql
                 Map<String, List> data = (Map<String, List>) map.get("data");
                 String sql = (String) map.get("sql");
@@ -599,8 +593,6 @@ public class DatasetGroupManage {
                     List<DatasetTableFieldDTO> dimensionList = fields.stream().filter(ele -> StringUtils.equalsIgnoreCase(ele.getGroupType(), "d")).toList();
                     List<DatasetTableFieldDTO> quotaList = fields.stream().filter(ele -> StringUtils.equalsIgnoreCase(ele.getGroupType(), "q")).toList();
                     Map<String, List<DatasetTableFieldDTO>> map = new LinkedHashMap<>();
-                    DatasetUtils.listEncode(dimensionList);
-                    DatasetUtils.listEncode(quotaList);
                     map.put("dimensionList", dimensionList);
                     map.put("quotaList", quotaList);
                     dto.setFields(map);
@@ -609,39 +601,5 @@ public class DatasetGroupManage {
             }
         }
         return result;
-    }
-
-    public List<DatasetGroupInfoDTO> getAllList() {
-        List<CoreDatasetGroup> coreDatasetGroupList = coreDatasetGroupMapper.selectList(new QueryWrapper<>());
-        if (CollectionUtils.isEmpty(coreDatasetGroupList)) {
-            return new ArrayList<>();
-        }
-        List<DatasetGroupInfoDTO> list = new ArrayList<>();
-        for (CoreDatasetGroup coreDatasetGroup : coreDatasetGroupList) {
-            DatasetGroupInfoDTO dto = new DatasetGroupInfoDTO();
-            BeanUtils.copyBean(dto, coreDatasetGroup);
-            dto.setUnionSql(null);
-            if (StringUtils.equalsIgnoreCase(dto.getNodeType(), "dataset")) {
-                List<UnionDTO> unionDTOList = JsonUtil.parseList(coreDatasetGroup.getInfo(), new TypeReference<>() {
-                });
-                dto.setUnion(unionDTOList);
-
-                // 获取field
-                List<DatasetTableFieldDTO> dsFields = datasetTableFieldManage.selectByDatasetGroupId(coreDatasetGroup.getId());
-                List<DatasetTableFieldDTO> allFields = dsFields.stream().map(ele -> {
-                    DatasetTableFieldDTO datasetTableFieldDTO = new DatasetTableFieldDTO();
-                    BeanUtils.copyBean(datasetTableFieldDTO, ele);
-                    datasetTableFieldDTO.setFieldShortName(ele.getDataeaseName());
-                    return datasetTableFieldDTO;
-                }).collect(Collectors.toList());
-
-                DatasetUtils.listEncode(allFields);
-
-                dto.setAllFields(allFields);
-
-                list.add(dto);
-            }
-        }
-        return list;
     }
 }

@@ -1,13 +1,20 @@
 <script lang="ts" setup>
-import {defineAsyncComponent, nextTick, onBeforeMount, onBeforeUnmount, ref, shallowRef} from 'vue'
-import {debounce} from 'lodash-es'
-import {XpackComponent} from '@/components/plugin'
-import {useEmitt} from '@/hooks/web/useEmitt'
+import {
+  shallowRef,
+  defineAsyncComponent,
+  ref,
+  onBeforeUnmount,
+  onBeforeMount,
+  nextTick
+} from 'vue'
+import { debounce } from 'lodash-es'
+import { XpackComponent } from '@/components/plugin'
+import { useEmitt } from '@/hooks/web/useEmitt'
 
 const currentComponent = shallowRef()
 const Preview = defineAsyncComponent(() => import('@/views/data-visualization/PreviewCanvas.vue'))
 const VisualizationEditor = defineAsyncComponent(
-    () => import('@/views/data-visualization/index.vue')
+  () => import('@/views/data-visualization/index.vue')
 )
 const DashboardEditor = defineAsyncComponent(() => import('@/views/dashboard/index.vue'))
 
@@ -15,83 +22,81 @@ const Dashboard = defineAsyncComponent(() => import('@/pages/panel/DashboardPrev
 const ViewWrapper = defineAsyncComponent(() => import('@/pages/panel/ViewWrapper.vue'))
 const Dataset = defineAsyncComponent(() => import('@/views/visualized/data/dataset/index.vue'))
 const Datasource = defineAsyncComponent(
-    () => import('@/views/visualized/data/datasource/index.vue')
+  () => import('@/views/visualized/data/datasource/index.vue')
 )
 const ScreenPanel = defineAsyncComponent(() => import('@/views/data-visualization/PreviewShow.vue'))
 const DashboardPanel = defineAsyncComponent(
-    () => import('@/views/dashboard/DashboardPreviewShow.vue')
+  () => import('@/views/dashboard/DashboardPreviewShow.vue')
 )
 const Copilot = defineAsyncComponent(() => import('@/views/copilot/index.vue'))
-const TemplateManage = defineAsyncComponent(() => import('@/views/template/indexInject.vue'))
 
 const AsyncXpackComponent = defineAsyncComponent(() => import('@/components/plugin/src/index.vue'))
 
 const componentMap = {
-    DashboardEditor,
-    VisualizationEditor,
-    ViewWrapper,
-    Preview,
-    Dashboard,
-    Dataset,
-    Datasource,
-    ScreenPanel,
-    DashboardPanel,
-    Copilot,
-    TemplateManage
+  DashboardEditor,
+  VisualizationEditor,
+  ViewWrapper,
+  Preview,
+  Dashboard,
+  Dataset,
+  Datasource,
+  ScreenPanel,
+  DashboardPanel,
+  Copilot
 }
 const iframeStyle = ref(null)
 const setStyle = debounce(() => {
-    iframeStyle.value = {
-        height: window.innerHeight + 'px',
-        width: window.innerWidth + 'px'
-    }
+  iframeStyle.value = {
+    height: window.innerHeight + 'px',
+    width: window.innerWidth + 'px'
+  }
 }, 300)
 onBeforeMount(() => {
-    window.addEventListener('resize', setStyle)
-    setStyle()
+  window.addEventListener('resize', setStyle)
+  setStyle()
 })
 
 onBeforeUnmount(() => {
-    window.removeEventListener('resize', setStyle)
+  window.removeEventListener('resize', setStyle)
 })
 
 const showComponent = ref(false)
 const dataFillingPath = ref('')
 
 const initIframe = (name: string) => {
-    showComponent.value = false
-    if (name && name.includes('DataFilling')) {
-        if (name === 'DataFilling') {
-            dataFillingPath.value = 'L21lbnUvZGF0YS9kYXRhLWZpbGxpbmcvbWFuYWdlL2luZGV4'
-        } else if (name === 'DataFillingEditor') {
-            dataFillingPath.value = 'L21lbnUvZGF0YS9kYXRhLWZpbGxpbmcvbWFuYWdlL2Zvcm0vaW5kZXg='
-        } else if (name === 'DataFillingHandler') {
-            dataFillingPath.value = 'L21lbnUvZGF0YS9kYXRhLWZpbGxpbmcvZmlsbC9UYWJQYW5lVGFibGU='
-        }
-        nextTick(() => {
-            currentComponent.value = AsyncXpackComponent
-            showComponent.value = true
-        })
-    } else {
-        nextTick(() => {
-            currentComponent.value = componentMap[name || 'ViewWrapper']
-            showComponent.value = true
-        })
+  showComponent.value = false
+  if (name && name.includes('DataFilling')) {
+    if (name === 'DataFilling') {
+      dataFillingPath.value = 'L21lbnUvZGF0YS9kYXRhLWZpbGxpbmcvbWFuYWdlL2luZGV4'
+    } else if (name === 'DataFillingEditor') {
+      dataFillingPath.value = 'L21lbnUvZGF0YS9kYXRhLWZpbGxpbmcvbWFuYWdlL2Zvcm0vaW5kZXg='
+    } else if (name === 'DataFillingHandler') {
+      dataFillingPath.value = 'L21lbnUvZGF0YS9kYXRhLWZpbGxpbmcvZmlsbC9UYWJQYW5lVGFibGU='
     }
+    nextTick(() => {
+      currentComponent.value = AsyncXpackComponent
+      showComponent.value = true
+    })
+  } else {
+    nextTick(() => {
+      currentComponent.value = componentMap[name || 'ViewWrapper']
+      showComponent.value = true
+    })
+  }
 }
 
 useEmitt({
-    name: 'changeCurrentComponent',
-    callback: initIframe
+  name: 'changeCurrentComponent',
+  callback: initIframe
 })
 </script>
 
 <template>
-    <XpackComponent
-        jsname="L2NvbXBvbmVudC9lbWJlZGRlZC1pZnJhbWUvRW50cmFuY2Vz"
-        @init-iframe="initIframe"
-    />
-    <div :style="iframeStyle">
-        <component :is="currentComponent" v-if="showComponent" :jsname="dataFillingPath"></component>
-    </div>
+  <XpackComponent
+    jsname="L2NvbXBvbmVudC9lbWJlZGRlZC1pZnJhbWUvRW50cmFuY2Vz"
+    @init-iframe="initIframe"
+  />
+  <div :style="iframeStyle">
+    <component :is="currentComponent" :jsname="dataFillingPath" v-if="showComponent"></component>
+  </div>
 </template>

@@ -1,12 +1,11 @@
 package io.dataease.font.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
  * <p>
- *
+ * 
  * </p>
  *
  * @author fit2cloud
@@ -131,15 +130,15 @@ public class CoreFont implements Serializable {
     @Override
     public String toString() {
         return "CoreFont{" +
-            "id = " + id +
-            ", name = " + name +
-            ", fileName = " + fileName +
-            ", fileTransName = " + fileTransName +
-            ", isDefault = " + isDefault +
-            ", updateTime = " + updateTime +
-            ", isBuiltin = " + isBuiltin +
-            ", size = " + size +
-            ", sizeType = " + sizeType +
-            "}";
+        "id = " + id +
+        ", name = " + name +
+        ", fileName = " + fileName +
+        ", fileTransName = " + fileTransName +
+        ", isDefault = " + isDefault +
+        ", updateTime = " + updateTime +
+        ", isBuiltin = " + isBuiltin +
+        ", size = " + size +
+        ", sizeType = " + sizeType +
+        "}";
     }
 }

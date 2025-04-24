@@ -1,6 +1,5 @@
 package io.dataease.chart.charts.impl.table;
 
-import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.chart.charts.impl.GroupChartHandler;
 import io.dataease.constant.DeTypeConstants;
 import io.dataease.engine.constant.ExtFieldConstant;
@@ -19,7 +18,6 @@ import io.dataease.utils.IDUtils;
 import io.dataease.utils.JsonUtil;
 import lombok.Getter;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 import reactor.util.function.Tuple2;
@@ -36,8 +34,7 @@ public class TablePivotHandler extends GroupChartHandler {
     @Override
     public <T extends ChartCalcDataResult> T calcChartResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, Map<String, Object> sqlMap, SQLMeta sqlMeta, Provider provider) {
         T result = super.calcChartResult(view, formatResult, filterResult, sqlMap, sqlMeta, provider);
-        Map<String, Object> customCalc = calcCustomExpr(view, formatResult, filterResult, sqlMap, sqlMeta, provider);
-        boolean crossDs = ((DatasetGroupInfoDTO) formatResult.getContext().get("dataset")).getIsCross();
+        Map<String, Object> customCalc = calcCustomExpr(view, filterResult, sqlMap, sqlMeta, provider);
         result.getData().put("customCalc", customCalc);
         try {
             var dsMap = (Map<Long, DatasourceSchemaDTO>) sqlMap.get("dsMap");
@@ -47,28 +44,13 @@ public class TablePivotHandler extends GroupChartHandler {
             var assistFields = getAssistFields(dynamicAssistFields, yAxis);
             if (CollectionUtils.isNotEmpty(assistFields)) {
                 var req = new DatasourceRequest();
-                req.setIsCross(crossDs);
                 req.setDsList(dsMap);
-
-                List<ChartSeniorAssistDTO> assists = dynamicAssistFields.stream().filter(ele -> !StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
-                if (ObjectUtils.isNotEmpty(assists)) {
-                    var assistSql = assistSQL(originSql, assistFields, dsMap, crossDs);
-                    req.setQuery(assistSql);
-                    logger.debug("calcite assistSql sql: " + assistSql);
-                    var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
-                    result.setAssistData(assistData);
-                    result.setDynamicAssistFields(assists);
-                }
-
-                List<ChartSeniorAssistDTO> assistsOriginList = dynamicAssistFields.stream().filter(ele -> StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
-                if (ObjectUtils.isNotEmpty(assistsOriginList)) {
-                    var assistSqlOriginList = assistSQLOriginList(originSql, assistFields, dsMap, crossDs);
-                    req.setQuery(assistSqlOriginList);
-                    logger.debug("calcite assistSql sql origin list: " + assistSqlOriginList);
-                    var assistDataOriginList = (List<String[]>) provider.fetchResultField(req).get("data");
-                    result.setAssistDataOriginList(assistDataOriginList);
-                    result.setDynamicAssistFieldsOriginList(assistsOriginList);
-                }
+                var assistSql = assistSQL(originSql, assistFields, dsMap);
+                req.setQuery(assistSql);
+                logger.debug("calcite assistSql sql: " + assistSql);
+                var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
+                result.setAssistData(assistData);
+                result.setDynamicAssistFields(dynamicAssistFields);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -76,7 +58,7 @@ public class TablePivotHandler extends GroupChartHandler {
         return result;
     }
 
-    private Map<String, Object> calcCustomExpr(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, Map<String, Object> sqlMap, SQLMeta sqlMeta, Provider provider) {
+    private Map<String, Object> calcCustomExpr(ChartViewDTO view, CustomFilterResult filterResult, Map<String, Object> sqlMap, SQLMeta sqlMeta, Provider provider) {
         Object totalStr = JsonUtil.toJSONString(view.getCustomAttr().get("tableTotal"));
         TableTotal tableTotal = JsonUtil.parseObject((String) totalStr, TableTotal.class);
         var dsMap = (Map<Long, DatasourceSchemaDTO>) sqlMap.get("dsMap");
@@ -85,7 +67,7 @@ public class TablePivotHandler extends GroupChartHandler {
             dsList.add(next.getValue().getType());
         }
         boolean needOrder = Utils.isNeedOrder(dsList);
-        boolean crossDs = ((DatasetGroupInfoDTO) formatResult.getContext().get("dataset")).getIsCross();
+        boolean crossDs = Utils.isCrossDs(dsMap);
         DatasourceRequest datasourceRequest = new DatasourceRequest();
         datasourceRequest.setDsList(dsMap);
         var allFields = (List<ChartViewFieldDTO>) filterResult.getContext().get("allFields");
@@ -226,8 +208,8 @@ public class TablePivotHandler extends GroupChartHandler {
             }
         }
         // 列总计里面的行小计
-        if (col.isShowGrandTotals() && row.isShowSubTotals() && rowAxis.size() >= 2) {
-            var yAxis = getCustomFields(view, row.getCalcSubTotals().getCfg());
+        if (col.isShowGrandTotals() && row.isShowGrandTotals() && rowAxis.size() >= 2) {
+            var yAxis = getCustomFields(view, row.getCalcTotals().getCfg());
             if (!yAxis.isEmpty()) {
                 var tmpData = new ArrayList<Map<String, Object>>();
                 dataMap.put("rowSubInColTotal", tmpData);
@@ -261,11 +243,11 @@ public class TablePivotHandler extends GroupChartHandler {
                     var tmpList = new ArrayList<Map<String, Object>>();
                     tmpData.add(tmpList);
                     var subRow = rowAxis.subList(0, i + 1);
+                    var xAxis = new ArrayList<>(subRow);
                     for (int j = 0; j < colAxis.size(); j++) {
                         if (j == colAxis.size() - 1) {
                             break;
                         }
-                        var xAxis = new ArrayList<>(subRow);
                         var subCol = colAxis.subList(0, j + 1);
                         xAxis.addAll(subCol);
                         var tmpAllList = new ArrayList<>(allFields);
@@ -321,7 +303,6 @@ public class TablePivotHandler extends GroupChartHandler {
                                                    List<ChartViewFieldDTO> allFields, boolean crossDs, Map<Long, DatasourceSchemaDTO> dsMap,
                                                    ChartViewDTO view, Provider provider, boolean needOrder) {
         DatasourceRequest datasourceRequest = new DatasourceRequest();
-        datasourceRequest.setIsCross(crossDs);
         datasourceRequest.setDsList(dsMap);
         Dimension2SQLObj.dimension2sqlObj(sqlMeta, xAxis, FieldUtil.transFields(allFields), crossDs, dsMap, Utils.getParams(FieldUtil.transFields(allFields)), view.getCalParams(), pluginManage);
         Quota2SQLObj.quota2sqlObj(sqlMeta, yAxis, FieldUtil.transFields(allFields), crossDs, dsMap, Utils.getParams(FieldUtil.transFields(allFields)), view.getCalParams(), pluginManage);

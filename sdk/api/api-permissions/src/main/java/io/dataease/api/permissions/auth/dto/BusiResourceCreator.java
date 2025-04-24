@@ -19,5 +19,4 @@ public class BusiResourceCreator implements Serializable {
     private Long pid = 0L;
     private Boolean leaf;
     private int extraFlag;
-    private int extraFlag1;
 }

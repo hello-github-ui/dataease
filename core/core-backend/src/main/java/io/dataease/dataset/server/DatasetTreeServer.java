@@ -9,6 +9,7 @@ import io.dataease.constant.LogOT;
 import io.dataease.constant.LogST;
 import io.dataease.dataset.manage.DatasetGroupManage;
 import io.dataease.exportCenter.manage.ExportCenterManage;
+import io.dataease.exportCenter.server.ExportCenterServer;
 import io.dataease.extensions.datasource.dto.DatasetTableDTO;
 import io.dataease.extensions.view.dto.SqlVariableDetails;
 import io.dataease.log.DeLog;
@@ -32,19 +33,19 @@ public class DatasetTreeServer implements DatasetTreeApi {
     @DeLog(id = "#p0.id", ot = LogOT.MODIFY, st = LogST.DATASET)
     @Override
     public DatasetGroupInfoDTO save(DatasetGroupInfoDTO datasetNodeDTO) throws Exception {
-        return datasetGroupManage.save(datasetNodeDTO, false, true);
+        return datasetGroupManage.save(datasetNodeDTO, false);
     }
 
     @DeLog(id = "#p0.id", ot = LogOT.MODIFY, st = LogST.DATASET)
     @Override
     public DatasetNodeDTO rename(DatasetGroupInfoDTO dto) throws Exception {
-        return datasetGroupManage.save(dto, true, false);
+        return datasetGroupManage.save(dto, true);
     }
 
     @DeLog(id = "#p0.id", pid = "#p0.pid", ot = LogOT.CREATE, st = LogST.DATASET)
     @Override
     public DatasetNodeDTO create(DatasetGroupInfoDTO dto) throws Exception {
-        return datasetGroupManage.save(dto, false, true);
+        return datasetGroupManage.save(dto, false);
     }
 
     @DeLog(id = "#p0.id", ot = LogOT.MODIFY, st = LogST.DATASET)

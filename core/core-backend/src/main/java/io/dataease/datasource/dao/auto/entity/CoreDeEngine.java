@@ -3,12 +3,11 @@ package io.dataease.datasource.dao.auto.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
  * <p>
- *
+ * 
  * </p>
  *
  * @author fit2cloud
@@ -140,15 +139,15 @@ public class CoreDeEngine implements Serializable {
     @Override
     public String toString() {
         return "CoreDeEngine{" +
-            "id = " + id +
-            ", name = " + name +
-            ", description = " + description +
-            ", type = " + type +
-            ", configuration = " + configuration +
-            ", createTime = " + createTime +
-            ", updateTime = " + updateTime +
-            ", createBy = " + createBy +
-            ", status = " + status +
-            "}";
+        "id = " + id +
+        ", name = " + name +
+        ", description = " + description +
+        ", type = " + type +
+        ", configuration = " + configuration +
+        ", createTime = " + createTime +
+        ", updateTime = " + updateTime +
+        ", createBy = " + createBy +
+        ", status = " + status +
+        "}";
     }
 }

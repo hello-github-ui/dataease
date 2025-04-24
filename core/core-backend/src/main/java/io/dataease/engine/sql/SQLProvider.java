@@ -62,9 +62,9 @@ public class SQLProvider {
                 xOrders = new ArrayList<>();
                 SQLObj sqlObj = xFields.get(0);
                 SQLObj result = SQLObj.builder()
-                    .orderField(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
-                    .orderAlias(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
-                    .orderDirection("ASC").build();
+                        .orderField(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
+                        .orderAlias(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
+                        .orderDirection("ASC").build();
                 xOrders.add(result);
             }
         }
@@ -107,9 +107,9 @@ public class SQLProvider {
         st_sql.add("isGroup", isGroup);
 
         SQLObj tableSQL = SQLObj.builder()
-            .tableName(String.format(SQLConstants.BRACKETS, sql))
-            .tableAlias(String.format(SQLConstants.TABLE_ALIAS_PREFIX, 1))
-            .build();
+                .tableName(String.format(SQLConstants.BRACKETS, sql))
+                .tableAlias(String.format(SQLConstants.TABLE_ALIAS_PREFIX, 1))
+                .build();
         if (ObjectUtils.isNotEmpty(tableSQL)) st.add("table", tableSQL);
 
         List<String> aggWheres = new ArrayList<>();
@@ -125,7 +125,7 @@ public class SQLProvider {
             var ids = new HashSet<Long>();
             for (SortAxis sortAxis : sortPriority) {
                 for (SQLObj order : orders) {
-                    if (sortAxis.getId().equals(order.getId())) {
+                    if (sortAxis.getId().equals(order.getId())){
                         tmp.add(order);
                         ids.add(order.getId());
                     }
@@ -143,9 +143,9 @@ public class SQLProvider {
             if (ObjectUtils.isNotEmpty(xFields) || ObjectUtils.isNotEmpty(yFields)) {
                 SQLObj sqlObj = ObjectUtils.isNotEmpty(xFields) ? xFields.get(0) : yFields.get(0);
                 SQLObj result = SQLObj.builder()
-                    .orderField(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
-                    .orderAlias(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
-                    .orderDirection("ASC").build();
+                        .orderField(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
+                        .orderAlias(String.format(SQLConstants.FIELD_DOT, sqlObj.getFieldAlias()))
+                        .orderDirection("ASC").build();
                 orders.add(result);
             }
         }
@@ -184,9 +184,9 @@ public class SQLProvider {
         st_sql.add("isGroup", isGroup);
 
         SQLObj tableSQL = SQLObj.builder()
-            .tableName(String.format(SQLConstants.BRACKETS, sql))
-            .tableAlias(String.format(SQLConstants.TABLE_ALIAS_PREFIX, 1))
-            .build();
+                .tableName(String.format(SQLConstants.BRACKETS, sql))
+                .tableAlias(String.format(SQLConstants.TABLE_ALIAS_PREFIX, 1))
+                .build();
         if (ObjectUtils.isNotEmpty(tableSQL)) st.add("table", tableSQL);
 
         List<String> aggWheres = new ArrayList<>();
@@ -197,7 +197,7 @@ public class SQLProvider {
     }
 
     public static String sqlLimit(String sql, ChartViewDTO view) {
-        if (StringUtils.equalsAnyIgnoreCase(view.getType(), "table-info", "table-normal")) {
+        if (StringUtils.equalsIgnoreCase(view.getType(), "table-info")) {
             return sql;
         }
         if (StringUtils.equalsIgnoreCase(view.getResultMode(), "custom")) {

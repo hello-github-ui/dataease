@@ -1,19 +1,15 @@
 package io.dataease.chart.charts.impl.mix;
 
-import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.chart.charts.impl.YoyChartHandler;
 import io.dataease.chart.utils.ChartDataBuild;
-import io.dataease.engine.trans.ExtWhere2Str;
 import io.dataease.engine.utils.Utils;
 import io.dataease.extensions.datasource.dto.DatasourceRequest;
 import io.dataease.extensions.datasource.dto.DatasourceSchemaDTO;
 import io.dataease.extensions.datasource.model.SQLMeta;
 import io.dataease.extensions.datasource.provider.Provider;
 import io.dataease.extensions.view.dto.*;
-import io.dataease.extensions.view.util.FieldUtil;
 import lombok.Getter;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
@@ -56,9 +52,9 @@ public class MixHandler extends YoyChartHandler {
     @Override
     public Map<String, Object> buildNormalResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data) {
         boolean isDrill = filterResult
-            .getFilterList()
-            .stream()
-            .anyMatch(ele -> ele.getFilterType() == 1) || filterResult.isDrill();
+                .getFilterList()
+                .stream()
+                .anyMatch(ele -> ele.getFilterType() == 1);
         if (StringUtils.equals((String) formatResult.getContext().get("isRight"), "isRight")) {
             var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
             var xAxisExt = formatResult.getAxisMap().get(ChartAxis.xAxisExt);
@@ -84,7 +80,7 @@ public class MixHandler extends YoyChartHandler {
             dsList.add(next.getValue().getType());
         }
         boolean needOrder = Utils.isNeedOrder(dsList);
-        boolean crossDs = ((DatasetGroupInfoDTO) formatResult.getContext().get("dataset")).getIsCross();
+        boolean crossDs = Utils.isCrossDs(dsMap);
         var leftResult = (T) super.calcChartResult(view, formatResult, filterResult, sqlMap, sqlMeta, provider);
         var dynamicAssistFields = getDynamicAssistFields(view);
         try {
@@ -95,28 +91,13 @@ public class MixHandler extends YoyChartHandler {
             var assistFields = getAssistFields(leftAssistFields, yAxis);
             if (CollectionUtils.isNotEmpty(assistFields)) {
                 var req = new DatasourceRequest();
-                req.setIsCross(crossDs);
                 req.setDsList(dsMap);
-
-                List<ChartSeniorAssistDTO> assists = leftAssistFields.stream().filter(ele -> !StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
-                if (ObjectUtils.isNotEmpty(assists)) {
-                    var assistSql = assistSQL(originSql, assistFields, dsMap, crossDs);
-                    req.setQuery(assistSql);
-                    logger.debug("calcite assistSql sql: " + assistSql);
-                    var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
-                    leftResult.setAssistData(assistData);
-                    leftResult.setDynamicAssistFields(assists);
-                }
-
-                List<ChartSeniorAssistDTO> assistsOriginList = leftAssistFields.stream().filter(ele -> StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
-                if (ObjectUtils.isNotEmpty(assistsOriginList)) {
-                    var assistSqlOriginList = assistSQLOriginList(originSql, assistFields, dsMap, crossDs);
-                    req.setQuery(assistSqlOriginList);
-                    logger.debug("calcite assistSql sql origin list: " + assistSqlOriginList);
-                    var assistDataOriginList = (List<String[]>) provider.fetchResultField(req).get("data");
-                    leftResult.setAssistDataOriginList(assistDataOriginList);
-                    leftResult.setDynamicAssistFieldsOriginList(assistsOriginList);
-                }
+                var assistSql = assistSQL(originSql, assistFields, dsMap);
+                req.setQuery(assistSql);
+                logger.debug("calcite assistSql sql: " + assistSql);
+                var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
+                leftResult.setAssistData(assistData);
+                leftResult.setDynamicAssistFields(leftAssistFields);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -148,27 +129,12 @@ public class MixHandler extends YoyChartHandler {
         formatResult2.getContext().remove("yoyFiltered");
         formatResult2.getContext().put("isRight", "isRight");
 
-        CustomFilterResult originFilter = new CustomFilterResult();
-        originFilter.setContext(filterResult.getContext());
-        List<ChartExtFilterDTO> list = (List<ChartExtFilterDTO>) formatResult.getContext().get("originFilter");
-        originFilter.setFilterList(ObjectUtils.isEmpty(list) ? new ArrayList<>() : list);
 
         formatResult.getContext().put("subAxisMap", axisMap);
 
         // 右轴重新检测同环比过滤
-        customFilter(view, originFilter.getFilterList(), formatResult2);
-        var allFields = (List<ChartViewFieldDTO>) filterResult.getContext().get("allFields");
-        if (formatResult2.getContext().get("yoyFiltered") != null && (boolean) formatResult2.getContext().get("yoyFiltered") == true) {
-            ExtWhere2Str.extWhere2sqlOjb(sqlMeta, filterResult.getFilterList(), FieldUtil.transFields(allFields), crossDs, dsMap, Utils.getParams(FieldUtil.transFields(allFields)), view.getCalParams(), pluginManage);
-        } else {
-            ExtWhere2Str.extWhere2sqlOjb(sqlMeta, originFilter.getFilterList(), FieldUtil.transFields(allFields), crossDs, dsMap, Utils.getParams(FieldUtil.transFields(allFields)), view.getCalParams(), pluginManage);
-        }
-        originFilter.setDrill(filterResult
-            .getFilterList()
-            .stream()
-            .anyMatch(ele -> ele.getFilterType() == 1));
-        var rightResult = (T) super.calcChartResult(view, formatResult2, originFilter, sqlMap, sqlMeta, provider);
-
+        customFilter(view, filterResult.getFilterList(), formatResult2);
+        var rightResult = (T) super.calcChartResult(view, formatResult2, filterResult, sqlMap, sqlMeta, provider);
         try {
             //如果有同环比过滤,应该用原始sql
             var originSql = rightResult.getQuerySql();
@@ -177,28 +143,12 @@ public class MixHandler extends YoyChartHandler {
             var assistFields = getAssistFields(rightAssistFields, yAxis);
             if (CollectionUtils.isNotEmpty(assistFields)) {
                 var req = new DatasourceRequest();
-                req.setIsCross(crossDs);
                 req.setDsList(dsMap);
-
-                List<ChartSeniorAssistDTO> assists = rightAssistFields.stream().filter(ele -> !StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
-                if (ObjectUtils.isNotEmpty(assists)) {
-                    var assistSql = assistSQL(originSql, assistFields, dsMap, crossDs);
-                    req.setQuery(assistSql);
-                    logger.debug("calcite assistSql sql: " + assistSql);
-                    var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
-                    rightResult.setAssistData(assistData);
-                    rightResult.setDynamicAssistFields(assists);
-                }
-
-                List<ChartSeniorAssistDTO> assistsOriginList = rightAssistFields.stream().filter(ele -> StringUtils.equalsIgnoreCase(ele.getSummary(), "last_item")).toList();
-                if (ObjectUtils.isNotEmpty(assistsOriginList)) {
-                    var assistSqlOriginList = assistSQLOriginList(originSql, assistFields, dsMap, crossDs);
-                    req.setQuery(assistSqlOriginList);
-                    logger.debug("calcite assistSql sql origin list: " + assistSqlOriginList);
-                    var assistDataOriginList = (List<String[]>) provider.fetchResultField(req).get("data");
-                    rightResult.setAssistDataOriginList(assistDataOriginList);
-                    rightResult.setDynamicAssistFieldsOriginList(assistsOriginList);
-                }
+                var assistSql = assistSQL(originSql, assistFields, dsMap);
+                req.setQuery(assistSql);
+                var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
+                rightResult.setAssistData(assistData);
+                rightResult.setDynamicAssistFields(rightAssistFields);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -219,12 +169,12 @@ public class MixHandler extends YoyChartHandler {
         var leftFields = new ArrayList<ChartViewFieldDTO>();
         leftFields.addAll(formatResult.getAxisMap().get(ChartAxis.xAxis));
         leftFields.addAll(formatResult.getAxisMap().get(ChartAxis.yAxis));
-        List<ChartSeniorAssistDTO> chartSeniorAssistDTOSLeft = mergeAssistField(leftCalcResult.getDynamicAssistFields(), leftCalcResult.getAssistData(), leftCalcResult.getDynamicAssistFieldsOriginList(), leftCalcResult.getAssistDataOriginList());
+        mergeAssistField(leftCalcResult.getDynamicAssistFields(), leftCalcResult.getAssistData());
         var leftOriginData = leftCalcResult.getOriginData();
         var leftTable = ChartDataBuild.transTableNormal(leftFields, view, leftOriginData, desensitizationList);
         var leftData = new HashMap<String, Object>(leftTable);
         leftData.putAll(leftCalcResult.getData());
-        leftData.put("dynamicAssistLines", chartSeniorAssistDTOSLeft);
+        leftData.put("dynamicAssistLines", leftCalcResult.getDynamicAssistFields());
 
         var rightCalcResult = (ChartCalcDataResult) calcResult.getData().get("right");
         var rightFields = new ArrayList<ChartViewFieldDTO>();
@@ -233,12 +183,12 @@ public class MixHandler extends YoyChartHandler {
         rightFields.addAll(subAxisMap.get(ChartAxis.xAxis));
         rightFields.addAll(subAxisMap.get(ChartAxis.yAxis));
 
-        List<ChartSeniorAssistDTO> chartSeniorAssistDTOSRight = mergeAssistField(rightCalcResult.getDynamicAssistFields(), rightCalcResult.getAssistData(), rightCalcResult.getDynamicAssistFieldsOriginList(), rightCalcResult.getAssistDataOriginList());
+        mergeAssistField(rightCalcResult.getDynamicAssistFields(), rightCalcResult.getAssistData());
         var rightOriginData = rightCalcResult.getOriginData();
         var rightTable = ChartDataBuild.transTableNormal(rightFields, view, rightOriginData, desensitizationList);
         var rightData = new HashMap<String, Object>(rightTable);
         rightData.putAll(rightCalcResult.getData());
-        rightData.put("dynamicAssistLines", chartSeniorAssistDTOSRight);
+        rightData.put("dynamicAssistLines", rightCalcResult.getDynamicAssistFields());
 
         // 构建结果
         Map<String, Object> chartData = new TreeMap<>();

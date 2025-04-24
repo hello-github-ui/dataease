@@ -32,9 +32,9 @@ public interface VisualizationLinkJumpApi {
     @Operation(summary = "根据图表ID查询跳转信息")
     VisualizationLinkJumpDTO queryWithViewId(@PathVariable Long dvId, @PathVariable Long viewId);
 
-    @GetMapping("/queryVisualizationJumpInfo/{dvId}/{resourceTable}")
+    @GetMapping("/queryVisualizationJumpInfo/{dvId}")
     @Operation(summary = "根据可视化资源ID查询跳转信息")
-    VisualizationLinkJumpBaseResponse queryVisualizationJumpInfo(@PathVariable Long dvId, @PathVariable String resourceTable);
+    VisualizationLinkJumpBaseResponse queryVisualizationJumpInfo(@PathVariable Long dvId);
 
     @PostMapping("/updateJumpSet")
     @Operation(summary = "更新跳转信息")

@@ -2,10 +2,7 @@ package io.dataease.chart.charts.impl.scatter;
 
 import io.dataease.chart.charts.impl.YoyChartHandler;
 import io.dataease.chart.utils.ChartDataBuild;
-import io.dataease.extensions.view.dto.AxisFormatResult;
-import io.dataease.extensions.view.dto.ChartAxis;
-import io.dataease.extensions.view.dto.ChartViewDTO;
-import io.dataease.extensions.view.dto.CustomFilterResult;
+import io.dataease.extensions.view.dto.*;
 import lombok.Getter;
 import org.springframework.stereotype.Component;
 

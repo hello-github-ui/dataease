@@ -1,113 +1,248 @@
-<p align="center"><a href="https://dataease.io"><img src="https://dataease.oss-cn-hangzhou.aliyuncs.com/img/dataease-logo.png" alt="DataEase" width="300" /></a></p>
-<h3 align="center">人人可用的开源 BI 工具</h3>
-<p align="center">
-  <a href="https://www.gnu.org/licenses/gpl-3.0.html"><img src="https://img.shields.io/github/license/dataease/dataease?color=%231890FF" alt="License: GPL v3"></a>
-  <a href="https://app.codacy.com/gh/dataease/dataease?utm_source=github.com&utm_medium=referral&utm_content=dataease/dataease&utm_campaign=Badge_Grade_Dashboard"><img src="https://app.codacy.com/project/badge/Grade/da67574fd82b473992781d1386b937ef" alt="Codacy"></a>
-  <a href="https://github.com/dataease/dataease"><img src="https://img.shields.io/github/stars/dataease/dataease?color=%231890FF&style=flat-square" alt="GitHub Stars"></a>
-  <a href="https://github.com/dataease/dataease/releases"><img src="https://img.shields.io/github/v/release/dataease/dataease" alt="GitHub release"></a>
-  <a href="https://gitee.com/fit2cloud-feizhiyun/DataEase"><img src="https://gitee.com/fit2cloud-feizhiyun/DataEase/badge/star.svg?theme=gvp" alt="Gitee Stars"></a>
-</p>
-<p align="center">
-  <a href="/README.md"><img alt="中文(简体)" src="https://img.shields.io/badge/中文(简体)-d9d9d9"></a>
-  <a href="/docs/README.en.md"><img alt="English" src="https://img.shields.io/badge/English-d9d9d9"></a>
-  <a href="/docs/README.zh-Hant.md"><img alt="中文(繁體)" src="https://img.shields.io/badge/中文(繁體)-d9d9d9"></a>
-  <a href="/docs/README.ja.md"><img alt="日本語" src="https://img.shields.io/badge/日本語-d9d9d9"></a>
-  <a href="/docs/README.pt-br.md"><img alt="Português (Brasil)" src="https://img.shields.io/badge/Português (Brasil)-d9d9d9"></a>
-  <a href="/docs/README.ar.md"><img alt="العربية" src="https://img.shields.io/badge/العربية-d9d9d9"></a>
-  <a href="/docs/README.de.md"><img alt="Deutsch" src="https://img.shields.io/badge/Deutsch-d9d9d9"></a>
-  <a href="/docs/README.es.md"><img alt="Español" src="https://img.shields.io/badge/Español-d9d9d9"></a>
-  <a href="/docs/README.fr.md"><img alt="français" src="https://img.shields.io/badge/français-d9d9d9"></a>
-  <a href="/docs/README.ko.md"><img alt="한국어" src="https://img.shields.io/badge/한국어-d9d9d9"></a>
-  <a href="/docs/README.id.md"><img alt="Bahasa Indonesia" src="https://img.shields.io/badge/Bahasa Indonesia-d9d9d9"></a>
-  <a href="/docs/README.tr.md"><img alt="Türkçe" src="https://img.shields.io/badge/Türkçe-d9d9d9"></a>
-</p>
+# 一、版本说明
 
-------------------------------
+当前版本是：
 
-## 什么是 DataEase？
+![image-20250424214235980](assets/image-20250424214235980.png)
 
-DataEase 是开源的 BI 工具，帮助用户快速分析数据并洞察业务趋势，从而实现业务的改进与优化。DataEase 支持丰富的数据源连接，能够通过拖拉拽方式快速制作图表，并可以方便的与他人分享。
+# 二、windows本地源码启动教程
 
-**DataEase 的优势：**
+## 2.0、环境准备
 
--   开源开放：零门槛，线上快速获取和安装，按月迭代；
--   简单易用：极易上手，通过鼠标点击和拖拽即可完成分析；
--   全场景支持：多平台安装和多样化嵌入支持；
--   安全分享：支持多种数据分享方式，确保数据安全。
+**开发环境说明：**
+MySQL(>=5.7)
+Apache Maven(>=3.8)
+JDK(21)
 
-**DataEase 支持的数据源：**
+## 2.1、下载Dataease
 
--   OLTP 数据库： MySQL、Oracle、SQL Server、PostgreSQL、MariaDB、Db2、TiDB、MongoDB-BI 等；
--   OLAP 数据库： ClickHouse、Apache Doris、Apache Impala、StarRocks 等；
--   数据仓库/数据湖： Amazon RedShift 等；
--   数据文件： Excel、CSV 等；
--   API 数据源。
-
-如果您需要向团队介绍 DataEase，可以使用这个 [官方 PPT 材料](https://fit2cloud.com/dataease/download/introduce-dataease_202501.pdf)。
-
-## 快速开始
-
-**桌面版：**
-
-你可以在 PC 上安装 DataEasae 桌面版，下载地址为：https://dataease.cn/
-
-**服务器版：**
-
-```
-# 准备一台 2 核 4G 以上的 Linux 服务器，并以 root 用户运行以下一键安装脚本：
-
-curl -sSL https://dataease.oss-cn-hangzhou.aliyuncs.com/quick_start_v2.sh | bash
-
-# 用户名: admin
-# 密码: DataEase@123456
+```bash
+git clone https://github.com/dataease/dataease.git
 ```
 
-你也可以通过 [1Panel 应用商店](https://dataease.io/docs/v2/installation/1panel_installation/) 快速部署 DataEase。如果是用于生产环境，推荐使用 [离线安装包方式](https://dataease.io/docs/v2/installation/offline_INSTL_and_UPG/) 进行安装部署。
+## 2.2、IDEA中配置本地Maven
 
-如你有更多问题，可以查看在线文档，或者通过论坛与我们交流。
+依次选择File -> Settings -> Build,Execution,Deployment -> Build Tools -> Maven
 
--   [视频介绍](https://www.bilibili.com/video/BV1Y8dAYLErb/)
--   [在线文档](https://dataease.io/docs/)
--   [社区论坛](https://bbs.fit2cloud.com/c/de/6)
--   [案例研究](/docs/use-cases.md)
+![image-20250424214605400](assets/image-20250424214605400.png)
 
-## UI 展示
+![image-20250424221239590](assets/image-20250424221239590.png)
 
-<table style="border-collapse: collapse; border: 1px solid black;">
-  <tr>
-    <td style="padding: 5px;background-color:#fff;"><img src= "https://github.com/dataease/dataease/assets/41712985/8dbed4e1-39f0-4392-aa8c-d1fd83ba42eb" alt="DataEase 工作台"   /></td>
-    <td style="padding: 5px;background-color:#fff;"><img src= "https://github.com/dataease/dataease/assets/41712985/7c54cb07-51ef-4bb6-a931-8a95c64c7e11" alt="DataEase 仪表板"   /></td>
-  </tr>
+![image-20250424221254402](assets/image-20250424221254402.png)
 
-  <tr>
-    <td style="padding: 5px;background-color:#fff;"><img src= "https://github.com/dataease/dataease/assets/41712985/ffa79361-a7b3-4486-b14a-f3fd3a28f01a" alt="DataEase 数据源"   /></td>
-    <td style="padding: 5px;background-color:#fff;"><img src= "https://github.com/dataease/dataease/assets/41712985/bb28f4e4-636e-4ab0-85c5-1dfbd7a5397e" alt="DataEase 模板中心"   /></td>
-  </tr>
-</table>
+## 2.3、等待IDEA扫描完本地代码
 
-## 技术栈
+略略略
 
--   前端：[Vue.js](https://vuejs.org/)、[Element](https://element.eleme.cn/)
--   图库：[AntV](https://antv.vision/zh)
--   后端：[Spring Boot](https://spring.io/projects/spring-boot)
--   数据库：[MySQL](https://www.mysql.com/)
--   数据处理：[Apache Calcite](https://github.com/apache/calcite/)、[Apache SeaTunnel](https://github.com/apache/seatunnel)
--   基础设施：[Docker](https://www.docker.com/)
+## 2.4、手动添加core目录为pom
 
-## 飞致云的其他明星项目
+![image-20250424214741616](assets/image-20250424214741616.png)
 
-- [1Panel](https://github.com/1panel-dev/1panel/) - 现代化、开源的 Linux 服务器运维管理面板
-- [MaxKB](https://github.com/1panel-dev/MaxKB/) - 基于 LLM 大语言模型的开源知识库问答系统
-- [JumpServer](https://github.com/jumpserver/jumpserver/) - 广受欢迎的开源堡垒机
-- [Halo](https://github.com/halo-dev/halo/) - 强大易用的开源建站工具
-- [MeterSphere](https://github.com/metersphere/metersphere/) - 新一代的开源持续测试工具
+## 2.5、编译/打包dataease模块
 
-## License
+选择IDEA右侧的Maven按钮，选择dataease -> package按钮进行打包，打包成功后点击install将各个子模块安装到本地Maven仓库中。
 
-Copyright (c) 2014-2025 [FIT2CLOUD 飞致云](https://fit2cloud.com/), All rights reserved.
+![image-20250424214843099](assets/image-20250424214843099.png)
 
-Licensed under The GNU General Public License version 3 (GPLv3)  (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
+可以同时选择 `clean、package、install`
 
-<https://www.gnu.org/licenses/gpl-3.0.html>
+## 2.6、编译/打包core模块
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+### 2.6.1、在后端项目中修改前端资源包打包配置
+
+首次编译前，需要修改后端项目 `core-backend 目录中的 pom.xml` 文件，修改 `<filtering>true</filtering>` 中的值为 false ，避免编译时由前端向后端集成资源包时报错。
+
+![image-20250424215313921](assets/image-20250424215313921.png)
+
+### 2.6.2、编译运行以及可能的问题
+
+* 打开前端项目 `core-frontend` 目录中的pom.xml文件，在 pom.xml 中增加如下代码，会自动全局安装 win-node-env，用于解决 windows 系统出现‘`NODE_OPTIONS’ is not recognized as an internal or external command` 问题，让 Node.js 的环境变量可以在 Windows 环境下正常运行。
+
+![image-20250424215455702](assets/image-20250424215455702.png)
+
+* 修改 core/core-frontend/.eslintrc.js 文件，在最后的 rules 节点中增加以下内容，避免前端项目在编译时因格式问题检查出现错误。
+
+![image-20250424215556062](assets/image-20250424215556062.png)
+
+* 安装cross-env
+
+> 防止可能出现的报错：`on project core-frontend: Failed to run task: 'npm run build:distributed' failed`，原因是：**Windows系统不支持NODE_OPTIONS命令**
+
+```powershell
+# 在目录下执行：
+PS D:\temp\2025\202504\dataease> npm install cross-env --save-dev
+# 这个目录下也执行下：
+PS D:\temp\2025\202504\dataease\core\core-frontend> npm install cross-env --save-dev
+```
+
+同时在 `在core-frontend/package.json中添加cross-env命令`：
+
+![image-20250424220035072](assets/image-20250424220035072.png)
+
+* 编辑 `core/core-frontend/package.json` 文件，添加依赖版本升级导致的报错，该报错解决方式来自：https://github.com/dataease/dataease/commit/0f6eeda31735b2ba00875fee2734081a217f845a
+
+![image-20250424220308444](assets/image-20250424220308444.png)
+
+```json
+ "overrides": {
+        "@intlify/message-compiler": "9.14.2",
+        "@intlify/shared": "9.14.2",
+        "glob": {
+            "inflight": "npm:inflight-lru@^1.0.0"
+        }
+    }
+```
+
+![image-20250424220212542](assets/image-20250424220212542.png)
+
+### 2.6.3、驱动配置
+
+修改 `core/core-backend/src/main/java/io/dataease/datasource/provider/CalciteProvider.java` 文件：
+
+![image-20250424220444752](assets/image-20250424220444752.png)
+
+```java
+private final String FILE_PATH = System.getProperty("user.dir") + File.separator + "drivers";
+    private final String CUSTOM_PATH = System.getProperty("user.dir") + File.separator + "custom-drivers" + File.separator;
+```
+
+### 2.6.4、修改数据配置
+
+因为默认使用的是 `src/main/resources/application-standalone.yml` 文件，因此编辑它：
+
+![image-20250424220601442](assets/image-20250424220601442.png)
+
+### 2.6.5、创建数据库
+
+```sql
+CREATE DATABASE `dataease` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+```
+
+### 2.6.6、打包
+
+选择IDEA右侧的Maven按钮，选择core -> package按钮进行打包（打包耗时较久，请耐心等待...）
+
+![image-20250424215007000](assets/image-20250424215007000.png)
+
+## 2.7、启动运行
+
+![image-20250424220732346](assets/image-20250424220732346.png)
+
+访问：
+
+http://localhost:8100/
+
+![image-20250424220842111](assets/image-20250424220842111.png)
+
+登录：`admin`
+
+密码：`DataEase@123456`
+
+> 补充：数据库表不用管，只需要手动创建库即可，在项目启动的过程中相关表会自动创建的。
+>
+> ![image-20250424221200366](assets/image-20250424221200366.png)
+
+
+
+## 2.8 附maven配置
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
+
+    <localRepository>D:\software\maven-repository</localRepository>
+
+    <pluginGroups>
+
+    </pluginGroups>
+
+    <proxies>
+
+    </proxies>
+
+    <servers>
+
+    </servers>
+
+    <mirrors>
+        <!-- 阿里云镜像 -->
+        <mirror>
+            <id>aliyun</id>
+            <mirrorOf>central</mirrorOf>
+            <name>Aliyun Mirror</name>
+            <url>https://maven.aliyun.com/repository/public</url>
+        </mirror>
+
+
+        <!-- 腾讯云镜像 -->
+
+        <mirror>
+            <id>tencent</id>
+            <mirrorOf>central</mirrorOf>
+            <name>Tencent Mirror</name>
+            <url>https://mirrors.cloud.tencent.com/maven/</url>
+        </mirror>
+
+
+        <!-- 清华大学镜像 -->
+
+        <mirror>
+            <id>tuna</id>
+            <mirrorOf>central</mirrorOf>
+            <name>Tsinghua University Mirror</name>
+            <url>https://mirrors.tuna.tsinghua.edu.cn/maven/</url>
+        </mirror>
+
+
+        <!-- 官方镜像，作为最后的fallback -->
+
+        <mirror>
+            <id>central</id>
+            <mirrorOf>central</mirrorOf>
+            <name>Central Mirror</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </mirror>
+    </mirrors>
+
+    <profiles>
+
+    </profiles>
+
+    <!-- activeProfiles
+     | List of profiles that are active for all builds.
+     |
+    <activeProfiles>
+      <activeProfile>alwaysActiveProfile</activeProfile>
+      <activeProfile>anotherAlwaysActiveProfile</activeProfile>
+    </activeProfiles>
+    -->
+</settings>
+```
+
+
+
+> 相关内容参考自下面，在此一并表示感谢：
+>
+> * [[手把手教你搭建DataEase二次开发环境(Windows)](https://segmentfault.com/a/1190000045261128)](https://segmentfault.com/a/1190000045261128)
+> * [本地前端打包部署报错，怀疑是不是Node版本问题](https://github.com/dataease/dataease/issues/15394)
+> * [DataEase v2 开源代码 Windows 环境搭建](https://kb.fit2cloud.com/?p=b0c9abc1-2ec8-4301-acac-cff50b2a50be)

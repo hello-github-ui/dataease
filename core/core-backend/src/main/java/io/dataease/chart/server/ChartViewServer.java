@@ -2,13 +2,11 @@ package io.dataease.chart.server;
 
 import io.dataease.api.chart.ChartViewApi;
 import io.dataease.api.chart.vo.ChartBaseVO;
-import io.dataease.api.chart.vo.ViewSelectorVO;
-import io.dataease.chart.manage.ChartViewManege;
-import io.dataease.constant.CommonConstants;
-import io.dataease.dataset.utils.DatasetUtils;
-import io.dataease.exception.DEException;
 import io.dataease.extensions.view.dto.ChartViewDTO;
 import io.dataease.extensions.view.dto.ChartViewFieldDTO;
+import io.dataease.api.chart.vo.ViewSelectorVO;
+import io.dataease.chart.manage.ChartViewManege;
+import io.dataease.exception.DEException;
 import io.dataease.result.ResultCode;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,7 +27,7 @@ public class ChartViewServer implements ChartViewApi {
     @Override
     public ChartViewDTO getData(Long id) throws Exception {
         try {
-            return chartViewManege.getChart(id, CommonConstants.RESOURCE_TABLE.CORE);
+            return chartViewManege.getChart(id);
         } catch (Exception e) {
             DEException.throwException(ResultCode.DATA_IS_WRONG.code(), e.getMessage());
         }
@@ -38,10 +36,7 @@ public class ChartViewServer implements ChartViewApi {
 
     @Override
     public Map<String, List<ChartViewFieldDTO>> listByDQ(Long id, Long chartId, ChartViewDTO dto) {
-        Map<String, List<ChartViewFieldDTO>> stringListMap = chartViewManege.listByDQ(id, chartId, dto);
-        DatasetUtils.listEncode(stringListMap.get("dimensionList"));
-        DatasetUtils.listEncode(stringListMap.get("quotaList"));
-        return stringListMap;
+        return chartViewManege.listByDQ(id, chartId, dto);
     }
 
     @Override
@@ -55,8 +50,8 @@ public class ChartViewServer implements ChartViewApi {
     }
 
     @Override
-    public ChartViewDTO getDetail(Long id, String resourceTable) {
-        return chartViewManege.getDetails(id, resourceTable);
+    public ChartViewDTO getDetail(Long id) {
+        return chartViewManege.getDetails(id);
     }
 
     @Override
@@ -80,7 +75,7 @@ public class ChartViewServer implements ChartViewApi {
     }
 
     @Override
-    public ChartBaseVO chartBaseInfo(Long id, String resourceTable) {
-        return chartViewManege.chartBaseInfo(id, resourceTable);
+    public ChartBaseVO chartBaseInfo(Long id) {
+        return chartViewManege.chartBaseInfo(id);
     }
 }

@@ -2,8 +2,8 @@ package io.dataease.engine.trans;
 
 import io.dataease.api.chart.dto.DeSortField;
 import io.dataease.constant.DeTypeConstants;
-import io.dataease.constant.SQLConstants;
 import io.dataease.engine.constant.ExtFieldConstant;
+import io.dataease.constant.SQLConstants;
 import io.dataease.engine.utils.Utils;
 import io.dataease.extensions.datasource.api.PluginManageApi;
 import io.dataease.extensions.datasource.constant.SqlPlaceholderConstants;
@@ -104,7 +104,7 @@ public class Order2SQLObj {
                 fieldName = String.format(SQLConstants.CAST, originField, SQLConstants.DEFAULT_FLOAT_FORMAT);
             } else if (Objects.equals(f.getDeType(), DeTypeConstants.DE_TIME)) {
                 fieldName = StringUtils.isEmpty(f.getDateFormat()) ? String.format(SQLConstants.DE_STR_TO_DATE, originField, SQLConstants.DEFAULT_DATE_FORMAT) :
-                    String.format(SQLConstants.DE_DATE_FORMAT, String.format(SQLConstants.DE_STR_TO_DATE, originField, f.getDateFormat()), SQLConstants.DEFAULT_DATE_FORMAT);
+                        String.format(SQLConstants.DE_DATE_FORMAT, String.format(SQLConstants.DE_STR_TO_DATE, originField, f.getDateFormat()), SQLConstants.DEFAULT_DATE_FORMAT);
             } else {
                 fieldName = originField;
             }
@@ -121,9 +121,9 @@ public class Order2SQLObj {
             }
         }
         SQLObj result = SQLObj.builder()
-            .orderField(String.format(SQLConstants.FIELD_DOT, originField))
-            .orderAlias(String.format(SQLConstants.FIELD_DOT, originField))
-            .orderDirection(f.getOrderDirection()).build();
+                .orderField(String.format(SQLConstants.FIELD_DOT, originField))
+                .orderAlias(String.format(SQLConstants.FIELD_DOT, originField))
+                .orderDirection(f.getOrderDirection()).build();
         return result;
     }
 

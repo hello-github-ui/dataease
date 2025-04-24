@@ -1,12 +1,11 @@
 package io.dataease.share.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
  * <p>
- *
+ * 
  * </p>
  *
  * @author fit2cloud
@@ -98,12 +97,12 @@ public class CoreShareTicket implements Serializable {
     @Override
     public String toString() {
         return "CoreShareTicket{" +
-            "id = " + id +
-            ", uuid = " + uuid +
-            ", ticket = " + ticket +
-            ", exp = " + exp +
-            ", args = " + args +
-            ", accessTime = " + accessTime +
-            "}";
+        "id = " + id +
+        ", uuid = " + uuid +
+        ", ticket = " + ticket +
+        ", exp = " + exp +
+        ", args = " + args +
+        ", accessTime = " + accessTime +
+        "}";
     }
 }

@@ -1,12 +1,11 @@
 package io.dataease.visualization.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-
 import java.io.Serializable;
 
 /**
  * <p>
- *
+ * 
  * </p>
  *
  * @author fit2cloud
@@ -183,19 +182,19 @@ public class VisualizationSubject implements Serializable {
     @Override
     public String toString() {
         return "VisualizationSubject{" +
-            "id = " + id +
-            ", name = " + name +
-            ", type = " + type +
-            ", details = " + details +
-            ", deleteFlag = " + deleteFlag +
-            ", coverUrl = " + coverUrl +
-            ", createNum = " + createNum +
-            ", createTime = " + createTime +
-            ", createBy = " + createBy +
-            ", updateTime = " + updateTime +
-            ", updateBy = " + updateBy +
-            ", deleteTime = " + deleteTime +
-            ", deleteBy = " + deleteBy +
-            "}";
+        "id = " + id +
+        ", name = " + name +
+        ", type = " + type +
+        ", details = " + details +
+        ", deleteFlag = " + deleteFlag +
+        ", coverUrl = " + coverUrl +
+        ", createNum = " + createNum +
+        ", createTime = " + createTime +
+        ", createBy = " + createBy +
+        ", updateTime = " + updateTime +
+        ", updateBy = " + updateBy +
+        ", deleteTime = " + deleteTime +
+        ", deleteBy = " + deleteBy +
+        "}";
     }
 }

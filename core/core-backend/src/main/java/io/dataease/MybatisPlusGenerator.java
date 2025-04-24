@@ -25,7 +25,7 @@ public class MybatisPlusGenerator {
     /**
      * 这是要生成代码的表名称
      */
-    private static final String TABLE_NAME = "snapshot_visualization_outer_params";
+    private static final String TABLE_NAME = "data_visualization_info";
 
     /**
      * 下面两个配置基本上不用动
@@ -35,28 +35,28 @@ public class MybatisPlusGenerator {
     private static final String AUTO_DAO = ".dao.auto";
 
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception{
 
         String path = System.getProperty("java.class.path");
         path = path.substring(0, path.indexOf("target/classes"));
         String packageName = packageName() + "." + busi + AUTO_DAO;
         String outPath = path + codeDir;
         DataSourceConfig.Builder dsc = new DataSourceConfig.Builder(url, username, password);
-        dsc.typeConvert(MySqlTypeConvert.INSTANCE);
+        dsc.typeConvert( MySqlTypeConvert.INSTANCE);
         FastAutoGenerator.create(dsc)
-            .globalConfig(builder -> {
-                builder.author("fit2cloud").outputDir(outPath);
-            })
-            .packageConfig(builder -> {
-                builder.parent(packageName);
-            })
-            .strategyConfig(builder -> {
-                builder.addInclude(TABLE_NAME).entityBuilder().enableFileOverride().mapperBuilder().mapperAnnotation(org.apache.ibatis.annotations.Mapper.class).enableFileOverride(); //设置需要生成的表名
-            })
-            .templateConfig(builder -> {
-                builder.disable(TemplateType.CONTROLLER).disable(TemplateType.SERVICE).disable(TemplateType.SERVICE_IMPL).disable(TemplateType.XML).build();
-            })
-            .execute();
+                .globalConfig(builder -> {
+                    builder.author("fit2cloud").outputDir(outPath);
+                })
+                .packageConfig(builder -> {
+                    builder.parent(packageName);
+                })
+                .strategyConfig(builder -> {
+                    builder.addInclude(TABLE_NAME).entityBuilder().enableFileOverride().mapperBuilder().mapperAnnotation(org.apache.ibatis.annotations.Mapper.class).enableFileOverride(); //设置需要生成的表名
+                })
+                .templateConfig(builder -> {
+                    builder.disable(TemplateType.CONTROLLER).disable(TemplateType.SERVICE).disable(TemplateType.SERVICE_IMPL).disable(TemplateType.XML).build();
+                })
+                .execute();
     }
 
     private static String packageName() {

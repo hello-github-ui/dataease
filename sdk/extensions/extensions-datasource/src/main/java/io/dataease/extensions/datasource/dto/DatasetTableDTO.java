@@ -62,5 +62,4 @@ public class DatasetTableDTO implements Serializable {
     private Long lastUpdateTime = 0L;
     private String status;
 
-    private Boolean isCross;
 }

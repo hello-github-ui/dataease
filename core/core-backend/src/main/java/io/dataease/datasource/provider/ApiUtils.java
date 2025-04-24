@@ -5,11 +5,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.Option;
+import io.dataease.extensions.datasource.dto.ApiDefinition;
+import io.dataease.extensions.datasource.dto.ApiDefinitionRequest;
 import io.dataease.exception.DEException;
-import io.dataease.extensions.datasource.dto.*;
+import io.dataease.extensions.datasource.dto.DatasetTableDTO;
+import io.dataease.extensions.datasource.dto.DatasourceRequest;
+import io.dataease.extensions.datasource.dto.TableField;
 import io.dataease.utils.*;
 import org.apache.commons.lang3.StringUtils;
 import org.json.simple.JSONArray;
@@ -24,11 +26,10 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class ApiUtils {
-    public static ObjectMapper objectMapper = CommonBeanFactory.getBean(ObjectMapper.class);
-    private static Configuration jsonPathConf = Configuration.builder()
-        .options(Option.DEFAULT_PATH_LEAF_TO_NULL, Option.ALWAYS_RETURN_LIST)
-        .build();
+
     private static String path = "['%s']";
+    public static ObjectMapper objectMapper = CommonBeanFactory.getBean(ObjectMapper.class);
+
     private static TypeReference<List<Object>> listTypeReference = new TypeReference<List<Object>>() {
     };
     private static TypeReference<List<Map<String, Object>>> listForMapTypeReference = new TypeReference<List<Map<String, Object>>>() {
@@ -260,11 +261,11 @@ public class ApiUtils {
             }
         }
         if (apiDefinitionRequest.getAuthManager() != null
-            && StringUtils.isNotBlank(apiDefinitionRequest.getAuthManager().getUsername())
-            && StringUtils.isNotBlank(apiDefinitionRequest.getAuthManager().getPassword())
-            && apiDefinitionRequest.getAuthManager().getVerification().equals("Basic Auth")) {
+                && StringUtils.isNotBlank(apiDefinitionRequest.getAuthManager().getUsername())
+                && StringUtils.isNotBlank(apiDefinitionRequest.getAuthManager().getPassword())
+                && apiDefinitionRequest.getAuthManager().getVerification().equals("Basic Auth")) {
             String authValue = "Basic " + Base64.getUrlEncoder().encodeToString((apiDefinitionRequest.getAuthManager().getUsername()
-                + ":" + apiDefinitionRequest.getAuthManager().getPassword()).getBytes());
+                    + ":" + apiDefinitionRequest.getAuthManager().getPassword()).getBytes());
             httpClientConfig.addHeader("Authorization", authValue);
         }
 
@@ -441,34 +442,23 @@ public class ApiUtils {
         return response;
     }
 
-    private static void previewNum(List<Map<String, Object>> fields, String response) {
-        int previewNum = 100;
-        for (Map<String, Object> field : fields) {
+    private static void previewNum(List<Map<String, Object>> field) {
+        for (Map<String, Object> stringObjectMap : field) {
             JSONArray newArray = new JSONArray();
-            if (field.get("value") != null) {
-                Object object = JsonPath.using(jsonPathConf).parse(response).read(field.get("jsonPath").toString());
-                int i = 0;
-                if (object instanceof List) {
-                    for (Object o : (List<String>) object) {
-                        if (Objects.isNull(o)) {
-                            newArray.add("");
-                        } else {
-                            newArray.add(o.toString());
+            if (stringObjectMap.get("value") != null) {
+                try {
+                    TypeReference<JSONArray> listTypeReference = new TypeReference<JSONArray>() {
+                    };
+                    JSONArray array = objectMapper.readValue(stringObjectMap.get("value").toString(), listTypeReference);
+                    if (array.size() > 100) {
+                        for (int i = 0; i < Math.min(100, array.size()); i++) {
+                            newArray.add(array.get(i));
                         }
-                        i++;
-                        if (i >= previewNum) {
-                            break;
-                        }
+                        stringObjectMap.put("value", newArray);
                     }
-                } else {
-                    if (object != null) {
-                        newArray.add(object.toString());
-                    }
+                } catch (Exception e) {
+
                 }
-                field.put("value", newArray);
-            } else {
-                List<Map<String, Object>> childrenFields = (List<Map<String, Object>>) field.get("children");
-                previewNum(childrenFields, response);
             }
         }
     }
@@ -511,7 +501,7 @@ public class ApiUtils {
                 rootPath = "$";
                 handleStr(apiDefinition, response, fields, rootPath);
             }
-            previewNum(fields, response);
+            previewNum(fields);
             apiDefinition.setJsonFields(fields);
             return apiDefinition;
         } else {
@@ -558,6 +548,7 @@ public class ApiUtils {
                             };
                             array = objectMapper.readValue(field.get("value").toString(), listTypeReference);
                         } catch (Exception e) {
+                            e.printStackTrace();
                             DEException.throwException(e);
                         }
                         array.add(Optional.ofNullable(data.get(field.get("originName"))).orElse("").toString().replaceAll("\n", " ").replaceAll("\r", " "));
@@ -728,7 +719,6 @@ public class ApiUtils {
                     fieldChildren.add(itemChild);
                 }
             }
-            field.put("children", fieldChildren);
         }
     }
 
@@ -791,15 +781,9 @@ public class ApiUtils {
             List<List<String>> columnDataList = new ArrayList<>();
             for (int i = 0; i < jsonPaths.size(); i++) {
                 List<String> data = new ArrayList<>();
-                Object object = JsonPath.using(jsonPathConf).parse(result).read(jsonPaths.get(i));
-                if (object instanceof List) {
-                    for (Object o : (List<String>) object) {
-                        if (Objects.isNull(o)) {
-                            data.add("");
-                        } else {
-                            data.add(o.toString());
-                        }
-                    }
+                Object object = JsonPath.read(result, jsonPaths.get(i));
+                if (object instanceof List && jsonPaths.get(i).contains("[*]")) {
+                    data = (List<String>) object;
                 } else {
                     if (object != null) {
                         data.add(object.toString());
