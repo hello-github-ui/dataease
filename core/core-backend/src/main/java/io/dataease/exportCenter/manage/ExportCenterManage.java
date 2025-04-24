@@ -114,7 +114,8 @@ public class ExportCenterManage implements BaseExportApi {
     private int core;
     @Value("${dataease.export.max.size:10}")
     private int max;
-    @Value("${dataease.path.exportData:/opt/dataease2.0/data/exportData/}")
+//    @Value("${dataease.path.exportData:/opt/dataease2.0/data/exportData/}")
+    @Value("${dataease.path.exportData:C:\\opt\\dataease2.0\\data\\exportData\\}")
     private String exportData_path;
     @Resource
     private VisualizationWatermarkMapper watermarkMapper;

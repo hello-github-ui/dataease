@@ -50,9 +50,13 @@ public class ExcelUtils {
 
     public static String getExcelPath() {
         if (ModelUtils.isDesktop()) {
-            return ConfigUtils.getConfig("dataease.path.excel", "/opt/dataease2.0/data/excel/");
+//            return ConfigUtils.getConfig("dataease.path.excel", "/opt/dataease2.0/data/excel/");
+            // 修改为使用 windows 本地路径
+            return ConfigUtils.getConfig("dataease.path.excel", "C:\\opt\\dataease2.0\\data\\data\\excel\\");
         } else {
-            return "/opt/dataease2.0/data/excel/";
+//            return "/opt/dataease2.0/data/excel/";
+            // 修改为使用 windows 本地路径
+            return "C:\\opt\\dataease2.0\\data\\data\\excel\\";
         }
     }
 

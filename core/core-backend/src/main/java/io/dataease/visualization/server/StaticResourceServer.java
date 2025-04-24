@@ -34,7 +34,8 @@ import java.util.Map;
 @RequestMapping("/staticResource")
 public class StaticResourceServer implements StaticResourceApi {
 
-    @Value("${dataease.path.static-resource:/opt/dataease2.0/data/static-resource/}")
+//    @Value("${dataease.path.static-resource:/opt/dataease2.0/data/static-resource/}")
+    @Value("${dataease.path.static-resource:C:\\opt\\dataease2.0\\data\\static-resource\\}")
     private String staticDir;
 
     private static boolean isValidSVG(MultipartFile file) {

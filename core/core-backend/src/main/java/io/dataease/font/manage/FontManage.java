@@ -30,7 +30,8 @@ import java.util.UUID;
 @Component
 public class FontManage {
 
-    @Value("${dataease.path.font:/opt/dataease2.0/data/font/}")
+//    @Value("${dataease.path.font:/opt/dataease2.0/data/font/}")
+    @Value("${dataease.path.font:C:\\opt\\dataease2.0\\data\\font\\}")
     private String path;
 
     @Resource
