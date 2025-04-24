@@ -59,9 +59,15 @@ public class CalciteProvider extends Provider {
     @Resource
     private EngineManage engineManage;
     private Map<Long, ExtendedJdbcClassLoader> customJdbcClassLoaders = new HashMap<>();
-    @Value("${dataease.path.driver:/opt/dataease2.0/drivers}")
+
+//    @Value("${dataease.path.driver:/opt/dataease2.0/drivers}")
+    // 修改为 windows 本地目录，参考：https://blog.csdn.net/MXDMAX/article/details/142529971
+    @Value("${dataease.path.driver:C:\\opt\\dataease2.0\\data\\drivers\\}")
     private String FILE_PATH;
-    @Value("${dataease.path.custom-drivers:/opt/dataease2.0/custom-drivers/}")
+
+//    @Value("${dataease.path.custom-drivers:/opt/dataease2.0/custom-drivers/}")
+    // 修改为 windows 本地目录，参考：https://blog.csdn.net/MXDMAX/article/details/142529971
+    @Value("${dataease.path.custom-drivers:C:\\opt\\dataease2.0\\data\\drivers\\}")
     private String CUSTOM_PATH;
     @Resource
     private CommonThreadPool commonThreadPool;
