@@ -1,17 +1,18 @@
-import { useRequestStoreWithOut } from '@/store/modules/request'
+import {useRequestStoreWithOut} from '@/store/modules/request'
+
 const requestStore = useRequestStoreWithOut()
 
 export const tryShowLoading = identification => {
-  if (!identification) return
-  requestStore.addLoading(identification)
+    if (!identification) return
+    requestStore.addLoading(identification)
 }
 
 export const tryHideLoading = identification => {
-  if (!identification) return
-  const count = requestStore.loadingMap[identification]
-  if (count > 0) {
-    requestStore.reduceLoading(identification)
-  }
+    if (!identification) return
+    const count = requestStore.loadingMap[identification]
+    if (count > 0) {
+        requestStore.reduceLoading(identification)
+    }
 }
 /**
  * 说明

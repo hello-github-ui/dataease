@@ -13,66 +13,66 @@ import icon_info_outlined from '@/assets/svg/icon_info_outlined.svg'
 import icon_textBox_outlined from '@/assets/svg/icon_text-box_outlined.svg'
 import icon_info_colorful from '@/assets/svg/icon_info_colorful.svg'
 import icon_playRound_outlined from '@/assets/svg/icon_play-round_outlined.svg'
-import { searchVariableApi } from '@/api/variable'
+import {searchVariableApi} from '@/api/variable'
 import {
-  ref,
-  reactive,
-  onMounted,
-  PropType,
-  toRefs,
-  watch,
-  onBeforeUnmount,
-  shallowRef,
-  computed,
-  inject,
-  h,
-  Ref
+    computed,
+    h,
+    inject,
+    onBeforeUnmount,
+    onMounted,
+    PropType,
+    reactive,
+    ref,
+    Ref,
+    shallowRef,
+    toRefs,
+    watch
 } from 'vue'
-import { debounce } from 'lodash-es'
-import { useI18n } from '@/hooks/web/useI18n'
-import { Base64 } from 'js-base64'
+import {debounce} from 'lodash-es'
+import {useI18n} from '@/hooks/web/useI18n'
+import {Base64} from 'js-base64'
 import FixedSizeList from 'element-plus-secondary/es/components/virtual-list/src/components/fixed-size-list.mjs'
-import { useWindowSize } from '@vueuse/core'
+import {useWindowSize} from '@vueuse/core'
 import useClipboard from 'vue-clipboard3'
-import { ElMessage, ElMessageBox, ElIcon } from 'element-plus-secondary'
-import { Icon } from '@/components/icon-custom'
-import { getTableField } from '@/api/dataset'
+import {ElIcon, ElMessage, ElMessageBox} from 'element-plus-secondary'
+import {Icon} from '@/components/icon-custom'
+import {getDatasourceList, getPreviewSql, getTableField, getTables} from '@/api/dataset'
 import CodeMirror from './CodeMirror.vue'
-import type { Field, DataSource } from './util'
-import { getDatasourceList, getTables, getPreviewSql } from '@/api/dataset'
+import type {DataSource, Field} from './util'
+import {defaultValueScopeList, fieldOptions, timestampFormatDate} from './util'
 import GridTable from '@/components/grid-table/src/GridTable.vue'
-import { EmptyBackground } from '@/components/empty-background'
-import { timestampFormatDate, defaultValueScopeList, fieldOptions } from './util'
-import { fieldType } from '@/utils/attr'
-import { iconFieldMap } from '@/components/icon-group/field-list'
-import { isDesktop } from '@/utils/ModelUtil'
+import {EmptyBackground} from '@/components/empty-background'
+import {fieldType} from '@/utils/attr'
+import {iconFieldMap} from '@/components/icon-group/field-list'
+import {isDesktop} from '@/utils/ModelUtil'
 import field_text from '@/assets/svg/field_text.svg'
 import field_value from '@/assets/svg/field_value.svg'
 import field_time from '@/assets/svg/field_time.svg'
+
 export interface SqlNode {
-  sql: string
-  tableName: string
-  datasourceId: string
-  id: string
-  changeFlag?: boolean
-  variables?: Array<{
-    variableName: string
-    defaultValue: string
-    defaultValueScope: string
-  }>
-  sqlVariableDetails?: string
+    sql: string
+    tableName: string
+    datasourceId: string
+    id: string
+    changeFlag?: boolean
+    variables?: Array<{
+        variableName: string
+        defaultValue: string
+        defaultValueScope: string
+    }>
+    sqlVariableDetails?: string
 }
 
 const props = defineProps({
-  sqlNode: {
-    type: Object as PropType<SqlNode>,
-    default: () => ({})
-  }
+    sqlNode: {
+        type: Object as PropType<SqlNode>,
+        default: () => ({})
+    }
 })
 
-const { sqlNode } = toRefs(props)
-const { toClipboard } = useClipboard()
-const { t } = useI18n()
+const {sqlNode} = toRefs(props)
+const {toClipboard} = useClipboard()
+const {t} = useI18n()
 const activeName = ref('')
 const myCm = ref()
 const codeCom = ref()
@@ -86,270 +86,270 @@ const LeftWidth = ref(240)
 const showLeft = ref(true)
 const editerName = ref()
 const state = reactive({
-  plxTableData: [],
-  variables: [],
-  fields: [],
-  sqlData: [],
-  variablesTmp: [],
-  dataSourceList: [],
-  table: {
-    name: '',
-    id: ''
-  },
-  param: {
-    tableId: 0
-  }
+    plxTableData: [],
+    variables: [],
+    fields: [],
+    sqlData: [],
+    variablesTmp: [],
+    dataSourceList: [],
+    table: {
+        name: '',
+        id: ''
+    },
+    param: {
+        tableId: 0
+    }
 })
 
 const datasourceTableData = shallowRef([])
 const isCross = inject<Ref>('isCross')
 const paginationConfig = reactive({
-  currentPage: 1,
-  pageSize: 10,
-  total: 0
+    currentPage: 1,
+    pageSize: 10,
+    total: 0
 })
 
-const setActiveName = ({ name, enableCheck }) => {
-  if (!enableCheck) return
-  activeName.value = name
+const setActiveName = ({name, enableCheck}) => {
+    if (!enableCheck) return
+    activeName.value = name
 }
-const { height: windowHeight } = useWindowSize()
+const {height: windowHeight} = useWindowSize()
 
 const generateColumns = (arr: Field[]) =>
-  arr.map(ele => ({
-    key: ele.originName,
-    deType: ele.deType,
-    dataKey: ele.originName,
-    title: ele.originName,
-    width: 170,
-    headerCellRenderer: ({ column }) => (
-      <div class="flex-align-center">
-        <ElIcon style={{ marginRight: '6px' }}>
-          <Icon>
-            {h(iconFieldMap[fieldType[column.deType]], {
-              class: `svg-icon field-icon-${fieldType[column.deType]}`
-            })}
-          </Icon>
-        </ElIcon>
-        <span class="ellipsis" title={column.title} style={{ width: '120px' }}>
+    arr.map(ele => ({
+        key: ele.originName,
+        deType: ele.deType,
+        dataKey: ele.originName,
+        title: ele.originName,
+        width: 170,
+        headerCellRenderer: ({column}) => (
+            <div class="flex-align-center">
+                <ElIcon style={{marginRight: '6px'}}>
+                    <Icon>
+                        {h(iconFieldMap[fieldType[column.deType]], {
+                            class: `svg-icon field-icon-${fieldType[column.deType]}`
+                        })}
+                    </Icon>
+                </ElIcon>
+                <span class="ellipsis" title={column.title} style={{width: '120px'}}>
           {column.title}
         </span>
-      </div>
-    )
-  }))
+            </div>
+        )
+    }))
 
 const referenceSetting = () => {
-  showVariableMgm.value = true
-  parseVariable()
+    showVariableMgm.value = true
+    parseVariable()
 }
 const fieldFormList = ref([])
 
 const builtInList = ref([
-  {
-    id: 'sysParams.userId',
-    name: t('system.account')
-  },
-  {
-    id: 'sysParams.userName',
-    name: t('datasource.user_name')
-  },
-  {
-    id: 'sysParams.userEmail',
-    name: t('commons.email')
-  }
+    {
+        id: 'sysParams.userId',
+        name: t('system.account')
+    },
+    {
+        id: 'sysParams.userName',
+        name: t('datasource.user_name')
+    },
+    {
+        id: 'sysParams.userEmail',
+        name: t('commons.email')
+    }
 ])
 
 const iconName = type => {
-  if (type === 'text') {
-    return field_text
-  }
-  if (type === 'num') {
-    return field_value
-  }
-  if (type === 'time') {
-    return field_time
-  }
+    if (type === 'text') {
+        return field_text
+    }
+    if (type === 'num') {
+        return field_value
+    }
+    if (type === 'time') {
+        return field_time
+    }
 }
 
 const iconClassName = type => {
-  if (type === 'text') {
-    return 'field-icon-text'
-  }
-  if (type === 'num') {
-    return 'field-icon-value'
-  }
-  if (type === 'time') {
-    return 'field-icon-time'
-  }
+    if (type === 'text') {
+        return 'field-icon-text'
+    }
+    if (type === 'num') {
+        return 'field-icon-value'
+    }
+    if (type === 'time') {
+        return 'field-icon-time'
+    }
 }
 
 const fieldFormListComputed = computed(() => {
-  return fieldFormList.value.filter(ele =>
-    ele.name.toLowerCase().includes(searchField.value.toLowerCase())
-  )
+    return fieldFormList.value.filter(ele =>
+        ele.name.toLowerCase().includes(searchField.value.toLowerCase())
+    )
 })
 const desktop = isDesktop()
 const showSysParams = ref(false)
 const searchField = ref('')
 const sysParams = () => {
-  showSysParams.value = true
-  handleSearchVariableApi()
+    showSysParams.value = true
+    handleSearchVariableApi()
 }
 
 const insertFieldToCodeMirror = (value: string) => {
-  codeCom.value.dispatch({
-    changes: { from: codeCom.value.viewState.state.selection.ranges[0].from, insert: value },
-    selection: { anchor: codeCom.value.viewState.state.selection.ranges[0].from }
-  })
+    codeCom.value.dispatch({
+        changes: {from: codeCom.value.viewState.state.selection.ranges[0].from, insert: value},
+        selection: {anchor: codeCom.value.viewState.state.selection.ranges[0].from}
+    })
 }
 
 const setNameIdTrans = (from, to, originName, name2Auto?: string[]) => {
-  let name2Id = originName
-  const ids = [...builtInList.value, ...fieldFormList.value].map(item => item.id)
-  const names = [...builtInList.value, ...fieldFormList.value].map(item => item.name)
-  const nameIdMap = [...builtInList.value, ...fieldFormList.value].reduce((pre, next) => {
-    pre[next[from]] = next[to]
-    return pre
-  }, {})
-  const on = originName.match(/\$f2cde\[(.+?)\]/g)
-  if (on) {
-    on.forEach(itm => {
-      const ele = itm.slice(7, -1)
-      if (name2Auto) {
-        name2Auto.push(nameIdMap[ele])
-      }
-      if (from === 'id' && ids.includes(ele)) {
-        name2Id = name2Id.replace(`$f2cde[${ele}]`, `$f2cde[${nameIdMap[ele]}]`)
-      }
-      if (from === 'name' && names.includes(ele)) {
-        name2Id = name2Id.replace(`$f2cde[${ele}]`, `$f2cde[${nameIdMap[ele]}]`)
-      }
-    })
-  }
-  return name2Id
+    let name2Id = originName
+    const ids = [...builtInList.value, ...fieldFormList.value].map(item => item.id)
+    const names = [...builtInList.value, ...fieldFormList.value].map(item => item.name)
+    const nameIdMap = [...builtInList.value, ...fieldFormList.value].reduce((pre, next) => {
+        pre[next[from]] = next[to]
+        return pre
+    }, {})
+    const on = originName.match(/\$f2cde\[(.+?)\]/g)
+    if (on) {
+        on.forEach(itm => {
+            const ele = itm.slice(7, -1)
+            if (name2Auto) {
+                name2Auto.push(nameIdMap[ele])
+            }
+            if (from === 'id' && ids.includes(ele)) {
+                name2Id = name2Id.replace(`$f2cde[${ele}]`, `$f2cde[${nameIdMap[ele]}]`)
+            }
+            if (from === 'name' && names.includes(ele)) {
+                name2Id = name2Id.replace(`$f2cde[${ele}]`, `$f2cde[${nameIdMap[ele]}]`)
+            }
+        })
+    }
+    return name2Id
 }
 const handleSearchVariableApi = async () => {
-  return searchVariableApi({}).then(res => {
-    fieldFormList.value = res?.data || []
-  })
+    return searchVariableApi({}).then(res => {
+        fieldFormList.value = res?.data || []
+    })
 }
 const showSystemParams = ref(true)
 onMounted(async () => {
-  dsChange(sqlNode.value.datasourceId)
-  if (!desktop) {
-    try {
-      await handleSearchVariableApi()
-    } catch (e) {
-      if (e) {
-        showSystemParams.value = false
-      }
+    dsChange(sqlNode.value.datasourceId)
+    if (!desktop) {
+        try {
+            await handleSearchVariableApi()
+        } catch (e) {
+            if (e) {
+                showSystemParams.value = false
+            }
+        }
     }
-  }
-  sql = Base64.decode(sqlNode.value.sql)
-  codeCom.value = myCm.value.codeComInit(setNameIdTrans('id', 'name', sql), true)
+    sql = Base64.decode(sqlNode.value.sql)
+    codeCom.value = myCm.value.codeComInit(setNameIdTrans('id', 'name', sql), true)
 })
 
 onBeforeUnmount(() => {
-  codeCom.value.destroy?.()
+    codeCom.value.destroy?.()
 })
 
 const gridData = ref([])
 const gridDataLoading = ref(false)
 
-const getNodeField = ({ datasourceId, tableName }) => {
-  gridDataLoading.value = true
-  let info = {
-    table: tableName,
-    sql: ''
-  }
-  getTableField({
-    datasourceId,
-    info: JSON.stringify(info),
-    tableName,
-    type: 'db',
-    isCross: isCross.value
-  })
-    .then(res => {
-      gridData.value = res as unknown as Field[]
+const getNodeField = ({datasourceId, tableName}) => {
+    gridDataLoading.value = true
+    let info = {
+        table: tableName,
+        sql: ''
+    }
+    getTableField({
+        datasourceId,
+        info: JSON.stringify(info),
+        tableName,
+        type: 'db',
+        isCross: isCross.value
     })
-    .finally(() => {
-      gridDataLoading.value = false
-    })
+        .then(res => {
+            gridData.value = res as unknown as Field[]
+        })
+        .finally(() => {
+            gridDataLoading.value = false
+        })
 }
 
 const getDatasource = () => {
-  getDatasourceList().then(res => {
-    const _list = (res as unknown as DataSource[]) || []
-    if (_list && _list.length > 0 && _list[0].id === '0') {
-      state.dataSourceList = _list[0].children
-    } else {
-      state.dataSourceList = _list
-    }
-  })
+    getDatasourceList().then(res => {
+        const _list = (res as unknown as DataSource[]) || []
+        if (_list && _list.length > 0 && _list[0].id === '0') {
+            state.dataSourceList = _list[0].children
+        } else {
+            state.dataSourceList = _list
+        }
+    })
 }
 const dragHeight = ref(260)
 
 const mousedownDragH = () => {
-  document.querySelector('.sql-eidtor').addEventListener('mousemove', calculateHeight)
+    document.querySelector('.sql-eidtor').addEventListener('mousemove', calculateHeight)
 }
 
 const calculateHeight = (e: MouseEvent) => {
-  if (e.pageY - 164 < 64) {
-    dragHeight.value = 64
-    return
-  }
-  if (e.pageY - 164 > document.documentElement.clientHeight - 200) {
-    dragHeight.value = document.documentElement.clientHeight - 200
-    return
-  }
-  dragHeight.value = e.pageY - 164
+    if (e.pageY - 164 < 64) {
+        dragHeight.value = 64
+        return
+    }
+    if (e.pageY - 164 > document.documentElement.clientHeight - 200) {
+        dragHeight.value = document.documentElement.clientHeight - 200
+        return
+    }
+    dragHeight.value = e.pageY - 164
 }
 
 const calculateWidth = (e: MouseEvent) => {
-  if (e.pageX < 240) {
-    LeftWidth.value = 240
-    return
-  }
-  if (e.pageX > 400) {
-    LeftWidth.value = 400
-    return
-  }
-  LeftWidth.value = e.pageX
+    if (e.pageX < 240) {
+        LeftWidth.value = 240
+        return
+    }
+    if (e.pageX > 400) {
+        LeftWidth.value = 400
+        return
+    }
+    LeftWidth.value = e.pageX
 }
 
 const insertParamToCodeMirror = (value: string) => {
-  codeCom.value.dispatch({
-    changes: { from: 0, to: codeCom.value.state.doc.toString().length, insert: '' }
-  })
-  codeCom.value.dispatch({
-    changes: { from: codeCom.value.viewState.state.selection.ranges[0].from, insert: value },
-    selection: { anchor: codeCom.value.viewState.state.selection.ranges[0].from }
-  })
+    codeCom.value.dispatch({
+        changes: {from: 0, to: codeCom.value.state.doc.toString().length, insert: ''}
+    })
+    codeCom.value.dispatch({
+        changes: {from: codeCom.value.viewState.state.selection.ranges[0].from, insert: value},
+        selection: {anchor: codeCom.value.viewState.state.selection.ranges[0].from}
+    })
 }
 
 watch(
-  () => sqlNode.value.datasourceId,
-  val => {
-    dsChange(val)
-  }
+    () => sqlNode.value.datasourceId,
+    val => {
+        dsChange(val)
+    }
 )
 
 watch(
-  () => sqlNode.value.id,
-  () => {
-    state.variables = sqlNode.value.variables
-    if (codeCom.value) {
-      insertParamToCodeMirror(setNameIdTrans('id', 'name', Base64.decode(sqlNode.value.sql)))
+    () => sqlNode.value.id,
+    () => {
+        state.variables = sqlNode.value.variables
+        if (codeCom.value) {
+            insertParamToCodeMirror(setNameIdTrans('id', 'name', Base64.decode(sqlNode.value.sql)))
+        }
+    },
+    {
+        immediate: true
     }
-  },
-  {
-    immediate: true
-  }
 )
 
 const treeProps = {
-  children: 'children',
-  label: 'name'
+    children: 'children',
+    label: 'name'
 }
 
 getDatasource()
@@ -359,379 +359,395 @@ const emits = defineEmits(['close', 'save'])
 let changeFlag = false
 const changeFlagCode = ref(false)
 const setFlag = () => {
-  changeFlag = true
-  changeFlagCode.value = true
+    changeFlag = true
+    changeFlagCode.value = true
 }
 let sql = ''
 
 const save = (cb?: () => void) => {
-  if (!sqlNode.value.tableName.trim()) {
-    ElMessage.error(t('data_set.cannot_be_empty'))
-    return
-  }
+    if (!sqlNode.value.tableName.trim()) {
+        ElMessage.error(t('data_set.cannot_be_empty'))
+        return
+    }
 
-  parseVariable()
-  sql = setNameIdTrans('name', 'id', codeCom.value.state.doc.toString())
-  sqlNode.value.changeFlag = true
-  if (!sql.trim()) {
-    ElMessage.error(t('data_set.cannot_be_empty_de'))
-    return
-  }
-  sqlNode.value.sql = Base64.encode(sql)
-  emits(
-    'save',
-    {
-      ...sqlNode.value,
-      sql: Base64.encode(sql),
-      sqlVariableDetails: JSON.stringify(state.variables)
-    },
-    cb
-  )
-  changeFlag = false
-  ElMessage.success(t('common.save_success'))
+    parseVariable()
+    sql = setNameIdTrans('name', 'id', codeCom.value.state.doc.toString())
+    sqlNode.value.changeFlag = true
+    if (!sql.trim()) {
+        ElMessage.error(t('data_set.cannot_be_empty_de'))
+        return
+    }
+    sqlNode.value.sql = Base64.encode(sql)
+    emits(
+        'save',
+        {
+            ...sqlNode.value,
+            sql: Base64.encode(sql),
+            sqlVariableDetails: JSON.stringify(state.variables)
+        },
+        cb
+    )
+    changeFlag = false
+    ElMessage.success(t('common.save_success'))
 }
 
 const close = () => {
-  searchTable.value = ''
-  state.plxTableData = []
-  state.fields = []
-  if (codeCom.value) {
-    insertParamToCodeMirror(setNameIdTrans('id', 'name', Base64.decode(sqlNode.value.sql)))
-  }
-  emits('close')
+    searchTable.value = ''
+    state.plxTableData = []
+    state.fields = []
+    if (codeCom.value) {
+        insertParamToCodeMirror(setNameIdTrans('id', 'name', Base64.decode(sqlNode.value.sql)))
+    }
+    emits('close')
 }
 
 const handleClose = () => {
-  let sqlNew = setNameIdTrans('name', 'id', codeCom.value.state.doc.toString())
-  if (changeFlag || sql !== sqlNew || !sqlNew.trim()) {
-    ElMessageBox.confirm(t('chart.tips'), {
-      confirmButtonType: 'primary',
-      tip: t('data_set.sure_to_exit'),
-      type: 'warning',
-      autofocus: false,
-      showClose: false
-    }).then(() => {
-      close()
-      changeFlag = false
-      changeFlagCode.value = false
-    })
-  } else {
-    close()
-    changeFlagCode.value = false
-  }
+    let sqlNew = setNameIdTrans('name', 'id', codeCom.value.state.doc.toString())
+    if (changeFlag || sql !== sqlNew || !sqlNew.trim()) {
+        ElMessageBox.confirm(t('chart.tips'), {
+            confirmButtonType: 'primary',
+            tip: t('data_set.sure_to_exit'),
+            type: 'warning',
+            autofocus: false,
+            showClose: false
+        }).then(() => {
+            close()
+            changeFlag = false
+            changeFlagCode.value = false
+        })
+    } else {
+        close()
+        changeFlagCode.value = false
+    }
 }
 
 const dataPreviewLoading = ref(false)
 const getSQLPreview = () => {
-  parseVariable()
-  dataPreviewLoading.value = true
-  getPreviewSql({
-    isCross: isCross.value,
-    sql: Base64.encode((sql = setNameIdTrans('name', 'id', codeCom.value.state.doc.toString()))),
-    datasourceId: sqlNode.value.datasourceId,
-    sqlVariableDetails: JSON.stringify(state.variables)
-  })
-    .then(res => {
-      state.plxTableData = res.data.data
-      state.fields = generateColumns(res.data.fields)
+    parseVariable()
+    dataPreviewLoading.value = true
+    getPreviewSql({
+        isCross: isCross.value,
+        sql: Base64.encode((sql = setNameIdTrans('name', 'id', codeCom.value.state.doc.toString()))),
+        datasourceId: sqlNode.value.datasourceId,
+        sqlVariableDetails: JSON.stringify(state.variables)
     })
-    .finally(() => {
-      dataPreviewLoading.value = false
-    })
+        .then(res => {
+            state.plxTableData = res.data.data
+            state.fields = generateColumns(res.data.fields)
+        })
+        .finally(() => {
+            dataPreviewLoading.value = false
+        })
 }
 
 let tableList = []
 watch(searchTable, val => {
-  datasourceTableData.value = tableList.filter(ele =>
-    ele.tableName.toLowerCase().includes(val.toLowerCase())
-  )
+    datasourceTableData.value = tableList.filter(ele =>
+        ele.tableName.toLowerCase().includes(val.toLowerCase())
+    )
 })
 
 const getIconName = (type: string) => {
-  if (
-    ['DATETIME-YEAR', 'DATETIME-YEAR-MONTH', 'DATETIME', 'DATETIME-YEAR-MONTH-DAY'].includes(type)
-  ) {
-    return 'time'
-  }
+    if (
+        ['DATETIME-YEAR', 'DATETIME-YEAR-MONTH', 'DATETIME', 'DATETIME-YEAR-MONTH-DAY'].includes(type)
+    ) {
+        return 'time'
+    }
 
-  if (type === 'TEXT') {
-    return 'text'
-  }
+    if (type === 'TEXT') {
+        return 'text'
+    }
 
-  if (['LONG', 'DOUBLE'].includes(type)) {
-    return 'value'
-  }
+    if (['LONG', 'DOUBLE'].includes(type)) {
+        return 'value'
+    }
 }
 
 const formatter = (_, __, cellValue) => {
-  return cellValue ? `${cellValue} ${t(`commons.millisecond`)}` : '-'
+    return cellValue ? `${cellValue} ${t(`commons.millisecond`)}` : '-'
 }
 
 const handleShowLeft = () => {
-  showLeft.value = !showLeft.value
-  LeftWidth.value = showLeft.value ? 240 : 0
+    showLeft.value = !showLeft.value
+    LeftWidth.value = showLeft.value ? 240 : 0
 }
 
 const dsChange = debounce((val: string) => {
-  dsLoading.value = true
-  getTables({ datasourceId: val })
-    .then(res => {
-      tableList = res || []
-      datasourceTableData.value = [...tableList]
-    })
-    .finally(() => {
-      dsLoading.value = false
-    })
+    dsLoading.value = true
+    getTables({datasourceId: val})
+        .then(res => {
+            tableList = res || []
+            datasourceTableData.value = [...tableList]
+        })
+        .finally(() => {
+            dsLoading.value = false
+        })
 }, 300)
 
 const handleDsChange = () => {
-  setFlag()
-  dsChange()
+    setFlag()
+    dsChange()
 }
 
 const copyInfo = async (value: string) => {
-  try {
-    await toClipboard(value)
-    ElMessage.success(t('data_set.copied_successfully'))
-  } catch (e) {
-    ElMessage.warning(t('data_set.not_support_copying'), e)
-  }
+    try {
+        await toClipboard(value)
+        ElMessage.success(t('data_set.copied_successfully'))
+    } catch (e) {
+        ElMessage.warning(t('data_set.not_support_copying'), e)
+    }
 }
 
 const mouseupDrag = () => {
-  const dom = document.querySelector('.sql-eidtor')
-  dom.removeEventListener('mousemove', calculateWidth)
-  dom.removeEventListener('mousemove', calculateHeight)
+    const dom = document.querySelector('.sql-eidtor')
+    dom.removeEventListener('mousemove', calculateWidth)
+    dom.removeEventListener('mousemove', calculateHeight)
 }
 
 const parseVariable = () => {
-  state.variablesTmp = []
-  const reg = new RegExp('\\${(.*?)}', 'gim')
-  const match = codeCom.value.state.doc.toString().match(reg)
-  const names = []
-  if (match !== null) {
-    for (let index = 0; index < match.length; index++) {
-      let name = match[index].substring(2, match[index].length - 1)
-      if (names.indexOf(name) < 0) {
-        names.push(name)
-        // eslint-disable-next-line
-        let obj = undefined
-        for (let i = 0; i < state.variables?.length; i++) {
-          if (state.variables[i].variableName === name) {
-            obj = state.variables[i]
-            if (!obj.hasOwnProperty('defaultValueScope')) {
-              obj.defaultValueScope = 'EDIT'
+    state.variablesTmp = []
+    const reg = new RegExp('\\${(.*?)}', 'gim')
+    const match = codeCom.value.state.doc.toString().match(reg)
+    const names = []
+    if (match !== null) {
+        for (let index = 0; index < match.length; index++) {
+            let name = match[index].substring(2, match[index].length - 1)
+            if (names.indexOf(name) < 0) {
+                names.push(name)
+                // eslint-disable-next-line
+                let obj = undefined
+                for (let i = 0; i < state.variables?.length; i++) {
+                    if (state.variables[i].variableName === name) {
+                        obj = state.variables[i]
+                        if (!obj.hasOwnProperty('defaultValueScope')) {
+                            obj.defaultValueScope = 'EDIT'
+                        }
+                    }
+                }
+                if (obj === undefined) {
+                    obj = {
+                        variableName: name,
+                        alias: '',
+                        type: [],
+                        required: false,
+                        defaultValue: '',
+                        details: '',
+                        defaultValueScope: 'EDIT'
+                    }
+                    obj.type.push('TEXT')
+                }
+                state.variablesTmp.push(obj)
             }
-          }
         }
-        if (obj === undefined) {
-          obj = {
-            variableName: name,
-            alias: '',
-            type: [],
-            required: false,
-            defaultValue: '',
-            details: '',
-            defaultValueScope: 'EDIT'
-          }
-          obj.type.push('TEXT')
-        }
-        state.variablesTmp.push(obj)
-      }
     }
-  }
-  state.variables = JSON.parse(JSON.stringify(state.variablesTmp))
+    state.variables = JSON.parse(JSON.stringify(state.variablesTmp))
 }
 
 const saveVariable = () => {
-  state.variables = JSON.parse(JSON.stringify(state.variablesTmp))
-  showVariableMgm.value = false
-  changeFlagCode.value = true
-  ElMessage.success(t('data_set.parameters_set_successfully'))
+    state.variables = JSON.parse(JSON.stringify(state.variablesTmp))
+    showVariableMgm.value = false
+    changeFlagCode.value = true
+    ElMessage.success(t('data_set.parameters_set_successfully'))
 }
 const mousedownDrag = () => {
-  document.querySelector('.sql-eidtor').addEventListener('mousemove', calculateWidth)
+    document.querySelector('.sql-eidtor').addEventListener('mousemove', calculateWidth)
 }
 </script>
 
 <template>
-  <div class="add-sql-name">
-    <el-input class="name" ref="editerName" v-model="sqlNode.tableName" @change="setFlag" />
-    <div class="save-or-cancel flex-align-center">
-      <el-button @click="getSQLPreview" text style="color: #1f2329">
-        <template #icon>
-          <el-icon>
-            <Icon name="reference-play"><referencePlay class="svg-icon" /></Icon>
-          </el-icon>
-        </template>
-        {{ t('data_set.run') }}
-      </el-button>
-      <el-button @click="referenceSetting()" style="color: #1f2329" text>
-        <template #icon>
-          <el-icon>
-            <Icon name="reference-setting"><referenceSetting1 class="svg-icon" /></Icon>
-          </el-icon>
-        </template>
-        {{ t('data_set.parameter_settings') }}
-      </el-button>
-      <el-button v-if="!desktop && showSystemParams" @click="sysParams" class="system-text_bg" text>
-        <template #icon>
-          <el-icon>
-            <Icon><icon_preferences_outlined class="svg-icon" /></Icon>
-          </el-icon>
-        </template>
-        {{ t('auth.sysParams') }}
-      </el-button>
-      <el-button :disabled="!changeFlagCode" @click="save(() => {})" type="primary">
-        {{ t('data_set.save') }}</el-button
-      >
-      <el-divider direction="vertical" />
-      <el-icon class="hover-icon" @click="handleClose">
-        <Icon name="icon_close_outlined"><icon_close_outlined class="svg-icon" /></Icon>
-      </el-icon>
+    <div class="add-sql-name">
+        <el-input ref="editerName" v-model="sqlNode.tableName" class="name" @change="setFlag"/>
+        <div class="save-or-cancel flex-align-center">
+            <el-button style="color: #1f2329" text @click="getSQLPreview">
+                <template #icon>
+                    <el-icon>
+                        <Icon name="reference-play">
+                            <referencePlay class="svg-icon"/>
+                        </Icon>
+                    </el-icon>
+                </template>
+                {{ t('data_set.run') }}
+            </el-button>
+            <el-button style="color: #1f2329" text @click="referenceSetting()">
+                <template #icon>
+                    <el-icon>
+                        <Icon name="reference-setting">
+                            <referenceSetting1 class="svg-icon"/>
+                        </Icon>
+                    </el-icon>
+                </template>
+                {{ t('data_set.parameter_settings') }}
+            </el-button>
+            <el-button v-if="!desktop && showSystemParams" class="system-text_bg" text @click="sysParams">
+                <template #icon>
+                    <el-icon>
+                        <Icon>
+                            <icon_preferences_outlined class="svg-icon"/>
+                        </Icon>
+                    </el-icon>
+                </template>
+                {{ t('auth.sysParams') }}
+            </el-button>
+            <el-button :disabled="!changeFlagCode" type="primary" @click="save(() => {})">
+                {{ t('data_set.save') }}
+            </el-button
+            >
+            <el-divider direction="vertical"/>
+            <el-icon class="hover-icon" @click="handleClose">
+                <Icon name="icon_close_outlined">
+                    <icon_close_outlined class="svg-icon"/>
+                </Icon>
+            </el-icon>
+        </div>
     </div>
-  </div>
 
-  <div class="sql-eidtor" @mouseup="mouseupDrag">
-    <p v-show="!showLeft" class="arrow-right" @click="handleShowLeft">
-      <el-icon>
-        <Icon name="icon_right_outlined"><icon_right_outlined class="svg-icon" /></Icon>
-      </el-icon>
-    </p>
-    <div
-      v-show="showLeft"
-      :style="{ left: LeftWidth + 'px' }"
-      class="drag-left"
-      @mousedown="mousedownDrag"
-    />
-    <div
-      v-loading="dsLoading"
-      v-show="showLeft"
-      class="table-list"
-      :style="{ width: LeftWidth + 'px' }"
-    >
-      <div class="table-list-top">
-        <p class="select-ds">
-          {{ t('data_set.current_data_source') }}
-          <span class="left-outlined">
+    <div class="sql-eidtor" @mouseup="mouseupDrag">
+        <p v-show="!showLeft" class="arrow-right" @click="handleShowLeft">
+            <el-icon>
+                <Icon name="icon_right_outlined">
+                    <icon_right_outlined class="svg-icon"/>
+                </Icon>
+            </el-icon>
+        </p>
+        <div
+            v-show="showLeft"
+            :style="{ left: LeftWidth + 'px' }"
+            class="drag-left"
+            @mousedown="mousedownDrag"
+        />
+        <div
+            v-show="showLeft"
+            v-loading="dsLoading"
+            :style="{ width: LeftWidth + 'px' }"
+            class="table-list"
+        >
+            <div class="table-list-top">
+                <p class="select-ds">
+                    {{ t('data_set.current_data_source') }}
+                    <span class="left-outlined">
             <el-icon style="color: #1f2329" @click="showLeft = false">
-              <Icon name="icon_left_outlined"><icon_left_outlined class="svg-icon" /></Icon>
+              <Icon name="icon_left_outlined"><icon_left_outlined class="svg-icon"/></Icon>
             </el-icon>
           </span>
-        </p>
-        <el-tree-select
-          :check-strictly="false"
-          @change="handleDsChange"
-          :placeholder="t('dataset.pls_slc_data_source')"
-          class="ds-list"
-          popper-class="tree-select-ds_popper"
-          v-model="sqlNode.datasourceId"
-          node-key="id"
-          :props="treeProps"
-          :data="state.dataSourceList"
-          :render-after-expand="false"
-        />
-        <p class="select-ds table-num">
-          {{ t('datasource.data_table')
-          }}<span class="num">
+                </p>
+                <el-tree-select
+                    v-model="sqlNode.datasourceId"
+                    :check-strictly="false"
+                    :data="state.dataSourceList"
+                    :placeholder="t('dataset.pls_slc_data_source')"
+                    :props="treeProps"
+                    :render-after-expand="false"
+                    class="ds-list"
+                    node-key="id"
+                    popper-class="tree-select-ds_popper"
+                    @change="handleDsChange"
+                />
+                <p class="select-ds table-num">
+                    {{
+                        t('datasource.data_table')
+                    }}<span class="num">
             <el-icon class="icon-color">
-              <Icon name="reference-table"><referenceTable class="svg-icon" /></Icon>
+              <Icon name="reference-table"><referenceTable class="svg-icon"/></Icon>
             </el-icon>
             {{ datasourceTableData.length }}
           </span>
-        </p>
-        <el-input
-          v-model="searchTable"
-          class="search"
-          :placeholder="t('deDataset.by_table_name')"
-          clearable
-        >
-          <template #prefix>
-            <el-icon>
-              <Icon name="icon_search-outline_outlined"
-                ><icon_searchOutline_outlined class="svg-icon"
-              /></Icon>
-            </el-icon>
-          </template>
-        </el-input>
-      </div>
-      <div v-if="!datasourceTableData.length && searchTable !== ''" class="el-empty">
-        <div
-          class="el-empty__description"
-          style="margin-top: 80px; color: #5e6d82; text-align: center"
-        >
-          {{ t('data_set.relevant_content_found') }}
-        </div>
-      </div>
-      <div v-else class="table-checkbox-list">
-        <FixedSizeList
-          :itemSize="40"
-          :data="datasourceTableData"
-          :total="datasourceTableData.length"
-          :width="LeftWidth - 17"
-          :height="windowHeight - 350"
-          :scrollbarAlwaysOn="false"
-          class-name="el-select-dropdown__list"
-          layout="vertical"
-        >
-          <template #default="{ index, style }">
-            <div
-              :class="[{ active: activeName === datasourceTableData[index].tableName }]"
-              class="list-item_primary"
-              :style="style"
-              :title="datasourceTableData[index].tableName"
-              @click="setActiveName(datasourceTableData[index])"
-            >
-              <el-icon class="icon-color">
-                <Icon name="icon_form_outlined"><icon_form_outlined class="svg-icon" /></Icon>
-              </el-icon>
-              <span class="label">{{ datasourceTableData[index].tableName }}</span>
-              <span class="name-copy">
-                <el-tooltip effect="dark" :content="t('common.copy')" placement="top">
+                </p>
+                <el-input
+                    v-model="searchTable"
+                    :placeholder="t('deDataset.by_table_name')"
+                    class="search"
+                    clearable
+                >
+                    <template #prefix>
+                        <el-icon>
+                            <Icon name="icon_search-outline_outlined"
+                            >
+                                <icon_searchOutline_outlined class="svg-icon"
+                                />
+                            </Icon>
+                        </el-icon>
+                    </template>
+                </el-input>
+            </div>
+            <div v-if="!datasourceTableData.length && searchTable !== ''" class="el-empty">
+                <div
+                    class="el-empty__description"
+                    style="margin-top: 80px; color: #5e6d82; text-align: center"
+                >
+                    {{ t('data_set.relevant_content_found') }}
+                </div>
+            </div>
+            <div v-else class="table-checkbox-list">
+                <FixedSizeList
+                    :data="datasourceTableData"
+                    :height="windowHeight - 350"
+                    :itemSize="40"
+                    :scrollbarAlwaysOn="false"
+                    :total="datasourceTableData.length"
+                    :width="LeftWidth - 17"
+                    class-name="el-select-dropdown__list"
+                    layout="vertical"
+                >
+                    <template #default="{ index, style }">
+                        <div
+                            :class="[{ active: activeName === datasourceTableData[index].tableName }]"
+                            :style="style"
+                            :title="datasourceTableData[index].tableName"
+                            class="list-item_primary"
+                            @click="setActiveName(datasourceTableData[index])"
+                        >
+                            <el-icon class="icon-color">
+                                <Icon name="icon_form_outlined">
+                                    <icon_form_outlined class="svg-icon"/>
+                                </Icon>
+                            </el-icon>
+                            <span class="label">{{ datasourceTableData[index].tableName }}</span>
+                            <span class="name-copy">
+                <el-tooltip :content="t('common.copy')" effect="dark" placement="top">
                   <el-icon
-                    class="hover-icon"
-                    @click="copyInfo(datasourceTableData[index].tableName)"
+                      class="hover-icon"
+                      @click="copyInfo(datasourceTableData[index].tableName)"
                   >
-                    <Icon name="icon_copy_outlined"><icon_copy_outlined class="svg-icon" /></Icon>
+                    <Icon name="icon_copy_outlined"><icon_copy_outlined class="svg-icon"/></Icon>
                   </el-icon>
                 </el-tooltip>
 
                 <el-popover
-                  popper-class="sql-table-info"
-                  placement="right"
-                  :width="502"
-                  :persistent="false"
-                  @show="getNodeField(datasourceTableData[index])"
-                  trigger="click"
+                    :persistent="false"
+                    :width="502"
+                    placement="right"
+                    popper-class="sql-table-info"
+                    trigger="click"
+                    @show="getNodeField(datasourceTableData[index])"
                 >
                   <template #reference>
                     <el-icon class="hover-icon">
-                      <Icon name="icon_info_outlined"><icon_info_outlined class="svg-icon" /></Icon>
+                      <Icon name="icon_info_outlined"><icon_info_outlined class="svg-icon"/></Icon>
                     </el-icon>
                   </template>
-                  <div class="table-filed" v-loading="gridDataLoading">
+                  <div v-loading="gridDataLoading" class="table-filed">
                     <div class="top flex-align-center">
                       <div class="title ellipsis">
                         {{
-                          datasourceTableData[index].name || datasourceTableData[index].tableName
-                        }}
+                              datasourceTableData[index].name || datasourceTableData[index].tableName
+                          }}
                       </div>
                       <el-icon
-                        class="hover-icon de-hover-icon-primary"
-                        @click.stop="
+                          class="hover-icon de-hover-icon-primary"
+                          @click.stop="
                           copyInfo(
                             datasourceTableData[index].name || datasourceTableData[index].tableName
                           )
                         "
                       >
                         <Icon name="icon_copy_outlined"
-                          ><icon_copy_outlined class="svg-icon"
+                        ><icon_copy_outlined class="svg-icon"
                         /></Icon>
                       </el-icon>
                       <div class="num flex-align-center">
                         <el-icon>
                           <Icon name="icon_text-box_outlined"
-                            ><icon_textBox_outlined class="svg-icon"
+                          ><icon_textBox_outlined class="svg-icon"
                           /></Icon>
                         </el-icon>
                         {{ gridData.length }}
@@ -739,21 +755,21 @@ const mousedownDrag = () => {
                     </div>
                     <div class="table-grid">
                       <el-table
-                        height="405"
-                        style="width: 100%"
-                        header-cell-class-name="header-cell"
-                        :data="gridData"
+                          :data="gridData"
+                          header-cell-class-name="header-cell"
+                          height="405"
+                          style="width: 100%"
                       >
                         <el-table-column :label="t('data_set.physical_field_name')">
                           <template #default="scope">
                             <div class="flex-align-center icon">
                               <el-icon>
                                 <Icon
-                                  ><component
-                                    class="svg-icon"
-                                    :class="`field-icon-${fieldType[scope.row.deType]}`"
+                                ><component
                                     :is="iconFieldMap[fieldType[scope.row.deType]]"
-                                  ></component
+                                    :class="`field-icon-${fieldType[scope.row.deType]}`"
+                                    class="svg-icon"
+                                ></component
                                 ></Icon>
                               </el-icon>
                               {{ scope.row.originName }}
@@ -768,11 +784,11 @@ const mousedownDrag = () => {
                         <el-table-column :label="t('common.operate')">
                           <template #default="scope">
                             <el-icon
-                              class="hover-icon de-hover-icon-primary"
-                              @click.stop="copyInfo(scope.row.originName)"
+                                class="hover-icon de-hover-icon-primary"
+                                @click.stop="copyInfo(scope.row.originName)"
                             >
                               <Icon name="icon_copy_outlined"
-                                ><icon_copy_outlined class="svg-icon"
+                              ><icon_copy_outlined class="svg-icon"
                               /></Icon>
                             </el-icon>
                           </template>
@@ -782,893 +798,951 @@ const mousedownDrag = () => {
                   </div>
                 </el-popover>
               </span>
+                        </div>
+                    </template>
+                </FixedSizeList>
             </div>
-          </template>
-        </FixedSizeList>
-      </div>
-    </div>
-    <div
-      class="sql-code-right"
-      :class="showSysParams && 'p280'"
-      :style="{ width: `calc(100% - ${showLeft ? LeftWidth : 0}px)` }"
-    >
-      <code-mirror
-        @change="changeFlagCode = true"
-        :height="`${dragHeight}px`"
-        dom-id="sql-editor"
-        :regexp="/\$f2cde\[(.*?)\]/g"
-        ref="myCm"
-        :quotaMap="fieldFormList.filter(ele => ['num'].includes(ele.type)).map(ele => ele.name)"
-        :dimensionMap="
+        </div>
+        <div
+            :class="showSysParams && 'p280'"
+            :style="{ width: `calc(100% - ${showLeft ? LeftWidth : 0}px)` }"
+            class="sql-code-right"
+        >
+            <code-mirror
+                ref="myCm"
+                :dimensionMap="
           builtInList
             .concat(fieldFormList.filter(ele => !['num'].includes(ele.type)))
             .map(ele => ele.name)
         "
-      ></code-mirror>
-      <div class="sql-result" :style="{ height: `calc(100% - ${dragHeight}px)` }">
-        <div class="sql-title">
-          <span class="drag" @mousedown="mousedownDragH" />
-        </div>
-        <div class="padding-24">
-          <el-tabs v-model="tabActive">
-            <el-tab-pane :label="t('deDataset.running_results')" name="result" />
-          </el-tabs>
-        </div>
-        <div v-show="tabActive === 'result'" class="table-sql">
-          <div class="table-scroll" v-if="state.fields.length">
-            <el-auto-resizer>
-              <template #default="{ height, width }">
-                <el-table-v2
-                  :columns="state.fields"
-                  v-loading="dataPreviewLoading"
-                  header-class="header-cell"
-                  :data="state.plxTableData"
-                  :width="width"
-                  :height="height"
-                  fixed
-                  ><template #empty>
-                    <empty-background
-                      :description="t('data_set.no_data')"
-                      img-type="noneWhite"
-                    /> </template
-                ></el-table-v2>
-              </template>
-            </el-auto-resizer>
-          </div>
-          <template v-else>
-            <empty-background description=" " img-type="noneWhite">
-              <div class="sql-tips flex-align-center">
-                {{ t('data_set.click_above') }}
-                <el-icon>
-                  <icon name="icon_play-round_outlined"
-                    ><icon_playRound_outlined class="svg-icon"
-                  /></icon>
-                </el-icon>
-                {{ t('data_set.see_the_results') }}
-              </div>
-            </empty-background>
-          </template>
-        </div>
-        <div v-show="tabActive === 'execLog'" class="table-container">
-          <grid-table
-            v-loading="loading"
-            :table-data="state.sqlData"
-            :show-pagination="!!state.param.tableId"
-            :columns="[]"
-            :pagination="paginationConfig"
-          >
-            <el-table-column
-              key="startTimeTable"
-              min-width="100px"
-              prop="startTime"
-              :label="t('dataset.start_time')"
-            >
-              <template #default="scope">
-                <span>{{ timestampFormatDate(scope.row.startTime) }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column key="sql" prop="sql" show-overflow-tooltip :label="t('dataset.sql')" />
-            <el-table-column
-              key="spend"
-              prop="spend"
-              :formatter="formatter"
-              :label="t('dataset.spend_time')"
-            />
-            <el-table-column key="status" prop="status" :label="t('dataset.sql_result')">
-              <template #default="scope">
+                :height="`${dragHeight}px`"
+                :quotaMap="fieldFormList.filter(ele => ['num'].includes(ele.type)).map(ele => ele.name)"
+                :regexp="/\$f2cde\[(.*?)\]/g"
+                dom-id="sql-editor"
+                @change="changeFlagCode = true"
+            ></code-mirror>
+            <div :style="{ height: `calc(100% - ${dragHeight}px)` }" class="sql-result">
+                <div class="sql-title">
+                    <span class="drag" @mousedown="mousedownDragH"/>
+                </div>
+                <div class="padding-24">
+                    <el-tabs v-model="tabActive">
+                        <el-tab-pane :label="t('deDataset.running_results')" name="result"/>
+                    </el-tabs>
+                </div>
+                <div v-show="tabActive === 'result'" class="table-sql">
+                    <div v-if="state.fields.length" class="table-scroll">
+                        <el-auto-resizer>
+                            <template #default="{ height, width }">
+                                <el-table-v2
+                                    v-loading="dataPreviewLoading"
+                                    :columns="state.fields"
+                                    :data="state.plxTableData"
+                                    :height="height"
+                                    :width="width"
+                                    fixed
+                                    header-class="header-cell"
+                                >
+                                    <template #empty>
+                                        <empty-background
+                                            :description="t('data_set.no_data')"
+                                            img-type="noneWhite"
+                                        />
+                                    </template
+                                    >
+                                </el-table-v2>
+                            </template>
+                        </el-auto-resizer>
+                    </div>
+                    <template v-else>
+                        <empty-background description=" " img-type="noneWhite">
+                            <div class="sql-tips flex-align-center">
+                                {{ t('data_set.click_above') }}
+                                <el-icon>
+                                    <icon name="icon_play-round_outlined"
+                                    >
+                                        <icon_playRound_outlined class="svg-icon"
+                                        />
+                                    </icon>
+                                </el-icon>
+                                {{ t('data_set.see_the_results') }}
+                            </div>
+                        </empty-background>
+                    </template>
+                </div>
+                <div v-show="tabActive === 'execLog'" class="table-container">
+                    <grid-table
+                        v-loading="loading"
+                        :columns="[]"
+                        :pagination="paginationConfig"
+                        :show-pagination="!!state.param.tableId"
+                        :table-data="state.sqlData"
+                    >
+                        <el-table-column
+                            key="startTimeTable"
+                            :label="t('dataset.start_time')"
+                            min-width="100px"
+                            prop="startTime"
+                        >
+                            <template #default="scope">
+                                <span>{{ timestampFormatDate(scope.row.startTime) }}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column key="sql" :label="t('dataset.sql')" prop="sql" show-overflow-tooltip/>
+                        <el-table-column
+                            key="spend"
+                            :formatter="formatter"
+                            :label="t('dataset.spend_time')"
+                            prop="spend"
+                        />
+                        <el-table-column key="status" :label="t('dataset.sql_result')" prop="status">
+                            <template #default="scope">
                 <span v-if="scope.row.status" :class="[`de-${scope.row.status}-pre`, 'de-status']"
-                  >{{ t(`dataset.${scope.row.status.toLocaleLowerCase()}`) }}
+                >{{ t(`dataset.${scope.row.status.toLocaleLowerCase()}`) }}
                 </span>
-                <span v-else>-</span>
-              </template>
-            </el-table-column>
+                                <span v-else>-</span>
+                            </template>
+                        </el-table-column>
 
-            <el-table-column
-              key="__operation"
-              :label="t('commons.operating')"
-              fixed="right"
-              width="100"
-            >
-              <template #default="scope">
-                <el-button text @click="copyInfo(scope.row.sql)">
-                  {{ t('common.copy') }}
-                </el-button>
-              </template>
-            </el-table-column>
-          </grid-table>
+                        <el-table-column
+                            key="__operation"
+                            :label="t('commons.operating')"
+                            fixed="right"
+                            width="100"
+                        >
+                            <template #default="scope">
+                                <el-button text @click="copyInfo(scope.row.sql)">
+                                    {{ t('common.copy') }}
+                                </el-button>
+                            </template>
+                        </el-table-column>
+                    </grid-table>
+                </div>
+            </div>
+            <div v-if="showSysParams" class="handle-system">
+                <div class="handle-system_title">
+                    {{ t('auth.sysParams') }}
+                    <el-icon class="hover-icon" @click="showSysParams = false">
+                        <Icon name="icon_close_outlined">
+                            <icon_close_outlined class="svg-icon"/>
+                        </Icon>
+                    </el-icon>
+                </div>
+                <div class="handle-system_list">
+                    <el-input
+                        v-model="searchField"
+                        :placeholder="t('dataset.edit_search')"
+                        clearable
+                        style="width: 100%; margin-bottom: 16px"
+                    >
+                        <template #prefix>
+                            <el-icon>
+                                <Icon>
+                                    <icon_searchOutline_outlined class="svg-icon"/>
+                                </Icon>
+                            </el-icon>
+                        </template>
+                    </el-input>
+                    <div class="system-list">
+                        <div class="built-in">
+                            {{ t('system.system_built_in_variable') }}
+                        </div>
+                        <div
+                            v-for="fieldForm in builtInList"
+                            :key="fieldForm.id"
+                            class="variable-item flex-align-center"
+                            @click="insertFieldToCodeMirror(`$f2cde[${fieldForm.name}]`)"
+                        >
+                            {{ fieldForm.name }}
+                        </div>
+                        <div class="built-in" style="margin-top: 16px">
+                            {{ t('system.custom_variable') }}
+                        </div>
+                        <div
+                            v-for="fieldForm in fieldFormListComputed"
+                            :key="fieldForm.id"
+                            :class="['num'].includes(fieldForm.type) && 'with-type'"
+                            class="variable-item flex-align-center"
+                            @click="insertFieldToCodeMirror(`$f2cde[${fieldForm.name}]`)"
+                        >
+                            <el-icon>
+                                <Icon
+                                >
+                                    <component
+                                        :is="iconName(fieldForm.type)"
+                                        :class="iconClassName(fieldForm.type)"
+                                        class="svg-icon"
+                                    ></component
+                                    >
+                                </Icon>
+                            </el-icon>
+                            <span :title="fieldForm.name" class="ellipsis">{{ fieldForm.name }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-      <div v-if="showSysParams" class="handle-system">
-        <div class="handle-system_title">
-          {{ t('auth.sysParams') }}
-          <el-icon class="hover-icon" @click="showSysParams = false">
-            <Icon name="icon_close_outlined"><icon_close_outlined class="svg-icon" /></Icon>
-          </el-icon>
-        </div>
-        <div class="handle-system_list">
-          <el-input
-            style="width: 100%; margin-bottom: 16px"
-            v-model="searchField"
-            :placeholder="t('dataset.edit_search')"
-            clearable
-          >
-            <template #prefix>
-              <el-icon>
-                <Icon><icon_searchOutline_outlined class="svg-icon" /></Icon>
-              </el-icon>
-            </template>
-          </el-input>
-          <div class="system-list">
-            <div class="built-in">
-              {{ t('system.system_built_in_variable') }}
-            </div>
-            <div
-              class="variable-item flex-align-center"
-              @click="insertFieldToCodeMirror(`$f2cde[${fieldForm.name}]`)"
-              v-for="fieldForm in builtInList"
-              :key="fieldForm.id"
-            >
-              {{ fieldForm.name }}
-            </div>
-            <div class="built-in" style="margin-top: 16px">
-              {{ t('system.custom_variable') }}
-            </div>
-            <div
-              class="variable-item flex-align-center"
-              v-for="fieldForm in fieldFormListComputed"
-              :key="fieldForm.id"
-              @click="insertFieldToCodeMirror(`$f2cde[${fieldForm.name}]`)"
-              :class="['num'].includes(fieldForm.type) && 'with-type'"
-            >
-              <el-icon>
-                <Icon
-                  ><component
-                    class="svg-icon"
-                    :class="iconClassName(fieldForm.type)"
-                    :is="iconName(fieldForm.type)"
-                  ></component
-                ></Icon>
-              </el-icon>
-              <span :title="fieldForm.name" class="ellipsis">{{ fieldForm.name }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
-  </div>
-  <el-drawer
-    :title="dialogTitle"
-    v-model="showVariableMgm"
-    custom-class="sql-dataset-drawer"
-    size="870px"
-    direction="rtl"
-  >
-    <div class="content">
-      <el-icon style="font-size: 16px">
-        <Icon name="icon_info_colorful"><icon_info_colorful class="svg-icon" /></Icon>
-      </el-icon>
-      {{ t('dataset.sql_variable_limit_1') }}<br />
-      {{ t('dataset.sql_variable_limit_2') }}<br />
-    </div>
-    <el-table header-cell-class-name="header-cell" :data="state.variablesTmp">
-      <el-table-column width="220" prop="variableName" :label="t('visualization.param_name')" />
-      <el-table-column width="200" :label="t('deDataset.parameter_type')">
-        <template #default="scope">
-          <el-cascader
-            class="select-type"
-            popper-class="cascader-panel no-scroll_bar"
-            v-model="scope.row.type"
-            :options="fieldOptions"
-            @change="scope.row.defaultValue = ''"
-          >
-            <template v-slot="{ data }">
-              <el-icon>
-                <Icon
-                  ><component
-                    class="svg-icon"
-                    :class="`field-icon-${getIconName(data.value)}`"
-                    :is="iconFieldMap[getIconName(data.value)]"
-                  ></component
-                ></Icon>
-              </el-icon>
-              <span>{{ data.label }}</span>
-            </template>
-          </el-cascader>
-          <span class="select-svg-icon">
+    <el-drawer
+        v-model="showVariableMgm"
+        :title="dialogTitle"
+        custom-class="sql-dataset-drawer"
+        direction="rtl"
+        size="870px"
+    >
+        <div class="content">
+            <el-icon style="font-size: 16px">
+                <Icon name="icon_info_colorful">
+                    <icon_info_colorful class="svg-icon"/>
+                </Icon>
+            </el-icon>
+            {{ t('dataset.sql_variable_limit_1') }}<br/>
+            {{ t('dataset.sql_variable_limit_2') }}<br/>
+        </div>
+        <el-table :data="state.variablesTmp" header-cell-class-name="header-cell">
+            <el-table-column :label="t('visualization.param_name')" prop="variableName" width="220"/>
+            <el-table-column :label="t('deDataset.parameter_type')" width="200">
+                <template #default="scope">
+                    <el-cascader
+                        v-model="scope.row.type"
+                        :options="fieldOptions"
+                        class="select-type"
+                        popper-class="cascader-panel no-scroll_bar"
+                        @change="scope.row.defaultValue = ''"
+                    >
+                        <template v-slot="{ data }">
+                            <el-icon>
+                                <Icon
+                                >
+                                    <component
+                                        :is="iconFieldMap[getIconName(data.value)]"
+                                        :class="`field-icon-${getIconName(data.value)}`"
+                                        class="svg-icon"
+                                    ></component
+                                    >
+                                </Icon>
+                            </el-icon>
+                            <span>{{ data.label }}</span>
+                        </template>
+                    </el-cascader>
+                    <span class="select-svg-icon">
             <el-icon>
               <Icon
-                ><component
-                  class="svg-icon"
-                  :class="`field-icon-${getIconName(scope.row.type[0])}`"
+              ><component
                   :is="iconFieldMap[getIconName(scope.row.type[0])]"
-                ></component
+                  :class="`field-icon-${getIconName(scope.row.type[0])}`"
+                  class="svg-icon"
+              ></component
               ></Icon>
             </el-icon>
           </span>
-        </template>
-      </el-table-column>
-      <el-table-column min-width="350" prop="defaultValue" :label="t('commons.params_value')">
-        <template #header>
-          {{ t('commons.params_value') }}
-        </template>
-        <template #default="scope">
-          <el-input
-            v-if="getIconName(scope.row.type[0]) === 'text'"
-            v-model="scope.row.defaultValue"
-            type="text"
-            :placeholder="t('common.please_input')"
-          >
-            <template #prepend>
-              <el-select v-model="scope.row.defaultValueScope" style="width: calc(100% + 22px)">
-                <el-option
-                  v-for="item in defaultValueScopeList"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </el-select>
+                </template>
+            </el-table-column>
+            <el-table-column :label="t('commons.params_value')" min-width="350" prop="defaultValue">
+                <template #header>
+                    {{ t('commons.params_value') }}
+                </template>
+                <template #default="scope">
+                    <el-input
+                        v-if="getIconName(scope.row.type[0]) === 'text'"
+                        v-model="scope.row.defaultValue"
+                        :placeholder="t('common.please_input')"
+                        type="text"
+                    >
+                        <template #prepend>
+                            <el-select v-model="scope.row.defaultValueScope" style="width: calc(100% + 22px)">
+                                <el-option
+                                    v-for="item in defaultValueScopeList"
+                                    :key="item.value"
+                                    :label="item.label"
+                                    :value="item.value"
+                                />
+                            </el-select>
+                        </template>
+                    </el-input>
+                    <el-input
+                        v-if="getIconName(scope.row.type[0]) === 'value'"
+                        v-model="scope.row.defaultValue"
+                        :placeholder="t('common.please_input')"
+                        type="number"
+                    >
+                        <template #prepend>
+                            <el-select v-model="scope.row.defaultValueScope" style="width: calc(100% + 22px)">
+                                <el-option
+                                    v-for="item in defaultValueScopeList"
+                                    :key="item.value"
+                                    :label="item.label"
+                                    :value="item.value"
+                                />
+                            </el-select>
+                        </template>
+                    </el-input>
+                    <div
+                        v-if="getIconName(scope.row.type[0]) === 'time'"
+                        class="ed-input ed-input--light ed-input-group ed-input-group--prepend de-group__prepend"
+                    >
+                        <div class="ed-input-group__prepend">
+                            <el-select v-model="scope.row.defaultValueScope" style="width: calc(100% + 22px)">
+                                <el-option
+                                    v-for="item in defaultValueScopeList"
+                                    :key="item.value"
+                                    :label="item.label"
+                                    :value="item.value"
+                                />
+                            </el-select>
+                        </div>
+                        <el-date-picker
+                            v-if="scope.row.type[0] === 'DATETIME-YEAR'"
+                            v-model="scope.row.defaultValue"
+                            :placeholder="t('dataset.select_year')"
+                            format="YYYY"
+                            type="year"
+                            value-format="YYYY"
+                        />
+
+                        <el-date-picker
+                            v-if="scope.row.type[0] === 'DATETIME-YEAR-MONTH'"
+                            v-model="scope.row.defaultValue"
+                            :format="scope.row.type[1]"
+                            :placeholder="t('dataset.select_month')"
+                            :value-format="scope.row.type[1]"
+                            type="month"
+                        />
+
+                        <el-date-picker
+                            v-if="scope.row.type[0] === 'DATETIME-YEAR-MONTH-DAY'"
+                            v-model="scope.row.defaultValue"
+                            :format="scope.row.type[1]"
+                            :placeholder="t('dataset.select_date')"
+                            :value-format="scope.row.type[1]"
+                            type="date"
+                        />
+
+                        <el-date-picker
+                            v-if="scope.row.type[0] === 'DATETIME'"
+                            v-model="scope.row.defaultValue"
+                            :format="scope.row.type[1]"
+                            :placeholder="t('dataset.select_time')"
+                            :value-format="scope.row.type[1]"
+                            type="datetime"
+                        />
+                    </div>
+                </template>
+            </el-table-column>
+            <template #empty>
+                <empty-background :description="t('data_set.no_data')" img-type="noneWhite"/>
             </template>
-          </el-input>
-          <el-input
-            v-if="getIconName(scope.row.type[0]) === 'value'"
-            v-model="scope.row.defaultValue"
-            :placeholder="t('common.please_input')"
-            type="number"
-          >
-            <template #prepend>
-              <el-select v-model="scope.row.defaultValueScope" style="width: calc(100% + 22px)">
-                <el-option
-                  v-for="item in defaultValueScopeList"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </el-select>
-            </template>
-          </el-input>
-          <div
-            v-if="getIconName(scope.row.type[0]) === 'time'"
-            class="ed-input ed-input--light ed-input-group ed-input-group--prepend de-group__prepend"
-          >
-            <div class="ed-input-group__prepend">
-              <el-select v-model="scope.row.defaultValueScope" style="width: calc(100% + 22px)">
-                <el-option
-                  v-for="item in defaultValueScopeList"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </el-select>
-            </div>
-            <el-date-picker
-              v-if="scope.row.type[0] === 'DATETIME-YEAR'"
-              v-model="scope.row.defaultValue"
-              type="year"
-              format="YYYY"
-              value-format="YYYY"
-              :placeholder="t('dataset.select_year')"
-            />
-
-            <el-date-picker
-              v-if="scope.row.type[0] === 'DATETIME-YEAR-MONTH'"
-              v-model="scope.row.defaultValue"
-              type="month"
-              :format="scope.row.type[1]"
-              :value-format="scope.row.type[1]"
-              :placeholder="t('dataset.select_month')"
-            />
-
-            <el-date-picker
-              v-if="scope.row.type[0] === 'DATETIME-YEAR-MONTH-DAY'"
-              v-model="scope.row.defaultValue"
-              type="date"
-              :format="scope.row.type[1]"
-              :value-format="scope.row.type[1]"
-              :placeholder="t('dataset.select_date')"
-            />
-
-            <el-date-picker
-              v-if="scope.row.type[0] === 'DATETIME'"
-              v-model="scope.row.defaultValue"
-              type="datetime"
-              :format="scope.row.type[1]"
-              :value-format="scope.row.type[1]"
-              :placeholder="t('dataset.select_time')"
-            />
-          </div>
+        </el-table>
+        <template #footer>
+            <el-button secondary @click="showVariableMgm = false">{{ t('dataset.cancel') }}</el-button>
+            <el-button type="primary" @click="saveVariable()">{{ t('dataset.confirm') }}</el-button>
         </template>
-      </el-table-column>
-      <template #empty>
-        <empty-background :description="t('data_set.no_data')" img-type="noneWhite" />
-      </template>
-    </el-table>
-    <template #footer>
-      <el-button secondary @click="showVariableMgm = false">{{ t('dataset.cancel') }} </el-button>
-      <el-button type="primary" @click="saveVariable()">{{ t('dataset.confirm') }} </el-button>
-    </template>
-  </el-drawer>
+    </el-drawer>
 </template>
 
 <style lang="less" scoped>
 @import '@/style/mixin.less';
+
 .sql-eidtor {
-  width: 100%;
-  height: calc(100vh - 156px);
-  position: relative;
-  .drag-left {
-    position: absolute;
-    height: calc(100vh - 156px);
-    width: 2px;
-    top: 0;
-    z-index: 5;
-    cursor: col-resize;
-  }
-
-  .arrow-right {
-    position: absolute;
-    top: 15px;
-    z-index: 5;
-    cursor: pointer;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    left: 0;
-    height: 24px;
-    width: 20px;
-    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
-    border: 1px solid var(--deCardStrokeColor, #dee0e3);
-    display: flex;
-    align-items: center;
-    padding-left: 2px;
-    border-top-right-radius: 12px;
-    border-bottom-right-radius: 12px;
-    font-size: 12px;
-    background: #fff;
-    &:hover {
-      padding-left: 4px;
-      width: 24px;
-      .ed-icon {
-        color: var(--ed-color-primary, #3370ff);
-      }
-    }
-  }
-
-  .table-list {
-    height: 100%;
-    width: 240px;
-    float: left;
-    font-family: var(--de-custom_font, 'PingFang');
-    border-right: 1px solid rgba(31, 35, 41, 0.15);
-
-    .list-item_primary {
-      padding: 8px;
-    }
-    .table-list-top {
-      padding: 16px;
-      padding-bottom: 0;
-    }
-
-    .select-ds {
-      font-size: 14px;
-      font-weight: 500;
-      display: flex;
-      justify-content: space-between;
-      color: var(--deTextPrimary, #1f2329);
-      position: relative;
-
-      i {
-        cursor: pointer;
-        font-size: 12px;
-        color: var(--deTextPlaceholder, rgba(31, 35, 41, 0.15));
-      }
-
-      .left-outlined {
-        position: absolute;
-        font-size: 12px;
-        right: -30px;
-        top: -5px;
-        height: 24px;
-        border: 1px solid #dee0e3;
-        width: 24px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #fff;
-        box-shadow: 0px 5px 10px 0px #1f23291a;
-        z-index: 10;
-        &:hover {
-          .ed-icon {
-            color: var(--ed-color-primary, #3370ff) !important;
-          }
-        }
-      }
-    }
-
-    .table-num {
-      .num {
-        display: flex;
-        align-items: center;
-        font-weight: 400;
-        font-size: 14px;
-        color: #646a73;
-        .ed-icon {
-          margin-right: 5.33px;
-        }
-      }
-
-      i {
-        cursor: auto;
-        font-size: 16px;
-        color: var(--deTextPlaceholder, #646a73);
-      }
-    }
-
-    .search {
-      margin: 12px 0;
-    }
-
-    .ds-list {
-      margin: 12px 0 24px 0;
-      width: 100%;
-    }
-
-    .table-checkbox-list {
-      height: calc(100% - 190px);
-      overflow-y: auto;
-      padding: 0 8px;
-
-      .list-item_primary {
-        padding-right: 4px;
-        .label {
-          width: calc(100% - 4px);
-        }
-        &:hover {
-          .label {
-            width: calc(100% - 74px);
-          }
-        }
-      }
-
-      .not-allow {
-        cursor: not-allowed;
-        color: var(--deTextDisable, #bbbfc4);
-      }
-
-      .name-copy {
-        display: none;
-        line-height: 24px;
-        margin-left: 4px;
-      }
-
-      .list-item_primary:hover {
-        .name-copy {
-          display: inline;
-        }
-      }
-    }
-  }
-
-  .sql-code-right {
-    float: right;
+    width: 100%;
     height: calc(100vh - 156px);
     position: relative;
-    .sql-result {
-      font-family: var(--de-custom_font, 'PingFang');
-      font-size: 14px;
-      overflow-y: auto;
-      box-sizing: border-box;
-      width: 100%;
 
-      .sql-title {
-        user-select: none;
-        display: flex;
-        align-items: center;
-        position: relative;
+    .drag-left {
+        position: absolute;
+        height: calc(100vh - 156px);
+        width: 2px;
+        top: 0;
         z-index: 5;
-        .drag {
-          position: absolute;
-          top: 4px;
-          left: 0;
-          height: 7px;
-          width: 100%;
-          cursor: row-resize;
-          &::after {
-            content: '';
-            height: 7px;
-            width: 100px;
-            border-radius: 3.5px;
-            position: absolute;
-            left: 50%;
-            top: 0;
-            transform: translateX(-50%);
-            background: rgba(31, 35, 41, 0.1);
-          }
-        }
-      }
-
-      .padding-24 {
-        width: calc(100% - 48px);
-        .border-bottom-tab(24px);
-      }
-
-      .table-sql {
-        margin-top: 1px;
-        height: calc(100% - 46px);
-        width: 100%;
-        overflow: auto;
-        box-sizing: border-box;
-
-        .table-scroll {
-          .ed-table-v2 {
-            --ed-table-header-bg-color: #f5f6f7;
-            :deep(.header-cell) {
-              border-top: none;
-            }
-          }
-          width: 100%;
-          height: 100%;
-        }
-      }
-
-      .de-status {
-        position: relative;
-        margin-left: 15px;
-
-        &::before {
-          content: '';
-          position: absolute;
-          top: 50%;
-          left: -13px;
-          transform: translateY(-50%);
-          width: 5px;
-          height: 5px;
-          border-radius: 50%;
-        }
-      }
-
-      .de-Pending-result,
-      .de-Underway-result {
-        &::before {
-          background: var(--deTextPlaceholder, #8f959e);
-        }
-      }
-
-      .de-Exec-result,
-      .de-Underway-pre {
-        &::before {
-          background: var(--ed-color-primary, #3370ff);
-        }
-      }
-
-      .de-Stopped-result,
-      .de-Completed-pre {
-        &::before {
-          background: var(--deSuccess, #34c724);
-        }
-      }
-
-      .de-Error-pre {
-        &::before {
-          background: var(--deDanger, #f54a45);
-        }
-
-        .ed-icon-s-order {
-          color: var(--ed-color-primary, #3370ff);
-          cursor: pointer;
-        }
-      }
+        cursor: col-resize;
     }
 
-    &.p280 {
-      padding-right: 280px;
-    }
-
-    .handle-system {
-      height: 100%;
-      width: 280px;
-      border-left: 1px solid #1f232926;
-      position: absolute;
-      right: 0;
-      top: 0;
-      overflow-y: auto;
-      .handle-system_title {
-        padding: 16px;
-        font-size: 14px;
-        font-weight: 500;
-        line-height: 22px;
+    .arrow-right {
+        position: absolute;
+        top: 15px;
+        z-index: 5;
+        cursor: pointer;
+        margin: 0;
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        height: 54px;
-      }
+        left: 0;
+        height: 24px;
+        width: 20px;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--deCardStrokeColor, #dee0e3);
+        display: flex;
+        align-items: center;
+        padding-left: 2px;
+        border-top-right-radius: 12px;
+        border-bottom-right-radius: 12px;
+        font-size: 12px;
+        background: #fff;
 
-      .handle-system_list {
-        padding: 16px;
-        border-top: 1px solid #1f232926;
-
-        .system-list {
-          height: calc(100vh - 300px);
-          overflow-y: auto;
-
-          .built-in {
-            font-size: 14px;
-            font-weight: 400;
-            line-height: 22px;
-          }
-
-          .variable-item {
-            cursor: pointer;
-            padding: 1px 8px;
-            border: solid 1px #dee0e3;
-            margin-bottom: 8px;
-            background-color: white;
-            color: #1f2329;
-            font-size: 14px;
+        &:hover {
+            padding-left: 4px;
+            width: 24px;
 
             .ed-icon {
-              font-size: 16px;
-              margin-right: 4px;
+                color: var(--ed-color-primary, #3370ff);
             }
-            height: 28px;
-            margin-top: 4px;
-            word-break: break-all;
-            border-radius: 4px;
-
-            .icon-right {
-              display: none;
-              margin-left: auto;
-              align-items: center;
-              .ed-icon {
-                margin: 0 0 0 6px;
-              }
-            }
-            &:hover {
-              border-color: var(--ed-color-primary, #3370ff);
-              background: var(--ed-color-primary-1a, rgba(51, 112, 255, 0.1));
-            }
-          }
-
-          .with-type:hover {
-            background: rgba(4, 180, 156, 0.1);
-            border-color: #04b49c;
-          }
         }
-      }
     }
 
-    .table-container {
-      height: calc(100% - 46px);
-      padding: 16px 24px;
+    .table-list {
+        height: 100%;
+        width: 240px;
+        float: left;
+        font-family: var(--de-custom_font, 'PingFang');
+        border-right: 1px solid rgba(31, 35, 41, 0.15);
+
+        .list-item_primary {
+            padding: 8px;
+        }
+
+        .table-list-top {
+            padding: 16px;
+            padding-bottom: 0;
+        }
+
+        .select-ds {
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+            color: var(--deTextPrimary, #1f2329);
+            position: relative;
+
+            i {
+                cursor: pointer;
+                font-size: 12px;
+                color: var(--deTextPlaceholder, rgba(31, 35, 41, 0.15));
+            }
+
+            .left-outlined {
+                position: absolute;
+                font-size: 12px;
+                right: -30px;
+                top: -5px;
+                height: 24px;
+                border: 1px solid #dee0e3;
+                width: 24px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: #fff;
+                box-shadow: 0px 5px 10px 0px #1f23291a;
+                z-index: 10;
+
+                &:hover {
+                    .ed-icon {
+                        color: var(--ed-color-primary, #3370ff) !important;
+                    }
+                }
+            }
+        }
+
+        .table-num {
+            .num {
+                display: flex;
+                align-items: center;
+                font-weight: 400;
+                font-size: 14px;
+                color: #646a73;
+
+                .ed-icon {
+                    margin-right: 5.33px;
+                }
+            }
+
+            i {
+                cursor: auto;
+                font-size: 16px;
+                color: var(--deTextPlaceholder, #646a73);
+            }
+        }
+
+        .search {
+            margin: 12px 0;
+        }
+
+        .ds-list {
+            margin: 12px 0 24px 0;
+            width: 100%;
+        }
+
+        .table-checkbox-list {
+            height: calc(100% - 190px);
+            overflow-y: auto;
+            padding: 0 8px;
+
+            .list-item_primary {
+                padding-right: 4px;
+
+                .label {
+                    width: calc(100% - 4px);
+                }
+
+                &:hover {
+                    .label {
+                        width: calc(100% - 74px);
+                    }
+                }
+            }
+
+            .not-allow {
+                cursor: not-allowed;
+                color: var(--deTextDisable, #bbbfc4);
+            }
+
+            .name-copy {
+                display: none;
+                line-height: 24px;
+                margin-left: 4px;
+            }
+
+            .list-item_primary:hover {
+                .name-copy {
+                    display: inline;
+                }
+            }
+        }
     }
-  }
+
+    .sql-code-right {
+        float: right;
+        height: calc(100vh - 156px);
+        position: relative;
+
+        .sql-result {
+            font-family: var(--de-custom_font, 'PingFang');
+            font-size: 14px;
+            overflow-y: auto;
+            box-sizing: border-box;
+            width: 100%;
+
+            .sql-title {
+                user-select: none;
+                display: flex;
+                align-items: center;
+                position: relative;
+                z-index: 5;
+
+                .drag {
+                    position: absolute;
+                    top: 4px;
+                    left: 0;
+                    height: 7px;
+                    width: 100%;
+                    cursor: row-resize;
+
+                    &::after {
+                        content: '';
+                        height: 7px;
+                        width: 100px;
+                        border-radius: 3.5px;
+                        position: absolute;
+                        left: 50%;
+                        top: 0;
+                        transform: translateX(-50%);
+                        background: rgba(31, 35, 41, 0.1);
+                    }
+                }
+            }
+
+            .padding-24 {
+                width: calc(100% - 48px);
+
+                .
+
+            border-bottom-tab(24 px);
+            }
+
+            .table-sql {
+                margin-top: 1px;
+                height: calc(100% - 46px);
+                width: 100%;
+                overflow: auto;
+                box-sizing: border-box;
+
+                .table-scroll {
+                    .ed-table-v2 {
+                        --ed-table-header-bg-color: #f5f6f7;
+
+                        :deep(.header-cell) {
+                            border-top: none;
+                        }
+                    }
+
+                    width: 100%;
+                    height: 100%;
+                }
+            }
+
+            .de-status {
+                position: relative;
+                margin-left: 15px;
+
+                &::before {
+                    content: '';
+                    position: absolute;
+                    top: 50%;
+                    left: -13px;
+                    transform: translateY(-50%);
+                    width: 5px;
+                    height: 5px;
+                    border-radius: 50%;
+                }
+            }
+
+            .de-Pending-result,
+            .de-Underway-result {
+                &::before {
+                    background: var(--deTextPlaceholder, #8f959e);
+                }
+            }
+
+            .de-Exec-result,
+            .de-Underway-pre {
+                &::before {
+                    background: var(--ed-color-primary, #3370ff);
+                }
+            }
+
+            .de-Stopped-result,
+            .de-Completed-pre {
+                &::before {
+                    background: var(--deSuccess, #34c724);
+                }
+            }
+
+            .de-Error-pre {
+                &::before {
+                    background: var(--deDanger, #f54a45);
+                }
+
+                .ed-icon-s-order {
+                    color: var(--ed-color-primary, #3370ff);
+                    cursor: pointer;
+                }
+            }
+        }
+
+        &.p280 {
+            padding-right: 280px;
+        }
+
+        .handle-system {
+            height: 100%;
+            width: 280px;
+            border-left: 1px solid #1f232926;
+            position: absolute;
+            right: 0;
+            top: 0;
+            overflow-y: auto;
+
+            .handle-system_title {
+                padding: 16px;
+                font-size: 14px;
+                font-weight: 500;
+                line-height: 22px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                height: 54px;
+            }
+
+            .handle-system_list {
+                padding: 16px;
+                border-top: 1px solid #1f232926;
+
+                .system-list {
+                    height: calc(100vh - 300px);
+                    overflow-y: auto;
+
+                    .built-in {
+                        font-size: 14px;
+                        font-weight: 400;
+                        line-height: 22px;
+                    }
+
+                    .variable-item {
+                        cursor: pointer;
+                        padding: 1px 8px;
+                        border: solid 1px #dee0e3;
+                        margin-bottom: 8px;
+                        background-color: white;
+                        color: #1f2329;
+                        font-size: 14px;
+
+                        .ed-icon {
+                            font-size: 16px;
+                            margin-right: 4px;
+                        }
+
+                        height: 28px;
+                        margin-top: 4px;
+                        word-break: break-all;
+                        border-radius: 4px;
+
+                        .icon-right {
+                            display: none;
+                            margin-left: auto;
+                            align-items: center;
+
+                            .ed-icon {
+                                margin: 0 0 0 6px;
+                            }
+                        }
+
+                        &:hover {
+                            border-color: var(--ed-color-primary, #3370ff);
+                            background: var(--ed-color-primary-1a, rgba(51, 112, 255, 0.1));
+                        }
+                    }
+
+                    .with-type:hover {
+                        background: rgba(4, 180, 156, 0.1);
+                        border-color: #04b49c;
+                    }
+                }
+            }
+        }
+
+        .table-container {
+            height: calc(100% - 46px);
+            padding: 16px 24px;
+        }
+    }
 }
 
 .add-sql-name {
-  height: 56px;
-  width: 100%;
-  padding: 0 16px;
-  display: flex;
-  align-items: center;
-  border-bottom: 1px solid rgba(31, 35, 41, 0.15);
-  .name {
-    width: 240px;
-    margin: 8px;
-  }
+    height: 56px;
+    width: 100%;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid rgba(31, 35, 41, 0.15);
 
-  .save-or-cancel {
-    margin-left: auto;
-
-    .ed-button--primary:focus {
-      color: var(--ed-button-hover-text-color);
-      border-color: var(--ed-color-primary);
-      background-color: var(--ed-color-primary);
+    .name {
+        width: 240px;
+        margin: 8px;
     }
 
-    .ed-button--primary:hover {
-      color: var(--ed-button-hover-text-color);
-      border-color: var(--ed-button-hover-border-color);
-      background-color: var(--ed-button-hover-bg-color);
+    .save-or-cancel {
+        margin-left: auto;
+
+        .ed-button--primary:focus {
+            color: var(--ed-button-hover-text-color);
+            border-color: var(--ed-color-primary);
+            background-color: var(--ed-color-primary);
+        }
+
+        .ed-button--primary:hover {
+            color: var(--ed-button-hover-text-color);
+            border-color: var(--ed-button-hover-border-color);
+            background-color: var(--ed-button-hover-bg-color);
+        }
+
+        .ed-button--primary:active {
+            color: var(--ed-button-active-text-color);
+            border-color: var(--ed-button-active-border-color);
+            background-color: var(--ed-button-active-bg-color);
+        }
+
+        .ed-divider--vertical {
+            margin: 0 10px 0 16px;
+        }
+
+        .is-text:not(.system-text_bg):hover {
+            background: rgba(31, 35, 41, 0.1);
+        }
+
+        .system-text_bg {
+            color: #1f2329;
+
+            &:hover {
+                background: #1f23291a;
+            }
+
+            &:active {
+                background: #1f232933;
+            }
+
+            &:focus {
+                background: #3370ff1a;
+                color: #3370ff;
+            }
+
+            &:focus:hover {
+                color: #3370ff;
+                background: #3370ff33;
+            }
+        }
     }
-
-    .ed-button--primary:active {
-      color: var(--ed-button-active-text-color);
-      border-color: var(--ed-button-active-border-color);
-      background-color: var(--ed-button-active-bg-color);
-    }
-    .ed-divider--vertical {
-      margin: 0 10px 0 16px;
-    }
-
-    .is-text:not(.system-text_bg):hover {
-      background: rgba(31, 35, 41, 0.1);
-    }
-
-    .system-text_bg {
-      color: #1f2329;
-      &:hover {
-        background: #1f23291a;
-      }
-
-      &:active {
-        background: #1f232933;
-      }
-
-      &:focus {
-        background: #3370ff1a;
-        color: #3370ff;
-      }
-
-      &:focus:hover {
-        color: #3370ff;
-        background: #3370ff33;
-      }
-    }
-  }
 }
+
 .icon-color {
-  color: #646a73;
+    color: #646a73;
 }
 </style>
 <style lang="less">
 .no-scroll_bar {
-  .ed-cascader-menu__wrap.ed-scrollbar__wrap {
-    height: 240px;
-  }
+    .ed-cascader-menu__wrap.ed-scrollbar__wrap {
+        height: 240px;
+    }
 }
+
 .de-hover-icon-primary {
-  color: var(--ed-color-primary) !important;
+    color: var(--ed-color-primary) !important;
 }
+
 .sql-tips {
-  color: #646a73;
-  text-align: center;
-  font-family: var(--de-custom_font, 'PingFang');
-  font-size: 14px;
-  font-style: normal;
-  font-weight: 400;
-  line-height: 22px;
-  margin-top: -35px;
-  .ed-icon {
-    margin: 0 4px;
-  }
-}
-.sql-table-info {
-  padding: 0 !important;
-  height: 480px;
-  .table-filed {
-    height: 480px;
-    .top {
-      padding: 16px;
-      border-bottom: 1px solid rgba(31, 35, 41, 0.15);
-      .title {
-        max-width: 50%;
-      }
-      .num {
-        margin-left: auto;
-        color: #646a73;
-        font-family: var(--de-custom_font, 'PingFang');
-        font-size: 14px;
-        font-style: normal;
-        font-weight: 400;
-        line-height: 22px;
-        .ed-icon {
-          margin-right: 4px;
-          font-size: 16px;
-        }
-      }
-    }
-
-    .table-grid {
-      padding: 16px;
-      height: 423px;
-      padding-bottom: 0;
-      overflow-y: auto;
-    }
-  }
-}
-.tree-select-ds_popper {
-  .ed-tree-node.is-current > .ed-tree-node__content:not(.is-menu):after {
-    display: none !important;
-  }
-}
-.sql-eidtor {
-  .cm-scroller {
-    height: 250px;
-    width: 100%;
-    overflow-y: auto;
-  }
-
-  .cm-focused {
-    outline: none;
-  }
-}
-.sql-dataset-drawer {
-  .ed-empty__description {
-    margin-top: 8px;
-    p {
-      line-height: 22px;
-    }
-  }
-  .ed-input-group__prepend {
-    padding: 0 11px;
-  }
-  .de-group__prepend {
-    .ed-date-editor {
-      flex: 1;
-      .ed-input__wrapper {
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
-        width: 100%;
-      }
-    }
-  }
-
-  .ed-date-editor {
-    width: 100%;
-    display: inline-block;
-  }
-
-  .select-type {
-    .ed-input__wrapper {
-      padding-left: 32px !important;
-    }
-  }
-
-  .select-svg-icon {
-    position: absolute;
-    left: 24px;
-    top: 15px;
-  }
-
-  .content {
-    height: 62px;
-    width: 822px;
-    border-radius: 4px;
-    background: #e1eaff;
-    position: relative;
-    padding: 9px 0 9px 40px;
+    color: #646a73;
+    text-align: center;
     font-family: var(--de-custom_font, 'PingFang');
     font-size: 14px;
+    font-style: normal;
     font-weight: 400;
+    line-height: 22px;
+    margin-top: -35px;
 
     .ed-icon {
-      position: absolute;
-      top: 10.6px;
-      left: 16px;
-      font-size: 14px;
-      color: var(--ed-color-primary, #3370ff);
+        margin: 0 4px;
     }
-
-    margin-bottom: 16px;
-  }
 }
-.cascader-panel {
-  .ed-cascader-node__label {
-    display: flex;
-    align-items: center;
-    .ed-icon {
-      margin-right: 5px;
+
+.sql-table-info {
+    padding: 0 !important;
+    height: 480px;
+
+    .table-filed {
+        height: 480px;
+
+        .top {
+            padding: 16px;
+            border-bottom: 1px solid rgba(31, 35, 41, 0.15);
+
+            .title {
+                max-width: 50%;
+            }
+
+            .num {
+                margin-left: auto;
+                color: #646a73;
+                font-family: var(--de-custom_font, 'PingFang');
+                font-size: 14px;
+                font-style: normal;
+                font-weight: 400;
+                line-height: 22px;
+
+                .ed-icon {
+                    margin-right: 4px;
+                    font-size: 16px;
+                }
+            }
+        }
+
+        .table-grid {
+            padding: 16px;
+            height: 423px;
+            padding-bottom: 0;
+            overflow-y: auto;
+        }
     }
-  }
+}
+
+.tree-select-ds_popper {
+    .ed-tree-node.is-current > .ed-tree-node__content:not(.is-menu):after {
+        display: none !important;
+    }
+}
+
+.sql-eidtor {
+    .cm-scroller {
+        height: 250px;
+        width: 100%;
+        overflow-y: auto;
+    }
+
+    .cm-focused {
+        outline: none;
+    }
+}
+
+.sql-dataset-drawer {
+    .ed-empty__description {
+        margin-top: 8px;
+
+        p {
+            line-height: 22px;
+        }
+    }
+
+    .ed-input-group__prepend {
+        padding: 0 11px;
+    }
+
+    .de-group__prepend {
+        .ed-date-editor {
+            flex: 1;
+
+            .ed-input__wrapper {
+                border-top-left-radius: 0;
+                border-bottom-left-radius: 0;
+                width: 100%;
+            }
+        }
+    }
+
+    .ed-date-editor {
+        width: 100%;
+        display: inline-block;
+    }
+
+    .select-type {
+        .ed-input__wrapper {
+            padding-left: 32px !important;
+        }
+    }
+
+    .select-svg-icon {
+        position: absolute;
+        left: 24px;
+        top: 15px;
+    }
+
+    .content {
+        height: 62px;
+        width: 822px;
+        border-radius: 4px;
+        background: #e1eaff;
+        position: relative;
+        padding: 9px 0 9px 40px;
+        font-family: var(--de-custom_font, 'PingFang');
+        font-size: 14px;
+        font-weight: 400;
+
+        .ed-icon {
+            position: absolute;
+            top: 10.6px;
+            left: 16px;
+            font-size: 14px;
+            color: var(--ed-color-primary, #3370ff);
+        }
+
+        margin-bottom: 16px;
+    }
+}
+
+.cascader-panel {
+    .ed-cascader-node__label {
+        display: flex;
+        align-items: center;
+
+        .ed-icon {
+            margin-right: 5px;
+        }
+    }
 }
 </style>

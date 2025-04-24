@@ -1,7 +1,7 @@
 package io.dataease.dataset.dao.auto.mapper;
 
-import io.dataease.dataset.dao.auto.entity.CoreDatasetGroup;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import io.dataease.dataset.dao.auto.entity.CoreDatasetGroup;
 import org.apache.ibatis.annotations.Mapper;
 
 /**

@@ -1,11 +1,12 @@
 package io.dataease.copilot.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author fit2cloud
@@ -65,10 +66,10 @@ public class CoreCopilotToken implements Serializable {
     @Override
     public String toString() {
         return "CoreCopilotToken{" +
-        "id = " + id +
-        ", type = " + type +
-        ", token = " + token +
-        ", updateTime = " + updateTime +
-        "}";
+            "id = " + id +
+            ", type = " + type +
+            ", token = " + token +
+            ", updateTime = " + updateTime +
+            "}";
     }
 }

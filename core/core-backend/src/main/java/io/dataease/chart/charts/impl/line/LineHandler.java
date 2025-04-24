@@ -40,9 +40,9 @@ public class LineHandler extends YoyChartHandler {
     @Override
     public Map<String, Object> buildNormalResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data) {
         boolean isDrill = filterResult
-                .getFilterList()
-                .stream()
-                .anyMatch(ele -> ele.getFilterType() == 1);
+            .getFilterList()
+            .stream()
+            .anyMatch(ele -> ele.getFilterType() == 1);
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
         var xAxisExt = formatResult.getAxisMap().get(ChartAxis.xAxisExt);
         var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);

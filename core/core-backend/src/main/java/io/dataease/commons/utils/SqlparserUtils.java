@@ -22,7 +22,6 @@ import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.select.*;
 import net.sf.jsqlparser.util.deparser.ExpressionDeParser;
-import net.sf.jsqlparser.util.deparser.SelectDeParser;
 import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.util.SqlShuttle;
@@ -30,7 +29,6 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.junit.jupiter.params.provider.CsvSource;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -46,10 +44,27 @@ public class SqlparserUtils {
     private static final String SubstitutedParams = "DATAEASE_PATAMS_BI";
     private static final String SysParamsSubstitutedParams = "DeSysParams_";
     private static final String SubstitutedSql = " 'DE-BI' = 'DE-BI' ";
-    private boolean removeSysParams;
-    boolean hasVariables = false;
-    private UserFormVO userEntity;
     private final List<Map<String, String>> sysParams = new ArrayList<>();
+    boolean hasVariables = false;
+    private boolean removeSysParams;
+    private UserFormVO userEntity;
+
+    private static boolean isParams(String paramId) {
+        if (Arrays.asList("userId", "userEmail", "userName").contains(paramId)) {
+            return true;
+        }
+        boolean isLong = false;
+        try {
+            Long.valueOf(paramId);
+            isLong = true;
+        } catch (Exception e) {
+            isLong = false;
+        }
+        if (paramId.length() >= 18 && isLong) {
+            return true;
+        }
+        return false;
+    }
 
     public String handleVariableDefaultValue(String sql, String sqlVariableDetails, boolean isEdit, boolean isFromDataSet, List<SqlVariableDetails> parameters, boolean isCross, Map<Long, DatasourceSchemaDTO> dsMap, PluginManageApi pluginManage, UserFormVO userEntity) {
         DatasourceSchemaDTO ds = dsMap.entrySet().iterator().next().getValue();
@@ -150,22 +165,6 @@ public class SqlparserUtils {
         return sql;
     }
 
-    private static boolean isParams(String paramId){
-        if(Arrays.asList("userId", "userEmail", "userName").contains(paramId)){
-            return true;
-        }
-        boolean isLong = false;
-        try {
-            Long.valueOf(paramId);
-            isLong = true;
-        }catch (Exception e){
-            isLong = false;
-        }
-        if(paramId.length() >= 18 && isLong){
-            return true;
-        }
-        return false;
-    }
     private String removeVariables(final String sql, String dsType) throws Exception {
         String tmpSql = sql.replaceAll("(?m)^\\s*$[\n\r]{0,}", "");
         Pattern pattern = Pattern.compile(regex);
@@ -182,7 +181,7 @@ public class SqlparserUtils {
             matcher = pattern.matcher(tmpSql);
             while (matcher.find()) {
                 String paramId = matcher.group().substring(7, matcher.group().length() - 1);
-                if(!isParams(paramId)){
+                if (!isParams(paramId)) {
                     continue;
                 }
                 hasVariables = true;
@@ -193,7 +192,7 @@ public class SqlparserUtils {
             matcher = pattern.matcher(tmpSql);
             while (matcher.find()) {
                 String paramId = matcher.group().substring(7, matcher.group().length() - 1);
-                if(!isParams(paramId)){
+                if (!isParams(paramId)) {
                     continue;
                 }
                 hasVariables = true;
@@ -204,7 +203,7 @@ public class SqlparserUtils {
                 sysParams.add(sysParam);
             }
         }
-        if(!hasVariables && !sql.contains(SubstitutedParams)){
+        if (!hasVariables && !sql.contains(SubstitutedParams)) {
             return sql;
         }
         Statement statement = CCJSqlParserUtil.parse(tmpSql);
@@ -691,7 +690,7 @@ public class SqlparserUtils {
     private String transFilter(SqlVariableDetails sqlVariableDetails, Map<Long, DatasourceSchemaDTO> dsMap) {
         if (sqlVariableDetails.getOperator().equals("in")) {
             if (StringUtils.equalsIgnoreCase(dsMap.entrySet().iterator().next().getValue().getType(), DatasourceConfiguration.DatasourceType.sqlServer.getType())
-                    && sqlVariableDetails.getDeType() == 0) {
+                && sqlVariableDetails.getDeType() == 0) {
                 return "N'" + String.join("', N'", sqlVariableDetails.getValue()) + "'";
             } else {
                 if (sqlVariableDetails.getDeType() == 2 || sqlVariableDetails.getDeType() == 3) {

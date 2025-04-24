@@ -7,12 +7,13 @@ import io.dataease.api.visualization.dto.VisualizationLinkageDTO;
 import io.dataease.api.visualization.request.VisualizationLinkageRequest;
 import io.dataease.api.visualization.vo.VisualizationLinkageFieldVO;
 import io.dataease.auth.DeLinkPermit;
-import io.dataease.chart.dao.auto.entity.CoreChartView;
 import io.dataease.chart.dao.auto.mapper.CoreChartViewMapper;
 import io.dataease.constant.CommonConstants;
 import io.dataease.utils.BeanUtils;
 import io.dataease.utils.IDUtils;
-import io.dataease.visualization.dao.auto.entity.*;
+import io.dataease.visualization.dao.auto.entity.SnapshotCoreChartView;
+import io.dataease.visualization.dao.auto.entity.SnapshotVisualizationLinkage;
+import io.dataease.visualization.dao.auto.entity.SnapshotVisualizationLinkageField;
 import io.dataease.visualization.dao.auto.mapper.*;
 import io.dataease.visualization.dao.ext.mapper.ExtVisualizationLinkageMapper;
 import jakarta.annotation.Resource;
@@ -64,7 +65,7 @@ public class VisualizationLinkageService implements VisualizationLinkageApi {
             if (CommonConstants.RESOURCE_TABLE.SNAPSHOT.equals(request.getResourceTable())) {
                 linkageDTOList = extVisualizationLinkageMapper.getViewLinkageGatherSnapshot(request.getDvId(), request.getSourceViewId(), request.getTargetViewIds());
             } else {
-                linkageDTOList =  extVisualizationLinkageMapper.getViewLinkageGather(request.getDvId(), request.getSourceViewId(), request.getTargetViewIds());
+                linkageDTOList = extVisualizationLinkageMapper.getViewLinkageGather(request.getDvId(), request.getSourceViewId(), request.getTargetViewIds());
             }
             return linkageDTOList.stream().collect(Collectors.toMap(targetViewId -> String.valueOf(targetViewId), PanelViewLinkageDTO -> PanelViewLinkageDTO));
         }
@@ -132,7 +133,7 @@ public class VisualizationLinkageService implements VisualizationLinkageApi {
         List<LinkageInfoDTO> info = null;
         if (CommonConstants.RESOURCE_TABLE.SNAPSHOT.equals(resourceTable)) {
             info = extVisualizationLinkageMapper.getPanelAllLinkageInfoSnapshot(dvId);
-        }else{
+        } else {
             info = extVisualizationLinkageMapper.getPanelAllLinkageInfo(dvId);
         }
         return Optional.ofNullable(info).orElse(new ArrayList<>()).stream().collect(Collectors.toMap(LinkageInfoDTO::getSourceInfo, LinkageInfoDTO::getTargetInfoList));
@@ -144,7 +145,7 @@ public class VisualizationLinkageService implements VisualizationLinkageApi {
         coreChartView.setId(request.getSourceViewId());
         coreChartView.setLinkageActive(request.getActiveStatus());
         snapshotCoreChartViewMapper.updateById(coreChartView);
-        return getVisualizationAllLinkageInfo(request.getDvId(),CommonConstants.RESOURCE_TABLE.SNAPSHOT);
+        return getVisualizationAllLinkageInfo(request.getDvId(), CommonConstants.RESOURCE_TABLE.SNAPSHOT);
     }
 
     @Override

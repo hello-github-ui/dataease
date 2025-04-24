@@ -6,12 +6,11 @@ import io.dataease.api.xpack.share.request.*;
 import io.dataease.api.xpack.share.vo.XpackShareGridVO;
 import io.dataease.api.xpack.share.vo.XpackShareProxyVO;
 import io.dataease.api.xpack.share.vo.XpackShareVO;
-import io.dataease.utils.BeanUtils;
 import io.dataease.share.dao.auto.entity.XpackShare;
 import io.dataease.share.manage.XpackShareManage;
+import io.dataease.utils.BeanUtils;
 import jakarta.annotation.Resource;
 import org.apache.commons.lang3.ObjectUtils;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -24,6 +23,7 @@ public class XpackShareServer implements XpackShareApi {
 
     @Resource(name = "xpackShareManage")
     private XpackShareManage xpackShareManage;
+
     @Override
     public boolean status(Long resourceId) {
         return ObjectUtils.isNotEmpty(xpackShareManage.queryByResource(resourceId));

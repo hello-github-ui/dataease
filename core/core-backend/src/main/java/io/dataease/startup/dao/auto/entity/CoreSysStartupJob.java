@@ -1,6 +1,7 @@
 package io.dataease.startup.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
@@ -58,9 +59,9 @@ public class CoreSysStartupJob implements Serializable {
     @Override
     public String toString() {
         return "CoreSysStartupJob{" +
-        "id = " + id +
-        ", name = " + name +
-        ", status = " + status +
-        "}";
+            "id = " + id +
+            ", name = " + name +
+            ", status = " + status +
+            "}";
     }
 }

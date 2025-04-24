@@ -5,7 +5,6 @@ import io.dataease.api.dataset.vo.CoreDatasetGroupVO;
 import io.dataease.api.visualization.dto.VisualizationOuterParamsDTO;
 import io.dataease.api.visualization.dto.VisualizationOuterParamsInfoDTO;
 import io.dataease.visualization.dao.auto.entity.SnapshotVisualizationOuterParamsInfo;
-import io.dataease.visualization.dao.auto.entity.VisualizationOuterParamsInfo;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

@@ -8,12 +8,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
-import io.dataease.extensions.datasource.dto.ApiDefinition;
-import io.dataease.extensions.datasource.dto.ApiDefinitionRequest;
 import io.dataease.exception.DEException;
-import io.dataease.extensions.datasource.dto.DatasetTableDTO;
-import io.dataease.extensions.datasource.dto.DatasourceRequest;
-import io.dataease.extensions.datasource.dto.TableField;
+import io.dataease.extensions.datasource.dto.*;
 import io.dataease.utils.*;
 import org.apache.commons.lang3.StringUtils;
 import org.json.simple.JSONArray;
@@ -28,12 +24,11 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class ApiUtils {
-    private static Configuration jsonPathConf = Configuration.builder()
-            .options(Option.DEFAULT_PATH_LEAF_TO_NULL, Option.ALWAYS_RETURN_LIST)
-            .build();
-    private static String path = "['%s']";
     public static ObjectMapper objectMapper = CommonBeanFactory.getBean(ObjectMapper.class);
-
+    private static Configuration jsonPathConf = Configuration.builder()
+        .options(Option.DEFAULT_PATH_LEAF_TO_NULL, Option.ALWAYS_RETURN_LIST)
+        .build();
+    private static String path = "['%s']";
     private static TypeReference<List<Object>> listTypeReference = new TypeReference<List<Object>>() {
     };
     private static TypeReference<List<Map<String, Object>>> listForMapTypeReference = new TypeReference<List<Map<String, Object>>>() {
@@ -265,11 +260,11 @@ public class ApiUtils {
             }
         }
         if (apiDefinitionRequest.getAuthManager() != null
-                && StringUtils.isNotBlank(apiDefinitionRequest.getAuthManager().getUsername())
-                && StringUtils.isNotBlank(apiDefinitionRequest.getAuthManager().getPassword())
-                && apiDefinitionRequest.getAuthManager().getVerification().equals("Basic Auth")) {
+            && StringUtils.isNotBlank(apiDefinitionRequest.getAuthManager().getUsername())
+            && StringUtils.isNotBlank(apiDefinitionRequest.getAuthManager().getPassword())
+            && apiDefinitionRequest.getAuthManager().getVerification().equals("Basic Auth")) {
             String authValue = "Basic " + Base64.getUrlEncoder().encodeToString((apiDefinitionRequest.getAuthManager().getUsername()
-                    + ":" + apiDefinitionRequest.getAuthManager().getPassword()).getBytes());
+                + ":" + apiDefinitionRequest.getAuthManager().getPassword()).getBytes());
             httpClientConfig.addHeader("Authorization", authValue);
         }
 

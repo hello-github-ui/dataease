@@ -1,33 +1,35 @@
-import { WritableStream } from 'htmlparser2/lib/WritableStream'
+import {WritableStream} from 'htmlparser2/lib/WritableStream'
 import fs from 'node:fs'
-import pkg from '../package.json' assert { type: "json" };
+import pkg from '../package.json' assert {type: 'json'};
+
 const suffix = `${pkg.version}-${pkg.name}`
 
 const eleArr = []
 
 function produceTag(obj, name) {
-  eleArr.push({
-    name,
-    attributes: obj,
-  })
+    eleArr.push({
+        name,
+        attributes: obj,
+    })
 }
+
 const parserStream = new WritableStream({
-  onopentag(name, attributes) {
-    /*
-     * This fires when a new tag is opened.
-     *
-     * If you don't need an aggregated `attributes` object,
-     * have a look at the `onopentagname` and `onattribute` events.
-     */
-    if (['script', 'link'].includes(name) && attributes.rel !== 'icon') {
-      produceTag(attributes, name)
+    onopentag(name, attributes) {
+        /*
+         * This fires when a new tag is opened.
+         *
+         * If you don't need an aggregated `attributes` object,
+         * have a look at the `onopentagname` and `onattribute` events.
+         */
+        if (['script', 'link'].includes(name) && attributes.rel !== 'icon') {
+            produceTag(attributes, name)
+        }
     }
-  }
 })
 
 const htmlStream = fs.createReadStream('../dist/panel.html')
 htmlStream.pipe(parserStream).on('finish', () => {
-  const templateJs = `let head = document.createElement('head')
+    const templateJs = `let head = document.createElement('head')
   let suffix = \`${suffix}\`
 
 
@@ -57,7 +59,7 @@ htmlStream.pipe(parserStream).on('finish', () => {
   const eleArrStr = ${JSON.stringify(eleArr)}
   const eleArr = eleArrStr
   const preUrl = getPrefix()
-  
+
   function produceTag(obj, name) {
     let element = document.createElement(name)
     Object.entries(obj).forEach(([key, value]) => {
@@ -71,12 +73,12 @@ htmlStream.pipe(parserStream).on('finish', () => {
     element.setAttribute('crossorigin', '')
     head.appendChild(element)
   }
-  
+
   eleArr.forEach((ele) => {
     produceTag(ele.attributes, ele.name)
   })
   document.documentElement.insertBefore(head, document.querySelector('head'))`
 
-  fs.writeFile(`../dist/js/div_import_${suffix}.js`, templateJs, err => {
-  })
+    fs.writeFile(`../dist/js/div_import_${suffix}.js`, templateJs, err => {
+    })
 })

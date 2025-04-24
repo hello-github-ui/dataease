@@ -19,12 +19,69 @@ import org.apache.commons.lang3.StringUtils;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * 带同环比计算的图表处理器
  */
 public class YoyChartHandler extends DefaultChartHandler {
+    public static List<String[]> sortData(ChartViewDTO view, List<String[]> data, AxisFormatResult formatResult) {
+        // 维度排序
+        List<ChartViewFieldDTO> xAxisSortList = view.getXAxis().stream().filter(x -> !StringUtils.equalsIgnoreCase("none", x.getSort())).toList();
+        // 指标排序
+        List<ChartViewFieldDTO> yAxisSortList = view.getYAxis().stream().filter(y -> {
+            //需要针对区间条形图的时间类型判断一下
+            if (StringUtils.equalsIgnoreCase("bar-range", view.getType()) && StringUtils.equalsIgnoreCase(y.getGroupType(), "d") && y.getDeType() == 1) {
+                return false;
+            } else {
+                return !StringUtils.equalsIgnoreCase("none", y.getSort());
+            }
+        }).toList();
+        // 不包含维度排序时，指标排序生效
+        if (!data.isEmpty() && CollectionUtils.isEmpty(xAxisSortList) && CollectionUtils.isNotEmpty(yAxisSortList)) {
+            // 指标排序仅第一个生效
+            ChartViewFieldDTO firstYAxis = yAxisSortList.getFirst();
+            boolean asc = firstYAxis.getSort().equalsIgnoreCase("asc");
+            // 维度指标
+            List<ChartViewFieldDTO> allAxisList = new ArrayList<>();
+            allAxisList.addAll(formatResult.getAxisMap().get(ChartAxis.xAxis));
+            allAxisList.addAll(formatResult.getAxisMap().get(ChartAxis.yAxis));
+            int index = findIndex(allAxisList, firstYAxis.getId());
+            return sortData(data, asc, index);
+        }
+        return data;
+
+    }
+
+    public static List<String[]> sortData(List<String[]> data, boolean ascending, int index) {
+        Comparator<String[]> comparator;
+        if (ascending) {
+            comparator = Comparator.comparing(item -> toBigDecimal(item[index]), Comparator.nullsFirst(Comparator.naturalOrder()));
+        } else {
+            comparator = Comparator.comparing(item -> toBigDecimal(item[index]), Comparator.nullsLast(Comparator.reverseOrder()));
+        }
+        return data.stream().sorted(comparator).collect(Collectors.toList());
+    }
+
+    private static BigDecimal toBigDecimal(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return new BigDecimal(value);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid number format: " + value, e);
+        }
+    }
+
+    public static int findIndex(List<ChartViewFieldDTO> list, Long id) {
+        for (int i = 0; i < list.size(); i++) {
+            if (StringUtils.equalsIgnoreCase(list.get(i).getId().toString(), id.toString())) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     @Override
     public <T extends CustomFilterResult> T customFilter(ChartViewDTO view, List<ChartExtFilterDTO> filterList, AxisFormatResult formatResult) {
         var result = super.customFilter(view, filterList, formatResult);
@@ -124,63 +181,5 @@ public class YoyChartHandler extends DefaultChartHandler {
         // 同环比数据排序
         expandedResult.setOriginData(sortData(view, expandedResult.getOriginData(), formatResult));
         return expandedResult;
-    }
-
-    public static List<String[]> sortData(ChartViewDTO view, List<String[]> data, AxisFormatResult formatResult) {
-        // 维度排序
-        List<ChartViewFieldDTO> xAxisSortList = view.getXAxis().stream().filter(x -> !StringUtils.equalsIgnoreCase("none", x.getSort())).toList();
-        // 指标排序
-        List<ChartViewFieldDTO> yAxisSortList = view.getYAxis().stream().filter(y -> {
-            //需要针对区间条形图的时间类型判断一下
-            if (StringUtils.equalsIgnoreCase("bar-range", view.getType()) && StringUtils.equalsIgnoreCase(y.getGroupType(), "d") && y.getDeType() == 1) {
-                return false;
-            } else {
-                return !StringUtils.equalsIgnoreCase("none", y.getSort());
-            }
-        }).toList();
-        // 不包含维度排序时，指标排序生效
-        if (!data.isEmpty() && CollectionUtils.isEmpty(xAxisSortList) && CollectionUtils.isNotEmpty(yAxisSortList)) {
-            // 指标排序仅第一个生效
-            ChartViewFieldDTO firstYAxis = yAxisSortList.getFirst();
-            boolean asc = firstYAxis.getSort().equalsIgnoreCase("asc");
-            // 维度指标
-            List<ChartViewFieldDTO> allAxisList = new ArrayList<>();
-            allAxisList.addAll(formatResult.getAxisMap().get(ChartAxis.xAxis));
-            allAxisList.addAll(formatResult.getAxisMap().get(ChartAxis.yAxis));
-            int index = findIndex(allAxisList, firstYAxis.getId());
-            return sortData(data, asc, index);
-        }
-        return data;
-
-    }
-
-    public static List<String[]> sortData(List<String[]> data, boolean ascending, int index) {
-        Comparator<String[]> comparator;
-        if (ascending) {
-            comparator = Comparator.comparing(item -> toBigDecimal(item[index]), Comparator.nullsFirst(Comparator.naturalOrder()));
-        } else {
-            comparator = Comparator.comparing(item -> toBigDecimal(item[index]), Comparator.nullsLast(Comparator.reverseOrder()));
-        }
-        return data.stream().sorted(comparator).collect(Collectors.toList());
-    }
-
-    private static BigDecimal toBigDecimal(String value) {
-        if (value == null) {
-            return null;
-        }
-        try {
-            return new BigDecimal(value);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid number format: " + value, e);
-        }
-    }
-
-    public static int findIndex(List<ChartViewFieldDTO> list, Long id) {
-        for (int i = 0; i < list.size(); i++) {
-            if (StringUtils.equalsIgnoreCase(list.get(i).getId().toString(), id.toString())) {
-                return i;
-            }
-        }
-        return -1;
     }
 }

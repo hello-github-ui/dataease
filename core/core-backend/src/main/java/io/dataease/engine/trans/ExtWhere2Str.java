@@ -114,8 +114,8 @@ public class ExtWhere2Str {
                             }
                             // 此处获取标准格式的日期，同时此处是仪表板过滤，仪表板中图表的日期均已经格式化，所以要强制加上日期转换
                             whereName = String.format(SQLConstants.DE_CAST_DATE_FORMAT, originName,
-                                    SQLConstants.DEFAULT_DATE_FORMAT,
-                                    SQLConstants.DEFAULT_DATE_FORMAT);
+                                SQLConstants.DEFAULT_DATE_FORMAT,
+                                SQLConstants.DEFAULT_DATE_FORMAT);
                         }
                     } else if (field.getDeType() == 2 || field.getDeType() == 3) {
                         if (field.getDeExtractType() == 0 || field.getDeExtractType() == 5) {
@@ -162,7 +162,7 @@ public class ExtWhere2Str {
                             boolean hasN = false;
                             for (DatasetTableFieldDTO dto : datasetTableFieldList) {
                                 if (StringUtils.containsIgnoreCase(dto.getType(), "NVARCHAR")
-                                        || StringUtils.containsIgnoreCase(dto.getType(), "NCHAR")) {
+                                    || StringUtils.containsIgnoreCase(dto.getType(), "NCHAR")) {
                                     hasN = true;
                                     break;
                                 }
@@ -174,9 +174,9 @@ public class ExtWhere2Str {
                             }
                         } else {
                             if ((StringUtils.containsIgnoreCase(request.getDatasetTableField().getType(), "NVARCHAR")
-                                    || StringUtils.containsIgnoreCase(request.getDatasetTableField().getType(), "NCHAR"))
-                                    && !isCross
-                                    && StringUtils.equalsIgnoreCase(dsType, DatasourceConfiguration.DatasourceType.sqlServer.getType())) {
+                                || StringUtils.containsIgnoreCase(request.getDatasetTableField().getType(), "NCHAR"))
+                                && !isCross
+                                && StringUtils.equalsIgnoreCase(dsType, DatasourceConfiguration.DatasourceType.sqlServer.getType())) {
                                 whereValue = "(" + value.stream().map(str -> "'" + SQLConstants.MSSQL_N_PREFIX + str + "'").collect(Collectors.joining(",")) + ")";
                             } else {
                                 if (request.getDatasetTableField().getDeType() == 2 || request.getDatasetTableField().getDeType() == 3) {
@@ -194,7 +194,7 @@ public class ExtWhere2Str {
                         boolean hasN = false;
                         for (DatasetTableFieldDTO dto : datasetTableFieldList) {
                             if (StringUtils.containsIgnoreCase(dto.getType(), "NVARCHAR")
-                                    || StringUtils.containsIgnoreCase(dto.getType(), "NCHAR")) {
+                                || StringUtils.containsIgnoreCase(dto.getType(), "NCHAR")) {
                                 hasN = true;
                                 break;
                             }
@@ -206,9 +206,9 @@ public class ExtWhere2Str {
                         }
                     } else {
                         if ((StringUtils.containsIgnoreCase(request.getDatasetTableField().getType(), "NVARCHAR")
-                                || StringUtils.containsIgnoreCase(request.getDatasetTableField().getType(), "NCHAR"))
-                                && !isCross
-                                && StringUtils.equalsIgnoreCase(dsType, DatasourceConfiguration.DatasourceType.sqlServer.getType())) {
+                            || StringUtils.containsIgnoreCase(request.getDatasetTableField().getType(), "NCHAR"))
+                            && !isCross
+                            && StringUtils.equalsIgnoreCase(dsType, DatasourceConfiguration.DatasourceType.sqlServer.getType())) {
                             whereValue = "'" + SQLConstants.MSSQL_N_PREFIX + "%" + value.get(0) + "%'";
                         } else {
                             whereValue = "'%" + value.get(0) + "%'";
@@ -217,8 +217,8 @@ public class ExtWhere2Str {
                 } else if (StringUtils.containsIgnoreCase(request.getOperator(), "between")) {
                     if (request.getDatasetTableField().getDeType() == 1) {
                         if (request.getDatasetTableField().getDeExtractType() == 2
-                                || request.getDatasetTableField().getDeExtractType() == 3
-                                || request.getDatasetTableField().getDeExtractType() == 4) {
+                            || request.getDatasetTableField().getDeExtractType() == 3
+                            || request.getDatasetTableField().getDeExtractType() == 4) {
                             if (isCross) {
                                 whereValue = String.format(SQLConstants.WHERE_VALUE_BETWEEN, value.get(0), value.get(1));
                             } else {
@@ -237,8 +237,8 @@ public class ExtWhere2Str {
                             }
                         }
                     } else if (request.getDatasetTableField().getDeType() == 2
-                            || request.getDatasetTableField().getDeType() == 3
-                            || request.getDatasetTableField().getDeType() == 4) {
+                        || request.getDatasetTableField().getDeType() == 3
+                        || request.getDatasetTableField().getDeType() == 4) {
                         whereValue = String.format(SQLConstants.WHERE_VALUE_BETWEEN, value.get(0), value.get(1));
                     } else {
                         whereValue = String.format(SQLConstants.WHERE_BETWEEN, value.get(0), value.get(1));
@@ -254,8 +254,8 @@ public class ExtWhere2Str {
                             boolean hasN = false;
                             for (DatasetTableFieldDTO dto : datasetTableFieldList) {
                                 if ((StringUtils.containsIgnoreCase(dto.getType(), "NVARCHAR")
-                                        || StringUtils.containsIgnoreCase(dto.getType(), "NCHAR"))
-                                        && StringUtils.equalsIgnoreCase(dsType, DatasourceConfiguration.DatasourceType.sqlServer.getType())) {
+                                    || StringUtils.containsIgnoreCase(dto.getType(), "NCHAR"))
+                                    && StringUtils.equalsIgnoreCase(dsType, DatasourceConfiguration.DatasourceType.sqlServer.getType())) {
                                     hasN = true;
                                     break;
                                 }
@@ -267,9 +267,9 @@ public class ExtWhere2Str {
                             }
                         } else {
                             if ((StringUtils.containsIgnoreCase(request.getDatasetTableField().getType(), "NVARCHAR")
-                                    || StringUtils.containsIgnoreCase(request.getDatasetTableField().getType(), "NCHAR"))
-                                    && !isCross
-                                    && StringUtils.equalsIgnoreCase(dsType, DatasourceConfiguration.DatasourceType.sqlServer.getType())) {
+                                || StringUtils.containsIgnoreCase(request.getDatasetTableField().getType(), "NCHAR"))
+                                && !isCross
+                                && StringUtils.equalsIgnoreCase(dsType, DatasourceConfiguration.DatasourceType.sqlServer.getType())) {
                                 whereValue = String.format(SQLConstants.WHERE_VALUE_VALUE_CH, value.get(0));
                             } else {
                                 whereValue = String.format(SQLConstants.WHERE_VALUE_VALUE, value.get(0));
@@ -278,9 +278,9 @@ public class ExtWhere2Str {
                     }
                 }
                 list.add(SQLObj.builder()
-                        .whereField(whereName)
-                        .whereTermAndValue(whereTerm + whereValue)
-                        .build());
+                    .whereField(whereName)
+                    .whereTermAndValue(whereTerm + whereValue)
+                    .build());
             }
             List<String> strList = new ArrayList<>();
             list.forEach(ele -> strList.add("(" + ele.getWhereField() + " " + ele.getWhereTermAndValue() + ")"));

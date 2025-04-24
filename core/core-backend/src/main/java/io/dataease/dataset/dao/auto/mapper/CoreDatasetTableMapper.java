@@ -1,12 +1,12 @@
 package io.dataease.dataset.dao.auto.mapper;
 
-import io.dataease.dataset.dao.auto.entity.CoreDatasetTable;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import io.dataease.dataset.dao.auto.entity.CoreDatasetTable;
 import org.apache.ibatis.annotations.Mapper;
 
 /**
  * <p>
- *  Mapper 接口
+ * Mapper 接口
  * </p>
  *
  * @author fit2cloud

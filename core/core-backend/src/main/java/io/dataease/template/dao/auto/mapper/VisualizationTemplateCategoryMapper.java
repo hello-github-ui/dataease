@@ -1,7 +1,7 @@
 package io.dataease.template.dao.auto.mapper;
 
-import io.dataease.template.dao.auto.entity.VisualizationTemplateCategory;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import io.dataease.template.dao.auto.entity.VisualizationTemplateCategory;
 import org.apache.ibatis.annotations.Mapper;
 
 /**

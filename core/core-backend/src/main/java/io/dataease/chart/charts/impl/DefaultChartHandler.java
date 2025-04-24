@@ -51,6 +51,8 @@ import java.util.stream.Collectors;
 @Component
 public class DefaultChartHandler extends AbstractChartPlugin {
     public static Logger logger = LoggerFactory.getLogger(ChartDataManage.class);
+    @Autowired(required = false)
+    public PluginManageApi pluginManage;
     @Resource
     protected ChartHandlerManager chartHandlerManager;
     @Resource
@@ -61,8 +63,6 @@ public class DefaultChartHandler extends AbstractChartPlugin {
     private String render = "antv";
     @Getter
     private String type = "*";
-    @Autowired(required = false)
-    public PluginManageApi pluginManage;
 
     @PostConstruct
     public void init() {
@@ -93,9 +93,9 @@ public class DefaultChartHandler extends AbstractChartPlugin {
 
     public Map<String, Object> buildResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data) {
         boolean isDrill = filterResult
-                .getFilterList()
-                .stream()
-                .anyMatch(ele -> ele.getFilterType() == 1);
+            .getFilterList()
+            .stream()
+            .anyMatch(ele -> ele.getFilterType() == 1);
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
         var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);
         Map<String, Object> result = ChartDataBuild.transChartData(xAxis, yAxis, view, data, isDrill);
@@ -327,16 +327,16 @@ public class DefaultChartHandler extends AbstractChartPlugin {
         }
 
         List<ChartSeniorThresholdDTO> conditionsList = tableThreshold.stream()
-                .filter(item -> !ObjectUtils.isEmpty(item))
-                .map(TableThresholdDTO::getConditions)
-                .flatMap(List::stream)
-                .filter(condition -> StringUtils.equalsAnyIgnoreCase(condition.getType(), "dynamic"))
-                .toList();
+            .filter(item -> !ObjectUtils.isEmpty(item))
+            .map(TableThresholdDTO::getConditions)
+            .flatMap(List::stream)
+            .filter(condition -> StringUtils.equalsAnyIgnoreCase(condition.getType(), "dynamic"))
+            .toList();
 
         List<ChartSeniorAssistDTO> assistDTOs = conditionsList.stream()
-                .flatMap(condition -> getConditionFields(condition).stream())
-                .filter(this::solveThresholdCondition)
-                .toList();
+            .flatMap(condition -> getConditionFields(condition).stream())
+            .filter(this::solveThresholdCondition)
+            .toList();
 
         list.addAll(assistDTOs);
 
@@ -473,7 +473,7 @@ public class DefaultChartHandler extends AbstractChartPlugin {
     }
 
     protected void quickCalc(List<ChartViewFieldDTO> xAxis, List<ChartViewFieldDTO> yAxis
-            , List<ChartViewFieldDTO> xAxisExt, List<ChartViewFieldDTO> extStack, String chartType, List<String[]> data) {
+        , List<ChartViewFieldDTO> xAxisExt, List<ChartViewFieldDTO> extStack, String chartType, List<String[]> data) {
         for (int i = 0; i < yAxis.size(); i++) {
             ChartViewFieldDTO chartViewFieldDTO = yAxis.get(i);
             ChartFieldCompareDTO compareCalc = chartViewFieldDTO.getCompareCalc();
@@ -481,7 +481,7 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                 continue;
             }
             if (StringUtils.isNotEmpty(compareCalc.getType())
-                    && !StringUtils.equalsIgnoreCase(compareCalc.getType(), "none")) {
+                && !StringUtils.equalsIgnoreCase(compareCalc.getType(), "none")) {
                 Long compareFieldId = compareCalc.getField();// 选中字段
                 // 数据字段下标
                 int dataIndex = xAxis.size() + i;
@@ -533,10 +533,10 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                                         item[dataIndex] = null;
                                     } else {
                                         item[dataIndex] = new BigDecimal(cValue)
-                                                .divide(new BigDecimal(lastValue).abs(), 8, RoundingMode.HALF_UP)
-                                                .subtract(new BigDecimal(1))
-                                                .setScale(8, RoundingMode.HALF_UP)
-                                                .toString();
+                                            .divide(new BigDecimal(lastValue).abs(), 8, RoundingMode.HALF_UP)
+                                            .subtract(new BigDecimal(1))
+                                            .setScale(8, RoundingMode.HALF_UP)
+                                            .toString();
                                     }
                                 } else if (StringUtils.equalsIgnoreCase(resultData, "pre")) {
                                     item[dataIndex] = new BigDecimal(lastValue).toString();
@@ -563,8 +563,8 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                             continue;
                         }
                         item[dataIndex] = new BigDecimal(cValue)
-                                .divide(sum, 8, RoundingMode.HALF_UP)
-                                .toString();
+                            .divide(sum, 8, RoundingMode.HALF_UP)
+                            .toString();
                     }
                 } else if (StringUtils.equalsIgnoreCase(compareCalc.getType(), "accumulate")) {
                     // 累加
@@ -579,7 +579,7 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                     }
                     boolean isStack = StringUtils.containsIgnoreCase(chartType, "stack") && CollectionUtils.isNotEmpty(extStack);
                     boolean isGroup = StringUtils.containsIgnoreCase(chartType, "group")
-                            || (CollectionUtils.isNotEmpty(xAxisExt));
+                        || (CollectionUtils.isNotEmpty(xAxisExt));
                     if (isStack || isGroup) {
                         if (CollectionUtils.isEmpty(xAxis)) {
                             break;
@@ -609,8 +609,8 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                         int finalDataIndex = dataIndex;
                         int subEndIndex = xAxisBase.size();
                         if (CollectionUtils.isNotEmpty(xAxisExt)
-                                || StringUtils.containsIgnoreCase(chartType, "group")
-                                || StringUtils.containsIgnoreCase(chartType, "-mix")) {
+                            || StringUtils.containsIgnoreCase(chartType, "group")
+                            || StringUtils.containsIgnoreCase(chartType, "-mix")) {
                             subEndIndex += xAxisExt.size();
                         }
                         if (StringUtils.containsIgnoreCase(chartType, "stack")) {
@@ -638,13 +638,13 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                                 BigDecimal preValue = preDataMap.get(groupStackAxis);
                                 if (preValue != null) {
                                     curDataItem[finalDataIndex] = new BigDecimal(curDataItem[finalDataIndex])
-                                            .add(preValue)
-                                            .toString();
+                                        .add(preValue)
+                                        .toString();
                                 } else {
                                     if (preDataMap.containsKey(groupStackAxis)) {
                                         curDataItem[finalDataIndex] = new BigDecimal(curDataItem[finalDataIndex])
-                                                .add(preDataMap.get(groupStackAxis))
-                                                .toString();
+                                            .add(preDataMap.get(groupStackAxis))
+                                            .toString();
                                     }
                                 }
                             });
@@ -751,11 +751,11 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                 return StringUtils.equalsIgnoreCase(calcType, "year_mom");
             case "y_M":
                 return StringUtils.equalsIgnoreCase(calcType, "month_mom")
-                        || StringUtils.equalsIgnoreCase(calcType, "year_yoy");
+                    || StringUtils.equalsIgnoreCase(calcType, "year_yoy");
             case "y_M_d":
                 return StringUtils.equalsIgnoreCase(calcType, "day_mom")
-                        || StringUtils.equalsIgnoreCase(calcType, "month_yoy")
-                        || StringUtils.equalsIgnoreCase(calcType, "year_yoy");
+                    || StringUtils.equalsIgnoreCase(calcType, "month_yoy")
+                    || StringUtils.equalsIgnoreCase(calcType, "year_yoy");
         }
         return false;
     }
@@ -769,10 +769,10 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                     continue;
                 }
                 if (StringUtils.isNotEmpty(compareCalc.getType())
-                        && !StringUtils.equalsIgnoreCase(compareCalc.getType(), "none")) {
+                    && !StringUtils.equalsIgnoreCase(compareCalc.getType(), "none")) {
                     if (Arrays.asList(ChartConstants.M_Y).contains(compareCalc.getType())) {
                         if (StringUtils.equalsIgnoreCase(compareCalc.getField() + "", filterDTO.getFieldId())
-                                && (filterDTO.getFilterType() == 0 || filterDTO.getFilterType() == 2)) {
+                            && (filterDTO.getFilterType() == 0 || filterDTO.getFilterType() == 2)) {
                             // -1 year
                             try {
                                 Calendar calendar = Calendar.getInstance();

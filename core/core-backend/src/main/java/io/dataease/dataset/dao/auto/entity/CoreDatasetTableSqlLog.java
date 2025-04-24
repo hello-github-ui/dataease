@@ -1,11 +1,12 @@
 package io.dataease.dataset.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author fit2cloud
@@ -110,13 +111,13 @@ public class CoreDatasetTableSqlLog implements Serializable {
     @Override
     public String toString() {
         return "CoreDatasetTableSqlLog{" +
-        "id = " + id +
-        ", tableId = " + tableId +
-        ", startTime = " + startTime +
-        ", endTime = " + endTime +
-        ", spend = " + spend +
-        ", sql = " + sql +
-        ", status = " + status +
-        "}";
+            "id = " + id +
+            ", tableId = " + tableId +
+            ", startTime = " + startTime +
+            ", endTime = " + endTime +
+            ", spend = " + spend +
+            ", sql = " + sql +
+            ", status = " + status +
+            "}";
     }
 }

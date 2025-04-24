@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
-import io.dataease.api.dataset.union.UnionDTO;
 import io.dataease.api.template.dto.TemplateManageFileDTO;
 import io.dataease.api.template.dto.VisualizationTemplateExtendDataDTO;
 import io.dataease.api.visualization.DataVisualizationApi;
@@ -59,7 +58,6 @@ import io.dataease.visualization.dao.auto.entity.DataVisualizationInfo;
 import io.dataease.visualization.dao.auto.entity.SnapshotDataVisualizationInfo;
 import io.dataease.visualization.dao.auto.entity.VisualizationWatermark;
 import io.dataease.visualization.dao.auto.mapper.DataVisualizationInfoMapper;
-import io.dataease.visualization.dao.auto.mapper.SnapshotCoreChartViewMapper;
 import io.dataease.visualization.dao.auto.mapper.SnapshotDataVisualizationInfoMapper;
 import io.dataease.visualization.dao.auto.mapper.VisualizationWatermarkMapper;
 import io.dataease.visualization.dao.ext.mapper.ExtDataVisualizationMapper;
@@ -71,7 +69,6 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -386,8 +383,8 @@ public class DataVisualizationServer implements DataVisualizationApi {
                         dsGroup.setName(dsGroup.getName() + "-" + UUID.randomUUID().toString());
                     }
                     dsGroupNameSave.add(dsGroup.getName());
-                    if(dsGroup.getIsCross() == null){
-                        if(dsGroup.getUnion() == null){
+                    if (dsGroup.getIsCross() == null) {
+                        if (dsGroup.getUnion() == null) {
                             dsGroup.setUnion(JsonUtil.parseList(dsGroup.getInfo(), new TypeReference<>() {
                             }));
                         }
@@ -445,7 +442,7 @@ public class DataVisualizationServer implements DataVisualizationApi {
         }
         // 文件夹走默认发布 非文件夹默认未发布
         visualizationInfo.setStatus(DataVisualizationConstants.NODE_TYPE.FOLDER.equals(visualizationInfo.getNodeType())
-                ? CommonConstants.DV_STATUS.PUBLISHED : CommonConstants.DV_STATUS.UNPUBLISHED);
+            ? CommonConstants.DV_STATUS.PUBLISHED : CommonConstants.DV_STATUS.UNPUBLISHED);
         Long newDvId = coreVisualizationManage.innerSave(visualizationInfo);
         request.setId(newDvId);
         // 还原ID信息
@@ -908,7 +905,7 @@ public class DataVisualizationServer implements DataVisualizationApi {
         if (CollectionUtils.isEmpty(datasourceVOInfo)) {
             DEException.throwException("当前不存在数据源无法导出");
         } else if (datasourceVOInfo.stream()
-                .anyMatch(datasource -> DatasourceConfiguration.DatasourceType.API.name().equals(datasource.getType()))) {
+            .anyMatch(datasource -> DatasourceConfiguration.DatasourceType.API.name().equals(datasource.getType()))) {
             DEException.throwException(Translator.get("i18n_app_error_no_api"));
         }
 
@@ -995,7 +992,7 @@ public class DataVisualizationServer implements DataVisualizationApi {
         if (CollectionUtils.isNotEmpty(views) && dvInfo != null) {
             String componentData = dvInfo.getComponentData();
             result = views.stream().filter(item -> componentData.indexOf("\"id\":\"" + item.getId()) > 0).map(CoreChartView::getId)
-                    .collect(Collectors.toList());
+                .collect(Collectors.toList());
 
         }
         return result;

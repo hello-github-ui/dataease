@@ -3,7 +3,6 @@ package io.dataease.job.schedule;
 import io.dataease.license.utils.LicenseUtil;
 import io.dataease.utils.CommonBeanFactory;
 import io.dataease.utils.LogUtil;
-import jakarta.annotation.Resource;
 import org.quartz.*;
 import org.springframework.stereotype.Component;
 

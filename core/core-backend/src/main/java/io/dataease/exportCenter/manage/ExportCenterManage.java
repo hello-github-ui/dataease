@@ -13,17 +13,18 @@ import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.api.dataset.union.UnionDTO;
 import io.dataease.api.export.BaseExportApi;
 import io.dataease.api.permissions.dataset.dto.DataSetRowPermissionsTreeDTO;
+import io.dataease.api.permissions.user.vo.UserFormVO;
 import io.dataease.api.xpack.dataFilling.DataFillingApi;
 import io.dataease.api.xpack.dataFilling.dto.DataFillFormTableDataRequest;
 import io.dataease.auth.bo.TokenUserBO;
 import io.dataease.chart.dao.auto.mapper.CoreChartViewMapper;
 import io.dataease.chart.server.ChartDataServer;
 import io.dataease.commons.utils.ExcelWatermarkUtils;
+import io.dataease.constant.DeTypeConstants;
 import io.dataease.dataset.dao.auto.entity.CoreDatasetGroup;
 import io.dataease.dataset.dao.auto.mapper.CoreDatasetGroupMapper;
 import io.dataease.dataset.manage.*;
 import io.dataease.datasource.utils.DatasourceUtils;
-import io.dataease.constant.DeTypeConstants;
 import io.dataease.engine.sql.SQLProvider;
 import io.dataease.engine.trans.Field2SQLObj;
 import io.dataease.engine.trans.Order2SQLObj;
@@ -42,7 +43,9 @@ import io.dataease.extensions.datasource.dto.DatasourceSchemaDTO;
 import io.dataease.extensions.datasource.factory.ProviderFactory;
 import io.dataease.extensions.datasource.model.SQLMeta;
 import io.dataease.extensions.datasource.provider.Provider;
-import io.dataease.extensions.view.dto.*;
+import io.dataease.extensions.view.dto.ChartViewDTO;
+import io.dataease.extensions.view.dto.ColumnPermissionItem;
+import io.dataease.extensions.view.dto.DatasetRowPermissionsTreeObj;
 import io.dataease.i18n.Translator;
 import io.dataease.license.config.XpackInteract;
 import io.dataease.license.utils.LicenseUtil;
@@ -53,6 +56,7 @@ import io.dataease.utils.*;
 import io.dataease.visualization.dao.auto.entity.VisualizationWatermark;
 import io.dataease.visualization.dao.auto.mapper.VisualizationWatermarkMapper;
 import io.dataease.visualization.dao.ext.mapper.ExtDataVisualizationMapper;
+import io.dataease.visualization.dto.WatermarkContentDTO;
 import io.dataease.visualization.server.DataVisualizationServer;
 import io.dataease.websocket.WsMessage;
 import io.dataease.websocket.WsService;
@@ -69,8 +73,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import io.dataease.visualization.dto.WatermarkContentDTO;
-import io.dataease.api.permissions.user.vo.UserFormVO;
 
 import java.io.*;
 import java.net.InetAddress;
@@ -86,14 +88,18 @@ import java.util.stream.Collectors;
 @Component
 @Transactional(rollbackFor = Exception.class)
 public class ExportCenterManage implements BaseExportApi {
+    private final static String DATA_URL_TITLE = "data:image/jpeg;base64,";
+    private static final String LOG_RETENTION = "30";
+    static private List<String> STATUS = Arrays.asList("SUCCESS", "FAILED", "PENDING", "IN_PROGRESS", "ALL");
+    private final Long sheetLimit = 1000000L;
+    @Resource
+    DataVisualizationServer dataVisualizationServer;
     @Resource
     private CoreExportTaskMapper exportTaskMapper;
     @Resource
     private ExportTaskExtMapper exportTaskExtMapper;
     @Resource
     private DatasetGroupManage datasetGroupManage;
-    @Resource
-    DataVisualizationServer dataVisualizationServer;
     @Resource
     private CoreChartViewMapper coreChartViewMapper;
     @Resource
@@ -108,23 +114,14 @@ public class ExportCenterManage implements BaseExportApi {
     private int core;
     @Value("${dataease.export.max.size:10}")
     private int max;
-
-
-    private final static String DATA_URL_TITLE = "data:image/jpeg;base64,";
     @Value("${dataease.path.exportData:/opt/dataease2.0/data/exportData/}")
     private String exportData_path;
     @Resource
     private VisualizationWatermarkMapper watermarkMapper;
     @Resource
     private ExtDataVisualizationMapper visualizationMapper;
-
-    public Integer getExtractPageSize() {
-        return extractPageSize;
-    }
-
     @Value("${dataease.export.page.size:50000}")
     private Integer extractPageSize;
-    static private List<String> STATUS = Arrays.asList("SUCCESS", "FAILED", "PENDING", "IN_PROGRESS", "ALL");
     private ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
     private int keepAliveSeconds = 600;
     private Map<String, Future> Running_Task = new HashMap<>();
@@ -140,14 +137,16 @@ public class ExportCenterManage implements BaseExportApi {
     private DatasetTableFieldManage datasetTableFieldManage;
     @Resource
     private DatasetDataManage datasetDataManage;
-    private final Long sheetLimit = 1000000L;
     @Autowired(required = false)
     private DataFillingApi dataFillingApi = null;
+
+    public Integer getExtractPageSize() {
+        return extractPageSize;
+    }
 
     private DataFillingApi getDataFillingApi() {
         return dataFillingApi;
     }
-
 
     @PostConstruct
     public void init() {
@@ -176,7 +175,6 @@ public class ExportCenterManage implements BaseExportApi {
             }
         }
     }
-
 
     public void download(String id, HttpServletResponse response) throws Exception {
         CoreExportTask exportTask = exportTaskMapper.selectById(id);
@@ -293,7 +291,6 @@ public class ExportCenterManage implements BaseExportApi {
 
         return pager;
     }
-
 
     public Map<String, Long> exportTasks() {
         Map<String, Long> result = new HashMap<>();
@@ -460,7 +457,6 @@ public class ExportCenterManage implements BaseExportApi {
         });
         Running_Task.put(exportTask.getId(), future);
     }
-
 
     private void startDatasetTask(CoreExportTask exportTask, DataSetExportRequest request) {
         String dataPath = exportData_path + exportTask.getId();
@@ -674,7 +670,6 @@ public class ExportCenterManage implements BaseExportApi {
         Running_Task.put(exportTask.getId(), future);
     }
 
-
     private void startViewTask(CoreExportTask exportTask, ChartExcelRequest request) {
         String dataPath = exportData_path + exportTask.getId();
         File directory = new File(dataPath);
@@ -813,9 +808,6 @@ public class ExportCenterManage implements BaseExportApi {
         exportTask.setFileSize(size);
         exportTask.setFileSizeUnit(unit);
     }
-
-
-    private static final String LOG_RETENTION = "30";
 
     public void cleanLog() {
         String key = "basic.exportFileLiveTime";

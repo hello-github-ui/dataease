@@ -1,5 +1,5 @@
 <template>
-  <template-manage></template-manage>
+    <template-manage></template-manage>
 </template>
 
 <script lang="ts" setup>

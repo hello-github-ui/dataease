@@ -1,7 +1,6 @@
 package io.dataease.ai.service;
 
 import io.dataease.api.ai.AiComponentApi;
-import io.dataease.commons.utils.UrlTestUtils;
 import io.dataease.system.manage.SysParameterManage;
 import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;

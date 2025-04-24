@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -31,16 +30,17 @@ public class VisualizationSubjectService implements VisualizationSubjectApi {
 
     @Resource
     VisualizationSubjectMapper subjectMapper;
+
     @Override
     public List<VisualizationSubjectVO> query(VisualizationSubjectRequest request) {
         QueryWrapper<VisualizationSubject> wrapper = new QueryWrapper<>();
         wrapper.eq("delete_flag", 0);
-        List<VisualizationSubject> result =subjectMapper.selectList(wrapper);
-       return result.stream().map(subject ->{
-           VisualizationSubjectVO subjectVO = new VisualizationSubjectVO();
-           BeanUtils.copyBean(subject,subjectVO);
-           return subjectVO;
-       }).collect(Collectors.toList());
+        List<VisualizationSubject> result = subjectMapper.selectList(wrapper);
+        return result.stream().map(subject -> {
+            VisualizationSubjectVO subjectVO = new VisualizationSubjectVO();
+            BeanUtils.copyBean(subject, subjectVO);
+            return subjectVO;
+        }).collect(Collectors.toList());
     }
 
     @Override
@@ -49,26 +49,27 @@ public class VisualizationSubjectService implements VisualizationSubjectApi {
         int pageSize = 4;
         QueryWrapper<VisualizationSubject> wrapper = new QueryWrapper<>();
         wrapper.orderByAsc("create_time");
-        List<VisualizationSubject> allInfo =subjectMapper.selectList(wrapper);
+        List<VisualizationSubject> allInfo = subjectMapper.selectList(wrapper);
         for (int i = 0; i < allInfo.size(); i = i + pageSize) {
             List<VisualizationSubject> tmp = allInfo.subList(i, Math.min(i + pageSize, allInfo.size()));
             result.add(tmp);
         }
         return result;
     }
+
     @Override
     public synchronized void update(VisualizationSubjectRequest request) {
         if (StringUtils.isEmpty(request.getId())) {
             QueryWrapper<VisualizationSubject> wrapper = new QueryWrapper<>();
             wrapper.eq("name", request.getName());
-            List<VisualizationSubject> subjectAll =subjectMapper.selectList(wrapper);
+            List<VisualizationSubject> subjectAll = subjectMapper.selectList(wrapper);
             if (CollectionUtils.isEmpty(subjectAll)) {
                 request.setId(IDUtils.snowID().toString());
                 request.setCreateTime(System.currentTimeMillis());
                 request.setType("self");
                 request.setName(request.getName());
                 VisualizationSubject saveInfo = new VisualizationSubject();
-                BeanUtils.copyBean(saveInfo,request);
+                BeanUtils.copyBean(saveInfo, request);
                 subjectMapper.insert(saveInfo);
             } else {
                 DEException.throwException("名称已经存在");
@@ -76,12 +77,12 @@ public class VisualizationSubjectService implements VisualizationSubjectApi {
         } else {
             QueryWrapper<VisualizationSubject> wrapper = new QueryWrapper<>();
             wrapper.eq("name", request.getName());
-            wrapper.ne("id",request.getId());
-            List<VisualizationSubject> subjectAll =subjectMapper.selectList(wrapper);
+            wrapper.ne("id", request.getId());
+            List<VisualizationSubject> subjectAll = subjectMapper.selectList(wrapper);
             if (CollectionUtils.isEmpty(subjectAll)) {
                 request.setUpdateTime(System.currentTimeMillis());
                 VisualizationSubject updateInfo = new VisualizationSubject();
-                BeanUtils.copyBean(updateInfo,request);
+                BeanUtils.copyBean(updateInfo, request);
                 subjectMapper.updateById(updateInfo);
             } else {
                 DEException.throwException("名称已经存在");

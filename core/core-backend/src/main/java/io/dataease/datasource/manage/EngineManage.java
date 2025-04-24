@@ -151,21 +151,6 @@ public class EngineManage {
         deEngineMapper.insert(engine);
     }
 
-
-    public enum engineType {
-        mysql("Mysql"),
-        h2("h2");
-        private String alias;
-
-        private engineType(String alias) {
-            this.alias = alias;
-        }
-
-        public String getAlias() {
-            return alias;
-        }
-    }
-
     public void initLocalDataSource() {
         QueryWrapper<CoreDatasource> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("id", 985188400292302848L);
@@ -210,5 +195,19 @@ public class EngineManage {
             deTemplateVersionMapper.insert(version);
         }
 
+    }
+
+    public enum engineType {
+        mysql("Mysql"),
+        h2("h2");
+        private String alias;
+
+        private engineType(String alias) {
+            this.alias = alias;
+        }
+
+        public String getAlias() {
+            return alias;
+        }
     }
 }

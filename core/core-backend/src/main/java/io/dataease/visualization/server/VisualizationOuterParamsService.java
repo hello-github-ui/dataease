@@ -10,13 +10,15 @@ import io.dataease.api.visualization.dto.VisualizationOuterParamsInfoDTO;
 import io.dataease.api.visualization.response.VisualizationOuterParamsBaseResponse;
 import io.dataease.auth.DeLinkPermit;
 import io.dataease.constant.CommonConstants;
+import io.dataease.constant.DeTypeConstants;
 import io.dataease.dataset.dao.auto.entity.CoreDatasetTable;
 import io.dataease.dataset.dao.auto.mapper.CoreDatasetTableMapper;
-import io.dataease.constant.DeTypeConstants;
 import io.dataease.extensions.view.dto.SqlVariableDetails;
 import io.dataease.utils.BeanUtils;
 import io.dataease.utils.JsonUtil;
-import io.dataease.visualization.dao.auto.entity.*;
+import io.dataease.visualization.dao.auto.entity.SnapshotVisualizationOuterParams;
+import io.dataease.visualization.dao.auto.entity.SnapshotVisualizationOuterParamsInfo;
+import io.dataease.visualization.dao.auto.entity.SnapshotVisualizationOuterParamsTargetViewInfo;
 import io.dataease.visualization.dao.auto.mapper.*;
 import io.dataease.visualization.dao.ext.mapper.ExtVisualizationOuterParamsMapper;
 import jakarta.annotation.Resource;
@@ -75,17 +77,17 @@ public class VisualizationOuterParamsService implements VisualizationOuterParams
     public void updateOuterParamsSet(VisualizationOuterParamsDTO outerParamsDTO) {
         String visualizationId = outerParamsDTO.getVisualizationId();
         Assert.notNull(visualizationId, "visualizationId cannot be null");
-        Map<String,String> paramsInfoNameIdMap = new HashMap<>();
+        Map<String, String> paramsInfoNameIdMap = new HashMap<>();
         List<SnapshotVisualizationOuterParamsInfo> paramsInfoNameIdList = extOuterParamsMapper.getVisualizationOuterParamsInfoBase(visualizationId);
-        if(!CollectionUtils.isEmpty(paramsInfoNameIdList)){
+        if (!CollectionUtils.isEmpty(paramsInfoNameIdList)) {
             paramsInfoNameIdMap = paramsInfoNameIdList.stream()
-                    .collect(Collectors.toMap(SnapshotVisualizationOuterParamsInfo::getParamName, SnapshotVisualizationOuterParamsInfo::getParamsInfoId));
+                .collect(Collectors.toMap(SnapshotVisualizationOuterParamsInfo::getParamName, SnapshotVisualizationOuterParamsInfo::getParamsInfoId));
         }
         //清理原有数据
         extOuterParamsMapper.deleteOuterParamsTargetWithVisualizationIdSnapshot(visualizationId);
         extOuterParamsMapper.deleteOuterParamsInfoWithVisualizationIdSnapshot(visualizationId);
         extOuterParamsMapper.deleteOuterParamsWithVisualizationIdSnapshot(visualizationId);
-        if(CollectionUtils.isEmpty(outerParamsDTO.getOuterParamsInfoArray())){
+        if (CollectionUtils.isEmpty(outerParamsDTO.getOuterParamsInfoArray())) {
             return;
         }
         // 插入新的数据
@@ -97,7 +99,7 @@ public class VisualizationOuterParamsService implements VisualizationOuterParams
         Map<String, String> finalParamsInfoNameIdMap = paramsInfoNameIdMap;
         Optional.ofNullable(outerParamsDTO.getOuterParamsInfoArray()).orElse(new ArrayList<>()).forEach(outerParamsInfo -> {
             String paramsInfoId = finalParamsInfoNameIdMap.get(outerParamsInfo.getParamName());
-            if(StringUtils.isEmpty(paramsInfoId)){
+            if (StringUtils.isEmpty(paramsInfoId)) {
                 paramsInfoId = UUID.randomUUID().toString();
             }
             outerParamsInfo.setParamsInfoId(paramsInfoId);
@@ -123,7 +125,7 @@ public class VisualizationOuterParamsService implements VisualizationOuterParams
     public VisualizationOuterParamsBaseResponse getOuterParamsInfo(String visualizationId) {
         List<VisualizationOuterParamsInfoDTO> result = extOuterParamsMapper.getVisualizationOuterParamsInfo(visualizationId);
         return new VisualizationOuterParamsBaseResponse(Optional.ofNullable(result).orElse(new ArrayList<>()).stream().collect(Collectors.toMap(VisualizationOuterParamsInfoDTO::getSourceInfo, VisualizationOuterParamsInfoDTO::getTargetInfoList)),
-                Optional.ofNullable(result).orElse(new ArrayList<>()).stream().collect(Collectors.toMap(VisualizationOuterParamsInfoDTO::getSourceInfo, paramsInfo -> paramsInfo))
+            Optional.ofNullable(result).orElse(new ArrayList<>()).stream().collect(Collectors.toMap(VisualizationOuterParamsInfoDTO::getSourceInfo, paramsInfo -> paramsInfo))
         );
     }
 
@@ -134,8 +136,8 @@ public class VisualizationOuterParamsService implements VisualizationOuterParams
             List<Long> activeViewIds = dataVisualizationServer.getEnabledViewIds(Long.valueOf(visualizationId), CommonConstants.RESOURCE_TABLE.SNAPSHOT);
             result.forEach(coreDatasetGroupVO -> {
                 // 过滤已删除的图表
-                if(!CollectionUtils.isEmpty(coreDatasetGroupVO.getDatasetViews())){
-                    coreDatasetGroupVO.setDatasetViews(coreDatasetGroupVO.getDatasetViews().stream().filter(item ->activeViewIds.contains(item.getChartId())).toList());
+                if (!CollectionUtils.isEmpty(coreDatasetGroupVO.getDatasetViews())) {
+                    coreDatasetGroupVO.setDatasetViews(coreDatasetGroupVO.getDatasetViews().stream().filter(item -> activeViewIds.contains(item.getChartId())).toList());
                 }
                 List<CoreDatasetTableFieldVO> fields = coreDatasetGroupVO.getDatasetFields();
                 QueryWrapper<CoreDatasetTable> wrapper = new QueryWrapper<>();

@@ -1,11 +1,12 @@
 package io.dataease.visualization.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author fit2cloud
@@ -84,11 +85,11 @@ public class CoreStore implements Serializable {
     @Override
     public String toString() {
         return "CoreStore{" +
-        "id = " + id +
-        ", resourceId = " + resourceId +
-        ", uid = " + uid +
-        ", resourceType = " + resourceType +
-        ", time = " + time +
-        "}";
+            "id = " + id +
+            ", resourceId = " + resourceId +
+            ", uid = " + uid +
+            ", resourceType = " + resourceType +
+            ", time = " + time +
+            "}";
     }
 }

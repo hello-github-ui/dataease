@@ -22,8 +22,6 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class NumericalChartHandler extends DefaultChartHandler {
     @Override
@@ -48,9 +46,9 @@ public class NumericalChartHandler extends DefaultChartHandler {
         logger.debug("calcite chart sql: " + querySql);
         List<String[]> data = (List<String[]>) provider.fetchResultField(datasourceRequest).get("data");
         boolean isdrill = filterResult
-                .getFilterList()
-                .stream()
-                .anyMatch(ele -> ele.getFilterType() == 1);
+            .getFilterList()
+            .stream()
+            .anyMatch(ele -> ele.getFilterType() == 1);
         Map<String, Object> result = ChartDataBuild.transNormalChartData(xAxis, yAxis, view, data, isdrill);
         T calcResult = (T) new ChartCalcDataResult();
         calcResult.setData(result);

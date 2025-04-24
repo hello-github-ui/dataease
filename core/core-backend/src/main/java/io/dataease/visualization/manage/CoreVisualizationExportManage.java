@@ -36,18 +36,16 @@ import java.util.stream.Collectors;
 
 @Component
 public class CoreVisualizationExportManage {
+    private final TypeReference<List<Map<String, Object>>> tokenType = new TypeReference<List<Map<String, Object>>>() {
+    };
     @Resource
     private ExtDataVisualizationMapper extDataVisualizationMapper;
-
     @Resource
     private ChartViewManege chartViewManege;
-
     @Resource
     private ChartDataManage chartDataManage;
-
     @Resource
     private VisualizationTemplateExtendDataManage extendDataManage;
-
     @Resource
     private DatasetFieldServer datasetFieldServer;
 
@@ -185,9 +183,6 @@ public class CoreVisualizationExportManage {
         }
         return sourceNumberStr;
     }
-
-    private final TypeReference<List<Map<String, Object>>> tokenType = new TypeReference<List<Map<String, Object>>>() {
-    };
 
     private Map<Long, ChartExtRequest> buildViewRequest(String filterJson) {
         if (StringUtils.isBlank(filterJson)) {

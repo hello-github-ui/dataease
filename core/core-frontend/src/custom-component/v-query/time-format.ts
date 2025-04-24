@@ -1,223 +1,226 @@
-import type { ManipulateType } from 'dayjs'
+import type {ManipulateType} from 'dayjs'
 import dayjs from 'dayjs'
+
 function getThisYear() {
-  return new Date(`${new Date().getFullYear()}/1`)
+    return new Date(`${new Date().getFullYear()}/1`)
 }
 
 function getLastYear() {
-  return new Date(`${new Date().getFullYear() - 1}/1`)
+    return new Date(`${new Date().getFullYear() - 1}/1`)
 }
 
 function getNextYear() {
-  return new Date(`${new Date().getFullYear() + 1}/1`)
+    return new Date(`${new Date().getFullYear() + 1}/1`)
 }
 
 function getThisMonth() {
-  const date = new Date()
-  return new Date(`${date.getFullYear()}/${date.getMonth() + 1}`)
+    const date = new Date()
+    return new Date(`${date.getFullYear()}/${date.getMonth() + 1}`)
 }
 
 function getLastStart(val = 'month' as ManipulateType) {
-  return new Date(dayjs().subtract(1, val).startOf(val).format('YYYY/MM/DD HH:mm:ss'))
+    return new Date(dayjs().subtract(1, val).startOf(val).format('YYYY/MM/DD HH:mm:ss'))
 }
 
 function getLastMonth() {
-  return getLastStart()
+    return getLastStart()
 }
 
 function getNextMonth() {
-  const date = getCustomTime(1, 'month', 'month', 'b')
-  return new Date(`${date.getFullYear()}/${date.getMonth() + 1}`)
+    const date = getCustomTime(1, 'month', 'month', 'b')
+    return new Date(`${date.getFullYear()}/${date.getMonth() + 1}`)
 }
 
 function getToday() {
-  const date = new Date()
-  return new Date(`${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`)
+    const date = new Date()
+    return new Date(`${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`)
 }
 
 function getYesterday() {
-  const date = new Date(new Date().getTime() - 24 * 60 * 60 * 1000)
-  return new Date(`${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`)
+    const date = new Date(new Date().getTime() - 24 * 60 * 60 * 1000)
+    return new Date(`${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`)
 }
 
 function getMonthBeginning() {
-  const date = new Date()
-  return new Date(`${date.getFullYear()}/${date.getMonth() + 1}/1`)
+    const date = new Date()
+    return new Date(`${date.getFullYear()}/${date.getMonth() + 1}/1`)
 }
 
 function getMonthEnd() {
-  return new Date(dayjs().endOf('month').format('YYYY/MM/DD HH:mm:ss'))
+    return new Date(dayjs().endOf('month').format('YYYY/MM/DD HH:mm:ss'))
 }
 
 function getYearBeginning() {
-  const date = new Date()
-  return new Date(`${date.getFullYear()}/1/1`)
+    const date = new Date()
+    return new Date(`${date.getFullYear()}/1/1`)
 }
 
 function getYearMonthRange(result, sort) {
-  const [direction, scene] = (sort || '').split('-')
-  if (direction === 'start') {
-    return new Date(result.startOf('day').format('YYYY/MM/DD HH:mm:ss'))
-  } else if (direction === 'end') {
-    if (scene === 'config') {
-      return new Date(result.format('YYYY/MM/DD HH:mm:ss'))
-    } else if (scene === 'panel') {
-      return new Date(dayjs(result).endOf('day').format('YYYY/MM/DD HH:mm:ss'))
+    const [direction, scene] = (sort || '').split('-')
+    if (direction === 'start') {
+        return new Date(result.startOf('day').format('YYYY/MM/DD HH:mm:ss'))
+    } else if (direction === 'end') {
+        if (scene === 'config') {
+            return new Date(result.format('YYYY/MM/DD HH:mm:ss'))
+        } else if (scene === 'panel') {
+            return new Date(dayjs(result).endOf('day').format('YYYY/MM/DD HH:mm:ss'))
+        }
     }
-  }
 }
 
 function getCustomTime(
-  timeNum: number,
-  timeType: ManipulateType | 'date',
-  timeGranularity: string,
-  around: string,
-  arbitraryTime?: Date,
-  timeGranularityMultiple?: string,
-  sort?: string
+    timeNum: number,
+    timeType: ManipulateType | 'date',
+    timeGranularity: string,
+    around: string,
+    arbitraryTime?: Date,
+    timeGranularityMultiple?: string,
+    sort?: string
 ) {
-  const type = around === 'f' ? 'subtract' : 'add'
+    const type = around === 'f' ? 'subtract' : 'add'
 
-  const result = dayjs()[type](timeNum, timeType === 'date' ? 'day' : timeType)
+    const result = dayjs()[type](timeNum, timeType === 'date' ? 'day' : timeType)
 
-  if (['monthrange', 'yearrange', 'daterange'].includes(timeGranularityMultiple)) {
-    return getYearMonthRange(result, sort)
-  }
+    if (['monthrange', 'yearrange', 'daterange'].includes(timeGranularityMultiple)) {
+        return getYearMonthRange(result, sort)
+    }
 
-  if (!!arbitraryTime) {
-    const time = dayjs(arbitraryTime).format('YYYY/MM/DD HH:mm:ss')
-    const [_, q] = time.split(' ')
-    const [s] = result.format('YYYY/MM/DD HH:mm:ss').split(' ')
+    if (!!arbitraryTime) {
+        const time = dayjs(arbitraryTime).format('YYYY/MM/DD HH:mm:ss')
+        const [_, q] = time.split(' ')
+        const [s] = result.format('YYYY/MM/DD HH:mm:ss').split(' ')
 
-    return new Date(`${s} ${q}`)
-  }
+        return new Date(`${s} ${q}`)
+    }
 
-  const [k] = timeGranularity.split('range')
-  return new Date(result.startOf(k as ManipulateType).format('YYYY/MM/DD HH:mm:ss'))
+    const [k] = timeGranularity.split('range')
+    return new Date(result.startOf(k as ManipulateType).format('YYYY/MM/DD HH:mm:ss'))
 }
 
 function getDynamicRange({
-  relativeToCurrent,
-  timeNum,
-  relativeToCurrentType,
-  around,
-  arbitraryTime,
-  timeGranularity
-}) {
-  let selectValue = null
-  if (relativeToCurrent === 'custom') {
-    const startTime = getCustomTime(timeNum, relativeToCurrentType, timeGranularity, around)
-    const endTime = getCustomTime(
-      timeNum + (around === 'f' ? -1 : 1),
-      relativeToCurrentType,
-      timeGranularity,
-      around
-    )
-    switch (timeGranularity) {
-      case 'year':
-        selectValue = [startTime.getTime(), endTime.getTime() - 1000]
-        break
-      case 'month':
-        selectValue = [startTime.getTime(), endTime.getTime() - 1000]
-        break
-      case 'date':
-        const dateVal = getCustomTime(timeNum, relativeToCurrentType, timeGranularity, around)
-        selectValue = [dateVal.getTime(), dateVal.getTime() + 24 * 3600 * 1000 - 1000]
-        break
-      case 'datetime':
-        const datetimeVal = getCustomTime(
-          timeNum,
-          relativeToCurrentType,
-          timeGranularity,
-          around,
-          arbitraryTime
+                             relativeToCurrent,
+                             timeNum,
+                             relativeToCurrentType,
+                             around,
+                             arbitraryTime,
+                             timeGranularity
+                         }) {
+    let selectValue = null
+    if (relativeToCurrent === 'custom') {
+        const startTime = getCustomTime(timeNum, relativeToCurrentType, timeGranularity, around)
+        const endTime = getCustomTime(
+            timeNum + (around === 'f' ? -1 : 1),
+            relativeToCurrentType,
+            timeGranularity,
+            around
         )
-        selectValue = [datetimeVal.getTime(), datetimeVal.getTime()]
-        break
-      default:
-        break
-    }
-  } else {
-    const isDateTime = timeGranularity === 'datetime'
-    switch (relativeToCurrent) {
-      case 'thisYear':
-        selectValue = [getThisYear().getTime(), getNextYear().getTime() - 1000]
-        break
-      case 'lastYear':
-        selectValue = [getLastYear().getTime(), getYearBeginning().getTime() - 1000]
-        break
-      case 'thisMonth':
-        selectValue = [getThisMonth().getTime(), getNextMonth().getTime() - 1000]
-        break
-      case 'lastMonth':
-        selectValue = [getLastMonth().getTime(), getMonthBeginning().getTime() - 1000]
-        break
-      case 'today':
-        const todayVal = getToday().getTime()
-        selectValue = [todayVal, isDateTime ? todayVal : todayVal + 24 * 3600 * 1000 - 1000]
-        break
-      case 'yesterday':
-        const yesterdayVal = getYesterday().getTime()
-        selectValue = [
-          yesterdayVal,
-          isDateTime ? yesterdayVal : yesterdayVal + 24 * 3600 * 1000 - 1000
-        ]
-        break
-      case 'monthBeginning':
-        const monthBeginningVal = getMonthBeginning().getTime()
-        selectValue = [
-          monthBeginningVal,
-          isDateTime ? monthBeginningVal : monthBeginningVal + 24 * 3600 * 1000 - 1000
-        ]
-        break
-      case 'monthEnd':
-        const monthEndVal = getMonthEnd().getTime()
-        selectValue = isDateTime
-          ? [monthEndVal, monthEndVal]
-          : [monthEndVal - 24 * 3600 * 1000 + 1000, monthEndVal]
-        break
-      case 'yearBeginning':
-        const yearBeginningVal = getYearBeginning().getTime()
-        selectValue = [
-          yearBeginningVal,
-          isDateTime ? yearBeginningVal : yearBeginningVal + 24 * 3600 * 1000 - 1000
-        ]
-        break
+        switch (timeGranularity) {
+            case 'year':
+                selectValue = [startTime.getTime(), endTime.getTime() - 1000]
+                break
+            case 'month':
+                selectValue = [startTime.getTime(), endTime.getTime() - 1000]
+                break
+            case 'date':
+                const dateVal = getCustomTime(timeNum, relativeToCurrentType, timeGranularity, around)
+                selectValue = [dateVal.getTime(), dateVal.getTime() + 24 * 3600 * 1000 - 1000]
+                break
+            case 'datetime':
+                const datetimeVal = getCustomTime(
+                    timeNum,
+                    relativeToCurrentType,
+                    timeGranularity,
+                    around,
+                    arbitraryTime
+                )
+                selectValue = [datetimeVal.getTime(), datetimeVal.getTime()]
+                break
+            default:
+                break
+        }
+    } else {
+        const isDateTime = timeGranularity === 'datetime'
+        switch (relativeToCurrent) {
+            case 'thisYear':
+                selectValue = [getThisYear().getTime(), getNextYear().getTime() - 1000]
+                break
+            case 'lastYear':
+                selectValue = [getLastYear().getTime(), getYearBeginning().getTime() - 1000]
+                break
+            case 'thisMonth':
+                selectValue = [getThisMonth().getTime(), getNextMonth().getTime() - 1000]
+                break
+            case 'lastMonth':
+                selectValue = [getLastMonth().getTime(), getMonthBeginning().getTime() - 1000]
+                break
+            case 'today':
+                const todayVal = getToday().getTime()
+                selectValue = [todayVal, isDateTime ? todayVal : todayVal + 24 * 3600 * 1000 - 1000]
+                break
+            case 'yesterday':
+                const yesterdayVal = getYesterday().getTime()
+                selectValue = [
+                    yesterdayVal,
+                    isDateTime ? yesterdayVal : yesterdayVal + 24 * 3600 * 1000 - 1000
+                ]
+                break
+            case 'monthBeginning':
+                const monthBeginningVal = getMonthBeginning().getTime()
+                selectValue = [
+                    monthBeginningVal,
+                    isDateTime ? monthBeginningVal : monthBeginningVal + 24 * 3600 * 1000 - 1000
+                ]
+                break
+            case 'monthEnd':
+                const monthEndVal = getMonthEnd().getTime()
+                selectValue = isDateTime
+                    ? [monthEndVal, monthEndVal]
+                    : [monthEndVal - 24 * 3600 * 1000 + 1000, monthEndVal]
+                break
+            case 'yearBeginning':
+                const yearBeginningVal = getYearBeginning().getTime()
+                selectValue = [
+                    yearBeginningVal,
+                    isDateTime ? yearBeginningVal : yearBeginningVal + 24 * 3600 * 1000 - 1000
+                ]
+                break
 
-      default:
-        break
+            default:
+                break
+        }
     }
-  }
 
-  return selectValue
+    return selectValue
 }
+
 interface TimeRange {
-  intervalType: string
-  dynamicWindow: boolean
-  maximumSingleQuery: number
-  regularOrTrends: string
-  regularOrTrendsValue: string
-  relativeToCurrent: string
-  relativeToCurrentRange: string
-  timeNum: number
-  relativeToCurrentType: ManipulateType
-  around: string
-  timeNumRange: number
-  relativeToCurrentTypeRange: ManipulateType
-  aroundRange: string
-  timeGranularityMultiple?: string
+    intervalType: string
+    dynamicWindow: boolean
+    maximumSingleQuery: number
+    regularOrTrends: string
+    regularOrTrendsValue: string
+    relativeToCurrent: string
+    relativeToCurrentRange: string
+    timeNum: number
+    relativeToCurrentType: ManipulateType
+    around: string
+    timeNumRange: number
+    relativeToCurrentTypeRange: ManipulateType
+    aroundRange: string
+    timeGranularityMultiple?: string
 }
+
 export {
-  TimeRange,
-  getThisYear,
-  getLastYear,
-  getThisMonth,
-  getLastMonth,
-  getToday,
-  getYesterday,
-  getMonthBeginning,
-  getMonthEnd,
-  getYearBeginning,
-  getCustomTime,
-  getDynamicRange
+    TimeRange,
+    getThisYear,
+    getLastYear,
+    getThisMonth,
+    getLastMonth,
+    getToday,
+    getYesterday,
+    getMonthBeginning,
+    getMonthEnd,
+    getYearBeginning,
+    getCustomTime,
+    getDynamicRange
 }

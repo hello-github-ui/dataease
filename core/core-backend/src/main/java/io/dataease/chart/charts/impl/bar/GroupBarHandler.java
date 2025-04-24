@@ -6,7 +6,10 @@ import lombok.Getter;
 import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Component
@@ -36,18 +39,18 @@ public class GroupBarHandler extends BarHandler {
         // 分组维度下钻
         if (ObjectUtils.isNotEmpty(drillRequestList) && (drillFields.size() > drillRequestList.size())) {
             List<ChartExtFilterDTO> noDrillFilterList = filterList
-                    .stream()
-                    .filter(ele -> ele.getFilterType() != 1)
-                    .collect(Collectors.toList());
+                .stream()
+                .filter(ele -> ele.getFilterType() != 1)
+                .collect(Collectors.toList());
             var noDrillFieldAxis = formatResult.getAxisMap().get(ChartAxis.xAxis)
-                    .stream()
-                    .filter(ele -> ele.getSource() != FieldSource.DRILL)
-                    .collect(Collectors.toList());
+                .stream()
+                .filter(ele -> ele.getSource() != FieldSource.DRILL)
+                .collect(Collectors.toList());
             List<ChartExtFilterDTO> drillFilters = new ArrayList<>();
             ArrayList<ChartViewFieldDTO> fieldsToFilter = new ArrayList<>();
             var xAxisExt = formatResult.getAxisMap().get(ChartAxis.xAxisExt);
             if (ObjectUtils.isNotEmpty(xAxisExt) &&
-                    Objects.equals(drillFields.get(0).getId(), xAxisExt.get(0).getId())) {
+                Objects.equals(drillFields.get(0).getId(), xAxisExt.get(0).getId())) {
                 fieldsToFilter.addAll(view.getXAxis());
                 groupStackDrill(noDrillFieldAxis, noDrillFilterList, fieldsToFilter, drillFields, drillRequestList);
                 formatResult.getAxisMap().put(ChartAxis.xAxis, noDrillFieldAxis);
@@ -60,9 +63,9 @@ public class GroupBarHandler extends BarHandler {
     @Override
     public Map<String, Object> buildNormalResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data) {
         boolean isDrill = filterResult
-                .getFilterList()
-                .stream()
-                .anyMatch(ele -> ele.getFilterType() == 1);
+            .getFilterList()
+            .stream()
+            .anyMatch(ele -> ele.getFilterType() == 1);
         var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
         var xAxisExt = formatResult.getAxisMap().get(ChartAxis.xAxisExt);
         var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);

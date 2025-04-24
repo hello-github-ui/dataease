@@ -10,10 +10,10 @@ import java.util.regex.Pattern;
 @Data
 public class EngineRequest {
     private final String REG_WITH_SQL_FRAGMENT = "((?i)WITH[\\s\\S]+(?i)AS?\\s*\\([\\s\\S]+\\))\\s*(?i)SELECT";
-    private Pattern WITH_SQL_FRAGMENT = Pattern.compile("((?i)WITH[\\s\\S]+(?i)AS?\\s*\\([\\s\\S]+\\))\\s*(?i)SELECT");
     protected String query;
     protected String table;
     protected CoreDeEngine engine;
+    private Pattern WITH_SQL_FRAGMENT = Pattern.compile("((?i)WITH[\\s\\S]+(?i)AS?\\s*\\([\\s\\S]+\\))\\s*(?i)SELECT");
     private Integer pageSize;
     private Integer page;
     private Integer realSize;

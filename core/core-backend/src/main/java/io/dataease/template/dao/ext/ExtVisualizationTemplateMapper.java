@@ -10,7 +10,7 @@ import java.util.List;
 
 
 @Mapper
-public interface ExtVisualizationTemplateMapper{
+public interface ExtVisualizationTemplateMapper {
 
     List<TemplateManageDTO> findTemplateList(TemplateManageRequest request);
 
@@ -24,9 +24,9 @@ public interface ExtVisualizationTemplateMapper{
 
     void deleteCategoryMapByTemplate(@Param("templateName") String templateName, @Param("templateId") String templateId);
 
-    Long checkCategoryTemplateName(@Param("templateName") String templateName,@Param("categories") List<String> categories);
+    Long checkCategoryTemplateName(@Param("templateName") String templateName, @Param("categories") List<String> categories);
 
-    Long checkCategoryTemplateBatchNames(@Param("templateNames") List<String> templateNames,@Param("categories") List<String> categories,@Param("templateArray") List<String> templateArray);
+    Long checkCategoryTemplateBatchNames(@Param("templateNames") List<String> templateNames, @Param("categories") List<String> categories, @Param("templateArray") List<String> templateArray);
 
     List<String> findTemplateCategories(@Param("templateId") String templateId);
 

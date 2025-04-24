@@ -56,9 +56,9 @@ public class MixHandler extends YoyChartHandler {
     @Override
     public Map<String, Object> buildNormalResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data) {
         boolean isDrill = filterResult
-                .getFilterList()
-                .stream()
-                .anyMatch(ele -> ele.getFilterType() == 1) || filterResult.isDrill();
+            .getFilterList()
+            .stream()
+            .anyMatch(ele -> ele.getFilterType() == 1) || filterResult.isDrill();
         if (StringUtils.equals((String) formatResult.getContext().get("isRight"), "isRight")) {
             var xAxis = formatResult.getAxisMap().get(ChartAxis.xAxis);
             var xAxisExt = formatResult.getAxisMap().get(ChartAxis.xAxisExt);
@@ -164,9 +164,9 @@ public class MixHandler extends YoyChartHandler {
             ExtWhere2Str.extWhere2sqlOjb(sqlMeta, originFilter.getFilterList(), FieldUtil.transFields(allFields), crossDs, dsMap, Utils.getParams(FieldUtil.transFields(allFields)), view.getCalParams(), pluginManage);
         }
         originFilter.setDrill(filterResult
-                .getFilterList()
-                .stream()
-                .anyMatch(ele -> ele.getFilterType() == 1));
+            .getFilterList()
+            .stream()
+            .anyMatch(ele -> ele.getFilterType() == 1));
         var rightResult = (T) super.calcChartResult(view, formatResult2, originFilter, sqlMap, sqlMeta, provider);
 
         try {

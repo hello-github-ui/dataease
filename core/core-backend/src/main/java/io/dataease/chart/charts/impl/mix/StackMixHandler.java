@@ -49,9 +49,9 @@ public class StackMixHandler extends MixHandler {
     @Override
     public Map<String, Object> buildNormalResult(ChartViewDTO view, AxisFormatResult formatResult, CustomFilterResult filterResult, List<String[]> data) {
         boolean isDrill = filterResult
-                .getFilterList()
-                .stream()
-                .anyMatch(ele -> ele.getFilterType() == 1);
+            .getFilterList()
+            .stream()
+            .anyMatch(ele -> ele.getFilterType() == 1);
         var extStack = formatResult.getAxisMap().get(ChartAxis.extStack);
         var yAxis = formatResult.getAxisMap().get(ChartAxis.yAxis);
         if (CollectionUtils.isNotEmpty(extStack)) {

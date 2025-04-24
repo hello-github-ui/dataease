@@ -1,6 +1,7 @@
 package io.dataease.visualization.dao.auto.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
@@ -144,17 +145,17 @@ public class VisualizationLinkage implements Serializable {
     @Override
     public String toString() {
         return "VisualizationLinkage{" +
-        "id = " + id +
-        ", dvId = " + dvId +
-        ", sourceViewId = " + sourceViewId +
-        ", targetViewId = " + targetViewId +
-        ", updateTime = " + updateTime +
-        ", updatePeople = " + updatePeople +
-        ", linkageActive = " + linkageActive +
-        ", ext1 = " + ext1 +
-        ", ext2 = " + ext2 +
-        ", copyFrom = " + copyFrom +
-        ", copyId = " + copyId +
-        "}";
+            "id = " + id +
+            ", dvId = " + dvId +
+            ", sourceViewId = " + sourceViewId +
+            ", targetViewId = " + targetViewId +
+            ", updateTime = " + updateTime +
+            ", updatePeople = " + updatePeople +
+            ", linkageActive = " + linkageActive +
+            ", ext1 = " + ext1 +
+            ", ext2 = " + ext2 +
+            ", copyFrom = " + copyFrom +
+            ", copyId = " + copyId +
+            "}";
     }
 }

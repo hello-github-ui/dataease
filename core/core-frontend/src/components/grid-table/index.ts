@@ -1,3 +1,3 @@
 import GridTable from './src/GridTable.vue'
 
-export { GridTable }
+export {GridTable}

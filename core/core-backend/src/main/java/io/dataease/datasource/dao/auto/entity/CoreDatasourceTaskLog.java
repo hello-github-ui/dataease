@@ -3,11 +3,12 @@ package io.dataease.datasource.dao.auto.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.io.Serializable;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author fit2cloud
@@ -149,16 +150,16 @@ public class CoreDatasourceTaskLog implements Serializable {
     @Override
     public String toString() {
         return "CoreDatasourceTaskLog{" +
-        "id = " + id +
-        ", dsId = " + dsId +
-        ", taskId = " + taskId +
-        ", startTime = " + startTime +
-        ", endTime = " + endTime +
-        ", taskStatus = " + taskStatus +
-        ", tableName = " + tableName +
-        ", info = " + info +
-        ", createTime = " + createTime +
-        ", triggerType = " + triggerType +
-        "}";
+            "id = " + id +
+            ", dsId = " + dsId +
+            ", taskId = " + taskId +
+            ", startTime = " + startTime +
+            ", endTime = " + endTime +
+            ", taskStatus = " + taskStatus +
+            ", tableName = " + tableName +
+            ", info = " + info +
+            ", createTime = " + createTime +
+            ", triggerType = " + triggerType +
+            "}";
     }
 }
