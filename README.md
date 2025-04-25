@@ -46,6 +46,9 @@ git clone https://github.com/dataease/dataease.git
 可以同时选择 `clean、package、install`
 
 ## 2.6、编译/打包core模块
+### 2.6.0、指定环境
+当第一次正常启动后，第二次再启动时，控制台报错一堆SQL错误时，该错误是由于在本地运行时，未指定执行环境，只需要指定即可：
+编辑 application.yml 文件，将其中的 `active: '@profiles.active@'`，替换为：`active: standalone`
 
 ### 2.6.1、在后端项目中修改前端资源包打包配置
 
@@ -102,7 +105,7 @@ PS D:\temp\2025\202504\dataease\core\core-frontend> npm install cross-env --save
 
 ```java
 private final String FILE_PATH = System.getProperty("user.dir") + File.separator + "drivers";
-    private final String CUSTOM_PATH = System.getProperty("user.dir") + File.separator + "custom-drivers" + File.separator;
+private final String CUSTOM_PATH = System.getProperty("user.dir") + File.separator + "custom-drivers" + File.separator;
 ```
 
 ### 2.6.4、修改数据配置
