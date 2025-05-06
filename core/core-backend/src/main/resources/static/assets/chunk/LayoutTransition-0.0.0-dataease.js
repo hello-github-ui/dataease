@@ -1,1 +1,1 @@
-import{d as t,u as n,e as r,f as s,g as a,j as u}from"./vue-0.0.0-dataease.js";const m=t({__name:"LayoutTransition",setup(c){const e=n();return(_,p)=>{const o=r("router-view");return s(),a(o,{key:u(e).path})}}});export{m as default};
+import{u as t}from"./vue-router-0.0.0-dataease.js";import{d as r,ah as n,o as a,Z as s,u}from"./@vue-0.0.0-dataease.js";const f=r({__name:"LayoutTransition",setup(c){const e=t();return(p,_)=>{const o=n("router-view");return a(),s(o,{key:u(e).path})}}});export{f as default};

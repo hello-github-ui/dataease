@@ -1,1 +1,1 @@
-import{x as e}from"./ConfigGlobal.vue_vue_type_script_setup_true_lang-0.0.0-dataease.js";const r=()=>e.get({url:"/sysParameter/queryOnlineMap"}),p=s=>e.post({url:"/sysParameter/saveOnlineMap",data:s});export{r as q,p as s};
+import{n as e}from"./ConfigGlobal.vue_vue_type_script_setup_true_lang-0.0.0-dataease.js";const r=()=>e.get({url:"/sysParameter/queryOnlineMap"}),p=s=>e.post({url:"/sysParameter/saveOnlineMap",data:s});export{r as q,p as s};

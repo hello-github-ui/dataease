@@ -55,6 +55,7 @@ const loadRemoteI18n = async (option: any) => {
       ? window.location.pathname + PATH_URL.substring(2)
       : PATH_URL
   const url = `${path}/i18n/custom_${name}_front_${option.name}.js`
+  /* @vite-ignore */
   return await import(url)
 }
 

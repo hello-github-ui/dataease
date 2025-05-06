@@ -9,6 +9,17 @@ spring:
         active: standalone
     application:
         name: core-backend
+    devtools:
+        restart:
+            enabled: true
+            additional-paths: src/main/java
+            exclude: static/**,public/**,resources/**
+    mvc:
+        static-path-pattern: /**
+    resources:
+        static-locations: classpath:/static/
+    thymeleaf:
+        cache: false
     messages:
         encoding: UTF-8
     main:

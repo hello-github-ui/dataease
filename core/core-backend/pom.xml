@@ -89,6 +89,12 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
 
     <profiles>
@@ -101,6 +107,7 @@
             </activation>
             <properties>
                 <profiles.active>standalone</profiles.active>
+                <frontend.dev.mode>true</frontend.dev.mode>
             </properties>
 
             <dependencies>
@@ -152,6 +159,15 @@
                                 </fileset>
                             </filesets>
                         </configuration>
+                        <executions>
+                            <execution>
+                                <id>clean-static</id>
+                                <phase>clean</phase>
+                                <goals>
+                                    <goal>clean</goal>
+                                </goals>
+                            </execution>
+                        </executions>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -162,6 +178,8 @@
                                 <phase>generate-resources</phase>
                                 <configuration>
                                     <target>
+                                        <delete dir="src/main/resources/static"/>
+                                        <mkdir dir="src/main/resources/static"/>
                                         <copy todir="src/main/resources/static">
                                             <fileset dir="../core-frontend/dist">
                                                 <include name="**"/>
