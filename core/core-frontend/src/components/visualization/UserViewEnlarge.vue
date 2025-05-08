@@ -182,7 +182,7 @@ import {RefreshLeft} from '@element-plus/icons-vue'
 import {assign} from 'lodash-es'
 import {useEmitt} from '@/hooks/web/useEmitt'
 import {ElButton, ElMessage} from 'element-plus-secondary'
-import {exportDetailExcelWithMultiHeader, exportPivotExcel} from '@/views/chart/components/js/panel/common/common_table'
+import {exportDetailExcelWithMultiHeader, exportPivotExcel, fetchAllTableRows } from '@/views/chart/components/js/panel/common/common_table'
 import {useRequestStoreWithOut} from '@/store/modules/request'
 import {usePermissionStoreWithOut} from '@/store/modules/permission'
 import {activeWatermarkCheckUser} from '@/components/watermark/watermark'
@@ -391,7 +391,8 @@ const downloadViewDetails = (downloadType = 'view') => {
     exportLoading.value = false
 }
 
-const exportAsFormattedExcel = () => {
+const exportAsFormattedExcel = async () => {
+    console.log('最上面的 viewInfo.value: ', viewInfo.value)
     const s2Instance = dvMainStore.getViewInstanceInfo(viewInfo.value.id)
     if (!s2Instance) {
         return
@@ -400,12 +401,21 @@ const exportAsFormattedExcel = () => {
     if (viewInfo.value.type === 'table-pivot') {
         exportPivotExcel(s2Instance, chart)
     } else if (viewInfo.value.type === 'table-info') {
-        const viewDataInfo = dvMainStore.getViewDataDetails(viewInfo.value.id)
-        // const data = viewDataInfo.tableRow ? viewDataInfo.tableRow : []
-        // const headerColumns = viewDataInfo.headerGroup.columns
-        console.log('viewInfo:', viewInfo)
-        console.log('viewDataInfo:', viewDataInfo)
-        exportDetailExcelWithMultiHeader(viewInfo, viewDataInfo)
+        // 明细表的带格式导出实现
+        // 1、拉取全量数据
+        console.log('viewInfo.value: ', viewInfo.value)
+        const allData = await fetchAllTableRows(viewInfo.value, 100)
+        console.log('allData: ', allData)
+        // 2、导出
+        exportDetailExcelWithMultiHeader(viewInfo, allData.data)
+
+        // 原先我实现的只导出首页数据的方式
+        // const viewDataInfo = dvMainStore.getViewDataDetails(viewInfo.value.id)
+        // // const data = viewDataInfo.tableRow ? viewDataInfo.tableRow : []
+        // // const headerColumns = viewDataInfo.headerGroup.columns
+        // console.log('viewInfo:', viewInfo)
+        // console.log('viewDataInfo:', viewDataInfo)
+        // exportDetailExcelWithMultiHeader(viewInfo, data)
     }
 }
 const exportData = () => {

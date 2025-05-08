@@ -1486,7 +1486,40 @@ export async function exportPivotExcel(instance: PivotSheet, chart: ChartObj) {
     }
 }
 
-// 下载带格式的 Excel（明细表）
+// 明细表获取全部数据
+import { getData } from '@/api/chart'
+export async function fetchAllTableRows(view, pageSize = 100) {
+    // 1. 先请求第一页，拿到总条数
+    const v = JSON.parse(JSON.stringify(view))
+    console.log('v: ', v)
+    v.chartExtRequest = v.chartExtRequest || {}
+    v.chartExtRequest.pageNo = 1
+    v.chartExtRequest.pageSize = pageSize
+    const firstResp = await getData(v)
+    const total = firstResp.totalItems || firstResp.total || 0
+    console.log('total: ', total)
+    const totalPages = Math.ceil(total / pageSize)
+    let allRows = (firstResp.tableRow || []).slice()
+    // 2. 循环请求后续页
+    const promises = []
+    for (let page = 2; page <= totalPages; page++) {
+        const pageReq = JSON.parse(JSON.stringify(view))
+        pageReq.chartExtRequest = pageReq.chartExtRequest || {}
+        pageReq.chartExtRequest.pageNo = page
+        pageReq.chartExtRequest.pageSize = pageSize
+        promises.push(getData(pageReq))
+    }
+    const results = await Promise.all(promises)
+    results.forEach(resp => {
+        const rows = resp.tableRow || []
+        allRows = allRows.concat(rows)
+    })
+    // 返回完整数据对象（合并所有tableRow）
+    const fullDataObj = { ...firstResp, tableRow: allRows }
+    return fullDataObj
+}
+
+// 下载带格式的 Excel（明细表），包括多级表头
 export async function exportDetailExcelWithMultiHeader(viewInfo, viewDataInfo, title = '明细表') {
     // 1. 获取分组结构
     const rawViewInfo = viewInfo.value || viewInfo._value || viewInfo
