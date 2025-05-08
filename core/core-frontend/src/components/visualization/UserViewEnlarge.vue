@@ -182,7 +182,7 @@ import {RefreshLeft} from '@element-plus/icons-vue'
 import {assign} from 'lodash-es'
 import {useEmitt} from '@/hooks/web/useEmitt'
 import {ElButton, ElMessage} from 'element-plus-secondary'
-import {exportPivotExcel} from '@/views/chart/components/js/panel/common/common_table'
+import {exportDetailExcelWithMultiHeader, exportPivotExcel} from '@/views/chart/components/js/panel/common/common_table'
 import {useRequestStoreWithOut} from '@/store/modules/request'
 import {usePermissionStoreWithOut} from '@/store/modules/permission'
 import {activeWatermarkCheckUser} from '@/components/watermark/watermark'
@@ -400,89 +400,12 @@ const exportAsFormattedExcel = () => {
     if (viewInfo.value.type === 'table-pivot') {
         exportPivotExcel(s2Instance, chart)
     } else if (viewInfo.value.type === 'table-info') {
-        // 对于明细表，使用带格式的Excel导出（只导出当前页 tableRow 数据）
         const viewDataInfo = dvMainStore.getViewDataDetails(viewInfo.value.id)
-        if (!viewDataInfo) {
-            ElMessage.error(t('chart.field_is_empty_export_error'))
-            return
-        }
-        // 创建工作簿
-        const workbook = new Exceljs.Workbook()
-        const worksheet = workbook.addWorksheet('Sheet1')
-        // 设置表头样式
-        const headerStyle = {
-            font: { bold: true, color: { argb: 'FF000000' } },
-            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F8F9' } },
-            alignment: { vertical: 'middle', horizontal: 'center' }
-        }
-        // 设置单元格样式
-        const cellStyle = {
-            font: { color: { argb: 'FF7C7E81' } },
-            alignment: { vertical: 'middle', horizontal: 'left' }
-        }
-        // 1. 建立 id 到 fieldShortName 的映射
-        const id2ShortName = {}
-        if (viewDataInfo.fields && Array.isArray(viewDataInfo.fields)) {
-            viewDataInfo.fields.forEach(f => {
-                if (f.id && f.fieldShortName) {
-                    id2ShortName[f.id] = f.fieldShortName
-                }
-            })
-        }
-        // 2. 表头
-        const headers = viewDataInfo.sourceFields.map(field => field.name)
-        worksheet.addRow(headers)
-        // 3. 数据行
-        if (viewDataInfo.tableRow && Array.isArray(viewDataInfo.tableRow)) {
-            viewDataInfo.tableRow.forEach(row => {
-                const rowData = viewDataInfo.sourceFields.map(field => {
-                    // 优先 dataeaseName，其次 fieldShortName
-                    if (row[field.dataeaseName] !== undefined) {
-                        return row[field.dataeaseName]
-                    } else if (id2ShortName[field.id] && row[id2ShortName[field.id]] !== undefined) {
-                        return row[id2ShortName[field.id]]
-                    } else {
-                        return ''
-                    }
-                })
-                worksheet.addRow(rowData)
-            })
-        } else {
-            console.error('viewDataInfo.tableRow is not an array:', viewDataInfo.tableRow)
-            ElMessage.error(t('chart.export_data_error'))
-            return
-        }
-        // 应用表头样式
-        const headerRow = worksheet.getRow(1)
-        headerRow.eachCell(cell => {
-            cell.style = headerStyle
-        })
-        // 应用单元格样式
-        for (let i = 2; i <= worksheet.rowCount; i++) {
-            const row = worksheet.getRow(i)
-            row.eachCell(cell => {
-                cell.style = cellStyle
-            })
-        }
-        // 自动调整列宽
-        worksheet.columns.forEach(column => {
-            let maxLength = 0
-            column.eachCell({ includeEmpty: true }, cell => {
-                const columnLength = cell.value ? cell.value.toString().length : 10
-                if (columnLength > maxLength) {
-                    maxLength = columnLength
-                }
-            })
-            column.width = maxLength < 10 ? 10 : maxLength
-        })
-        // 导出文件
-        workbook.xlsx.writeBuffer().then(buffer => {
-            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-            saveAs(blob, `${chart.title || '明细表'}.xlsx`)
-        }).catch(error => {
-            console.error('Excel export error:', error)
-            ElMessage.error(t('chart.export_error'))
-        })
+        // const data = viewDataInfo.tableRow ? viewDataInfo.tableRow : []
+        // const headerColumns = viewDataInfo.headerGroup.columns
+        console.log('viewInfo:', viewInfo)
+        console.log('viewDataInfo:', viewDataInfo)
+        exportDetailExcelWithMultiHeader(viewInfo, viewDataInfo)
     }
 }
 const exportData = () => {

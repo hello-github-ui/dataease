@@ -39,6 +39,7 @@ import Exceljs from 'exceljs'
 import {saveAs} from 'file-saver'
 import {ElMessage} from 'element-plus-secondary'
 import {useI18n} from '@/hooks/web/useI18n'
+import ExcelJS from "exceljs";
 
 const {t: i18nt} = useI18n()
 
@@ -1484,6 +1485,110 @@ export async function exportPivotExcel(instance: PivotSheet, chart: ChartObj) {
         exportTreePivot(instance, chart)
     }
 }
+
+// 下载带格式的 Excel（明细表）
+export async function exportDetailExcelWithMultiHeader(viewInfo, viewDataInfo, title = '明细表') {
+    // 1. 获取分组结构
+    const rawViewInfo = viewInfo.value || viewInfo._value || viewInfo
+    const headerGroupConfig = rawViewInfo.customAttr?.tableHeader?.headerGroupConfig
+    const columns = headerGroupConfig?.columns
+    const meta = headerGroupConfig?.meta || []
+
+    // 2. 获取字段名映射
+    const fields = viewDataInfo.fields || viewDataInfo.sourceFields || []
+    const keyNameMap = {}
+    fields.forEach(f => {
+        keyNameMap[f.dataeaseName || f.key] = f.name
+    })
+
+    // 3. 判断是否有分组合并（一级表头）
+    if (meta && Array.isArray(meta) && meta.length > 0 && columns && columns.length > 0) {
+        // ====== 多级表头导出 ======
+        const maxLevel = getMaxLevel(columns)
+        const workbook = new ExcelJS.Workbook()
+        const worksheet = workbook.addWorksheet(title)
+        writeMultiHeader(worksheet, columns, meta, keyNameMap, 1, 1, maxLevel)
+        // 获取所有叶子节点
+        const leafNodes = []
+        function collectLeaf(node) {
+            if (!node.children || node.children.length === 0) {
+                leafNodes.push(node)
+            } else {
+                node.children.forEach(collectLeaf)
+            }
+        }
+        columns.forEach(collectLeaf)
+        // 写入数据区
+        const tableRow = viewDataInfo.tableRow || []
+        tableRow.forEach(row => {
+            worksheet.addRow(leafNodes.map(field => row[field.key]))
+        })
+        // 可加样式、自动列宽
+        const buffer = await workbook.xlsx.writeBuffer()
+        saveAs(new Blob([buffer]), `${title}.xlsx`)
+        return
+    }
+
+    // ====== 普通导出Excel（无分组）======
+    if (!fields || fields.length === 0) {
+        ElMessage.error('明细表字段定义为空，无法导出')
+        return
+    }
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet(title)
+    // 写入表头
+    worksheet.addRow(fields.map(f => f.name))
+    // 写入数据
+    const tableRow = viewDataInfo.tableRow || []
+    tableRow.forEach(row => {
+        worksheet.addRow(fields.map(f => row[f.dataeaseName || f.key]))
+    })
+    // 可加样式、自动列宽
+    const buffer = await workbook.xlsx.writeBuffer()
+    saveAs(new Blob([buffer]), `${title}.xlsx`)
+}
+// 下载带格式的 Excel（明细表） 辅助函数 start
+function writeMultiHeader(worksheet, columns, meta, keyNameMap, startRow = 1, startCol = 1, maxLevel = 1) {
+    let col = startCol
+    columns.forEach(node => {
+        const row = worksheet.getRow(startRow)
+        // 分组节点用 meta 查 name，叶子节点用 keyNameMap 查 name
+        const metaItem = meta.find(m => m.field === node.key)
+        let cellValue = metaItem ? metaItem.name : (keyNameMap[node.key] || node.name || node.title || node.key)
+        const cell = row.getCell(col)
+        cell.value = cellValue
+        cell.alignment = { vertical: 'middle', horizontal: 'center' }
+        cell.font = { bold: true }
+        let colSpan = 1
+        let rowSpan = 1
+        if (node.children && node.children.length > 0) {
+            colSpan = getLeafCount(node)
+            worksheet.mergeCells(startRow, col, startRow, col + colSpan - 1)
+            writeMultiHeader(worksheet, node.children, meta, keyNameMap, startRow + 1, col, maxLevel)
+        } else {
+            rowSpan = maxLevel - startRow + 1
+            if (rowSpan > 1) {
+                worksheet.mergeCells(startRow, col, startRow + rowSpan - 1, col)
+            }
+        }
+        col += colSpan
+    })
+}
+function getLeafCount(node) {
+    if (!node.children || node.children.length === 0) return 1
+    return node.children.reduce((sum, child) => sum + getLeafCount(child), 0)
+}
+function getMaxLevel(columns, level = 1) {
+    let max = level
+    columns.forEach(node => {
+        if (node.children && node.children.length > 0) {
+            const childMax = getMaxLevel(node.children, level + 1)
+            if (childMax > max) max = childMax
+        }
+    })
+    return max
+}
+// 下载带格式的 Excel（明细表） 辅助函数 end
 
 export function configMergeCells(chart: Chart, options: S2Options, dataConfig: S2DataConfig) {
     const {mergeCells} = parseJson(chart.customAttr).tableCell

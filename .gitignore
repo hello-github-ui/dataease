@@ -21,3 +21,5 @@ dist/
 package-lock.json
 .DS_Store
 .stylelintcache
+# SpecStory explanation file
+.specstory/.what-is-this.md

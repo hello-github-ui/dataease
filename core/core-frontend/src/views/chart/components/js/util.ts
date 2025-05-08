@@ -527,6 +527,7 @@ const getExcelDownloadRequest = (data, type?) => {
 // 下载普通 Excel 或原始明细
 export const exportExcelDownload = (chart, callBack?) => {
     const excelName = chart.title
+    console.log('普通方式下载明细表时 chart 对象:', chart)
     let request: any = {
         proxy: null,
         dvId: chart.sceneId,
