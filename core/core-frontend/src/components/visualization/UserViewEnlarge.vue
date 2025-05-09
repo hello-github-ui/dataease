@@ -404,18 +404,102 @@ const exportAsFormattedExcel = async () => {
         // 明细表的带格式导出实现
         // 1、拉取全量数据
         console.log('viewInfo.value: ', viewInfo.value)
-        const allData = await fetchAllTableRows(viewInfo.value, 100)
-        console.log('allData: ', allData)
-        // 2、导出
-        exportDetailExcelWithMultiHeader(viewInfo, allData.data)
+        const allData = await fetchAllTableRows(viewInfo.value, 100);
+        console.log('allData: ', allData);
 
-        // 原先我实现的只导出首页数据的方式
-        // const viewDataInfo = dvMainStore.getViewDataDetails(viewInfo.value.id)
-        // // const data = viewDataInfo.tableRow ? viewDataInfo.tableRow : []
-        // // const headerColumns = viewDataInfo.headerGroup.columns
-        // console.log('viewInfo:', viewInfo)
-        // console.log('viewDataInfo:', viewDataInfo)
-        // exportDetailExcelWithMultiHeader(viewInfo, data)
+        const headerGroupConfig = viewInfo.value.customAttr?.tableHeader?.headerGroupConfig;
+        const columns = headerGroupConfig?.columns;
+        if (!columns || columns.length === 0) {
+            console.error("Columns definition is missing in headerGroupConfig.");
+            exportDetailExcelWithMultiHeader(viewInfo, allData.data, viewInfo.value.title || '明细表'); // 降级到无分组导出
+            return;
+        }
+
+        // 1. 获取所有叶子节点 key (输出列顺序，严格深度优先)
+        const leafKeys = [];
+        function collectLeafKeysRecursive(nodes) {
+            nodes?.forEach(node => {
+                if (!node.children || node.children.length === 0) {
+                    leafKeys.push(String(node.key));
+                } else {
+                    collectLeafKeysRecursive(node.children);
+                }
+            });
+        }
+        collectLeafKeysRecursive(columns);
+
+        // 2. 获取语义上的分组节点key，以确定分组层级数
+        const semanticGroupNodeKeysRaw = [];
+        function findSemanticGroupNodeKeysRecursive(nodes) {
+            nodes?.forEach(node => {
+                if (node.children && node.children.length > 0) {
+                    semanticGroupNodeKeysRaw.push(String(node.key));
+                    // 递归查找所有层级的语义分组节点
+                    findSemanticGroupNodeKeysRecursive(node.children);
+                }
+            });
+        }
+        findSemanticGroupNodeKeysRecursive(columns);
+        // 使用 Set 获取唯一的语义分组节点key，其数量代表分组层级
+        const uniqueSemanticGroupNodeKeys = [...new Set(semanticGroupNodeKeysRaw)];
+        const numGroupingLevels = uniqueSemanticGroupNodeKeys.length;
+
+        // 3. 确定实际用于分组的数据字段key (actualGroupingKeys)
+        // 这些是 leafKeys 中的前 numGroupingLevels 个字段
+        const actualDataFieldKeysForGrouping = leafKeys.slice(0, numGroupingLevels);
+
+        // 4. 创建 actualDataFieldKeysForGrouping 到其在 leafKeys 中索引的映射
+        const actualGroupKeyToLeafIndexMap = {};
+        actualDataFieldKeysForGrouping.forEach(key => {
+            const index = leafKeys.indexOf(key);
+            if (index !== -1) {
+                actualGroupKeyToLeafIndexMap[key] = index;
+            }
+        });
+
+        // Attempt to get the displayed order of dates within each shop group from S2 instance
+        const expectedDateOrderInShop = {};
+        if (s2Instance && actualDataFieldKeysForGrouping.length >= 2) {
+            const shopFieldKey = actualDataFieldKeysForGrouping[0]; // Assumes first grouping key is shop
+            const dateFieldKey = actualDataFieldKeysForGrouping[1]; // Assumes second grouping key is date
+            const displayData = s2Instance.dataSet.getDisplayDataSet();
+
+            if (displayData && shopFieldKey && dateFieldKey) {
+                console.log('S2 getDisplayDataSet():', displayData.slice(0, 5)); // Log first 5 rows for inspection
+                displayData.forEach(row => {
+                    const shopValue = row[shopFieldKey];
+                    const dateValue = row[dateFieldKey];
+                    if (shopValue && dateValue !== undefined && dateValue !== null) {
+                        if (!expectedDateOrderInShop[shopValue]) {
+                            expectedDateOrderInShop[shopValue] = [];
+                        }
+                        // Add dateValue only if it's not already the last one added for this shop
+                        // This tries to capture the sequence as S2 renders it, robust to some data quirks
+                        const shopDates = expectedDateOrderInShop[shopValue];
+                        if (shopDates.length === 0 || shopDates[shopDates.length - 1] !== dateValue) {
+                             if (!shopDates.includes(dateValue)) { // Only add if not present to represent unique sequence
+                                shopDates.push(dateValue);
+                             }
+                        }
+                    }
+                });
+            }
+        }
+        console.log('UserViewEnlarge.vue -> expectedDateOrderInShop:', expectedDateOrderInShop);
+
+        console.log('UserViewEnlarge.vue -> REVISED leafKeys: ', leafKeys);
+        console.log('UserViewEnlarge.vue -> REVISED actualDataFieldKeysForGrouping: ', actualDataFieldKeysForGrouping);
+        console.log('UserViewEnlarge.vue -> REVISED actualGroupKeyToLeafIndexMap: ', actualGroupKeyToLeafIndexMap);
+
+        exportDetailExcelWithMultiHeader(
+            viewInfo,
+            allData.data,
+            viewInfo.value.title || '明细表',
+            leafKeys, // 传递完整的 leafKeys (决定列顺序)
+            actualDataFieldKeysForGrouping, // 传递实际用于排序和合并区间计算的字段key
+            actualGroupKeyToLeafIndexMap,    // 传递这些字段key到其列索引的映射
+            expectedDateOrderInShop // NEW: Pass the expected order map
+        );
     }
 }
 const exportData = () => {

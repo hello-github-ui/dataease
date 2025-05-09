@@ -1520,7 +1520,15 @@ export async function fetchAllTableRows(view, pageSize = 100) {
 }
 
 // 下载带格式的 Excel（明细表），包括多级表头
-export async function exportDetailExcelWithMultiHeader(viewInfo, viewDataInfo, title = '明细表') {
+export async function exportDetailExcelWithMultiHeader(
+    viewInfo,
+    viewDataInfo,
+    title = '明细表',
+    actualLeafKeys = null,
+    actualGroupingKeys = null,
+    groupKeyToLeafIndexMap = {},
+    expectedSecondaryKeyOrderMap = {} // 新参数，例如 expectedDateOrderInShop
+) {
     // 1. 获取分组结构
     const rawViewInfo = viewInfo.value || viewInfo._value || viewInfo
     const headerGroupConfig = rawViewInfo.customAttr?.tableHeader?.headerGroupConfig
@@ -1539,84 +1547,177 @@ export async function exportDetailExcelWithMultiHeader(viewInfo, viewDataInfo, t
         // ====== 多级表头导出 ======
         const maxLevel = getMaxLevel(columns)
         const workbook = new ExcelJS.Workbook()
-        const worksheet = workbook.addWorksheet(title)
-        writeMultiHeader(worksheet, columns, meta, keyNameMap, 1, 1, maxLevel)
-        // 获取所有叶子节点
-        const leafNodes = []
-        function collectLeaf(node) {
-            if (!node.children || node.children.length === 0) {
-                leafNodes.push(node)
-            } else {
-                node.children.forEach(collectLeaf)
-            }
-        }
-        columns.forEach(collectLeaf)
-        // 只合并前N个分组字段（如2个分组字段）
-        const mergeFieldKeys = leafNodes.map(n => n.key).slice(0, 2)
-        // 排序
-        function sortTableRowByKeys(tableRow, keys) {
+        // 使用传入的 title，确保是字符串
+        const worksheet = workbook.addWorksheet(String(title));
+        writeMultiHeader(worksheet, columns, meta, keyNameMap, 1, 1, maxLevel);
+
+        // 1. 使用传入的 leafKeys (决定列顺序)
+        const leafKeys = actualLeafKeys;
+        if (!leafKeys || leafKeys.length === 0) { /* error */ return; }
+
+        // 2. 使用传入的 groupingKeys (决定哪些 key 需要计算合并区间)
+        const groupingKeys = actualGroupingKeys;
+
+        // 3. 排序 (基于 groupingKeys)
+        function sortTableRowByKeys(tableRow, primaryKeys, secondaryKey, expectedOrderMapForSecondary) {
+            // primaryKeys 应该是一个数组，例如 [shopFieldKey]
+            // secondaryKey 应该是单个键，例如 dateFieldKey
+            // expectedOrderMapForSecondary 的结构是 { shopValue1: [date1, date2, ...], shopValue2: [...] }
             return tableRow.slice().sort((a, b) => {
-                for (let key of keys) {
-                    if (a[key] < b[key]) return -1
-                    if (a[key] > b[key]) return 1
+                let shopValueA, shopValueB;
+                // 1. 按主要分组键排序 (店铺)
+                for (let pk of primaryKeys) {
+                    shopValueA = a[pk]; // 记录下当前比较行的店铺值
+                    shopValueB = b[pk];
+                    if (shopValueA < shopValueB) return -1;
+                    if (shopValueA > shopValueB) return 1;
                 }
-                return 0
-            })
-        }
-        const tableRow = viewDataInfo.tableRow || []
-        const sortedTableRow = mergeFieldKeys.length > 0 ? sortTableRowByKeys(tableRow, mergeFieldKeys) : tableRow
-        // ====== 合并标记+批量合并方案 ======
-        // 1. 生成每个分组字段的合并区间
-        const mergeRanges = {}
-        mergeFieldKeys.forEach((key) => {
-            mergeRanges[key] = []
-            let start = 0
-            for (let i = 1; i <= sortedTableRow.length; i++) {
-                if (i === sortedTableRow.length || sortedTableRow[i][key] !== sortedTableRow[start][key]) {
-                    if (i - start > 1) {
-                        mergeRanges[key].push({ start, end: i - 1 })
+
+                // 2. 如果主要分组键相同 (即 shopValueA === shopValueB)，并且次级键和期望顺序图存在
+                if (secondaryKey && expectedOrderMapForSecondary) {
+                    const currentShopValue = shopValueA; // 或者 shopValueB，因为它们相等
+                    const expectedOrder = expectedOrderMapForSecondary[currentShopValue];
+
+                    if (expectedOrder) {
+                        const indexA = expectedOrder.indexOf(a[secondaryKey]);
+                        const indexB = expectedOrder.indexOf(b[secondaryKey]);
+
+                        if (indexA !== -1 && indexB !== -1) { // 两者都在期望顺序中
+                            if (indexA < indexB) return -1;
+                            if (indexA > indexB) return 1;
+                        } else if (indexA !== -1) { // 只有 a 在期望顺序中
+                            return -1;
+                        } else if (indexB !== -1) { // 只有 b 在期望顺序中
+                            return 1;
+                        }
+                        // 如果都不在期望的顺序列表中（理论上不应该发生，如果expectedOrderMap是完整的）
+                        // 或者其中一个不在，可以回退到默认比较或保持原相对顺序（返回0）
                     }
-                    start = i
                 }
-            }
-        })
-        // 2. 写入数据（分组字段只在合并区间首行写值，其余行写空）
-        for (let rowIdx = 0; rowIdx < sortedTableRow.length; rowIdx++) {
-            const row = []
-            leafNodes.forEach((field) => {
-                // 如果当前字段是分组合并字段
-                if (
-                    mergeFieldKeys.includes(field.key) &&
-                    mergeRanges[field.key].some(r => rowIdx > r.start && rowIdx <= r.end)
-                ) {
-                    row.push('')
-                } else {
-                    row.push(sortedTableRow[rowIdx][field.key])
+
+                // 3. 如果没有期望顺序，或者期望顺序未定义当前店铺/日期，回退到对次级键的默认升序
+                if (secondaryKey) {
+                    if (a[secondaryKey] < b[secondaryKey]) return -1;
+                    if (a[secondaryKey] > b[secondaryKey]) return 1;
                 }
-            })
-            worksheet.addRow(row)
+
+                // 4. 如果所有比较键都相同，保持原始相对顺序或不改变
+                return 0;
+            });
         }
-        // 3. 批量合并单元格
-        const dataStartRow = maxLevel + 1
+        const tableRow = viewDataInfo.tableRow || [];
+        let sortedTableRow = tableRow;
 
-        // 调试打印
-        console.log('mergeFieldKeys: ', mergeFieldKeys)
-        console.log('leafNodes: ', leafNodes)
-        console.log('mergeRanges: ', mergeRanges)
+        if (actualGroupingKeys?.length > 0) {
+            const shopFieldKey = actualGroupingKeys[0]; // 店铺的 key
+            const dateFieldKey = actualGroupingKeys.length > 1 ? actualGroupingKeys[1] : null; // 日期的 key
 
-        // 只对 leafNodes 里存在的分组字段做合并
-        mergeFieldKeys.forEach((key) => {
-            const colIdx = leafNodes.findIndex(n => n.key === key)
-            if (colIdx === -1) return
-            if (!mergeRanges[key] || mergeRanges[key].length === 0) return
-            mergeRanges[key].forEach(r => {
-                worksheet.mergeCells(r.start + dataStartRow, colIdx + 1, r.end + dataStartRow, colIdx + 1)
-            })
-        })
+            // 只有当店铺和日期键都存在，并且有期望顺序图时，才使用自定义排序
+            if (shopFieldKey && dateFieldKey && Object.keys(expectedSecondaryKeyOrderMap).length > 0) {
+                sortedTableRow = sortTableRowByKeys(tableRow, [shopFieldKey], dateFieldKey, expectedSecondaryKeyOrderMap);
+            } else {
+                // 否则，回退到基于 actualGroupingKeys 的默认排序
+                sortedTableRow = sortTableRowByKeys(tableRow, actualGroupingKeys, null, null); // 或者调用一个只接受 keys 的旧版排序函数
+            }
+        }
+        console.log('sortedTableRow (after applying expected order if available): ', sortedTableRow);
+
+        // 4. 生成分层合并区间 (Accurate Hierarchical Recursive Logic - FINAL VERSION)
+        const mergeRanges = {};
+        if (actualGroupingKeys?.length > 0) { //  <<<<< 注意：这里的分组合并判断依旧使用 actualGroupingKeys
+            actualGroupingKeys.forEach(key => { mergeRanges[key] = []; });
+
+            function calculateRangesRecursive(keyIndex, parentRanges) {
+                if (keyIndex >= actualGroupingKeys.length || !parentRanges || parentRanges.length === 0) {
+                    return;
+                }
+                const currentKey = actualGroupingKeys[keyIndex];
+                const nextLevelRanges = [];
+
+                parentRanges.forEach(pRange => {
+                    if (pRange.start > pRange.end || pRange.start >= sortedTableRow.length) return;
+                    let blockStart = pRange.start;
+                    for (let i = pRange.start; i <= pRange.end; i++) { // Iterate within the parent range
+                        // End of current block if:
+                        // 1. Reached end of parentRange
+                        // 2. OR value of currentKey changes
+                        if (i === pRange.end || sortedTableRow[i + 1]?.[currentKey] !== sortedTableRow[blockStart]?.[currentKey]) {
+                            const blockEnd = i;
+                            if (blockEnd >= blockStart && blockEnd - blockStart + 1 > 1) {
+                                mergeRanges[currentKey].push({ start: blockStart, end: blockEnd });
+                            }
+                            if (blockEnd >= blockStart) { // Pass this block to the next level
+                                nextLevelRanges.push({ start: blockStart, end: blockEnd });
+                            }
+                            blockStart = i + 1; // Start next block
+                        }
+                    }
+                });
+                calculateRangesRecursive(keyIndex + 1, nextLevelRanges);
+            }
+            calculateRangesRecursive(0, [{ start: 0, end: sortedTableRow.length - 1 }]);
+        }
+        console.log('Final Accurate Recursive Merge Ranges:', mergeRanges);
+
+        // 5. 写入数据 (按 leafKeys 顺序 - Keep previous fix)
+        for (let rowIdx = 0; rowIdx < sortedTableRow.length; rowIdx++) {
+            const row = [];
+            // 使用 actualLeafKeys 保证列的输出顺序
+            actualLeafKeys.forEach((leafKey, colIdx) => {
+                let valueToWrite = sortedTableRow[rowIdx]?.[leafKey] ?? '';
+                let shouldWriteEmpty = false;
+                // Check if this specific column (colIdx) is the designated column
+                // for *any* grouping key that has a merge range for this row
+                // 这里的 groupKeyToLeafIndexMap 的 key 应该是 actualGroupingKeys 里的元素
+                for (const groupKey in groupKeyToLeafIndexMap) {
+                    if (actualGroupingKeys.includes(groupKey) && groupKeyToLeafIndexMap[groupKey] === colIdx) { // Is this column controlled by a groupKey from actualGroupingKeys?
+                        if (
+                            mergeRanges[groupKey] && // Does this groupKey have ranges?
+                            mergeRanges[groupKey].some(r => rowIdx > r.start && rowIdx <= r.end) // Is this row in a non-first position of a range?
+                        ) {
+                            shouldWriteEmpty = true;
+                            break;
+                        }
+                    }
+                }
+                row.push(shouldWriteEmpty ? '' : valueToWrite);
+            });
+            worksheet.addRow(row);
+        }
+
+        // 6. 批量合并单元格 (Revised with tracker - Logic largely remains)
+        const dataStartRow = maxLevel + 1;
+        if (actualGroupingKeys?.length > 0 && Object.keys(groupKeyToLeafIndexMap).length > 0) {
+            const mergedCellTracker = new Set();
+            // 这里的迭代顺序也应该基于 actualGroupingKeys，以匹配 mergeRanges 的构建
+            actualGroupingKeys.forEach(groupingKey => { // Iterate in the order of actualGroupingKeys
+                const colIdx = groupKeyToLeafIndexMap[groupingKey];
+                if (colIdx !== undefined && colIdx !== -1 && mergeRanges[groupingKey]?.length > 0) {
+                    mergeRanges[groupingKey].forEach(r => {
+                        const cellKey = `${r.start + dataStartRow}:${colIdx + 1}`;
+                        if (!mergedCellTracker.has(cellKey)) {
+                            try {
+                                worksheet.mergeCells(r.start + dataStartRow, colIdx + 1, r.end + dataStartRow, colIdx + 1);
+                                for (let row = r.start; row <= r.end; row++) {
+                                    // Mark only the top-left cell of a merged area to simplify tracking
+                                    // More precise tracking might be needed if sub-merges are possible within a merged area by another key
+                                    mergedCellTracker.add(`${row + dataStartRow}:${colIdx + 1}`);
+                                }
+                            } catch (e) {
+                                console.error(`Error merging cells for key ${groupingKey} at col ${colIdx + 1}, range ${r.start}-${r.end}:`, e);
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
         // 可加样式、自动列宽
-        const buffer = await workbook.xlsx.writeBuffer()
-        saveAs(new Blob([buffer]), `${title}.xlsx`)
-        return
+
+        // 7. 保存文件
+        const buffer = await workbook.xlsx.writeBuffer();
+        saveAs(new Blob([buffer]), `${String(title)}.xlsx`); // 确保 title 是字符串
+        return;
     }
 
     // ====== 普通导出Excel（无分组）======
