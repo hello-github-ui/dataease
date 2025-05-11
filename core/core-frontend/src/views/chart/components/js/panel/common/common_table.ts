@@ -36,10 +36,12 @@ import { cloneDeep, filter, find, intersection, keys, merge, repeat } from 'loda
 import { createVNode, render } from 'vue'
 import TableTooltip from '@/views/chart/components/editor/common/TableTooltip.vue'
 import Exceljs from 'exceljs'
+import ExcelJS from 'exceljs'
 import { saveAs } from 'file-saver'
 import { ElMessage } from 'element-plus-secondary'
 import { useI18n } from '@/hooks/web/useI18n'
-import ExcelJS from "exceljs";
+// 明细表获取全部数据
+import { getData } from '@/api/chart'
 
 const { t: i18nt } = useI18n()
 
@@ -1486,37 +1488,53 @@ export async function exportPivotExcel(instance: PivotSheet, chart: ChartObj) {
     }
 }
 
-// 明细表获取全部数据
-import { getData } from '@/api/chart'
 export async function fetchAllTableRows(view, pageSize = 100) {
-    // 1. 先请求第一页，拿到总条数
-    const v = JSON.parse(JSON.stringify(view))
-    console.log('v: ', v)
-    v.chartExtRequest = v.chartExtRequest || {}
-    v.chartExtRequest.pageNo = 1
-    v.chartExtRequest.pageSize = pageSize
-    const firstResp = await getData(v)
-    const total = firstResp.totalItems || firstResp.total || 0
-    console.log('total: ', total)
-    const totalPages = Math.ceil(total / pageSize)
-    let allRows = (firstResp.tableRow || []).slice()
-    // 2. 循环请求后续页
-    const promises = []
+    // Directly use standard pagination logic
+    console.log('[fetchAllTableRows] Using standard pagination logic from the start.');
+    console.log('[fetchAllTableRows] Initial view object for pagination:', JSON.parse(JSON.stringify(view)));
+
+    let allRows = [];
+    const standardFirstPageReq = JSON.parse(JSON.stringify(view));
+    standardFirstPageReq.chartExtRequest = standardFirstPageReq.chartExtRequest || {};
+    standardFirstPageReq.chartExtRequest.pageNo = 1;
+    standardFirstPageReq.chartExtRequest.pageSize = pageSize;
+    delete standardFirstPageReq.chartExtRequest.resultMode;
+    delete standardFirstPageReq.chartExtRequest.resultCount;
+
+    console.log('[fetchAllTableRows] Standard pagination - First page request object being sent:', JSON.parse(JSON.stringify(standardFirstPageReq)));
+    const standardFirstResp = await getData(standardFirstPageReq);
+    console.log('[fetchAllTableRows] Standard pagination - First page response:', standardFirstResp);
+
+    allRows = (standardFirstResp.data?.tableRow || []).slice();
+    const totalForPagination = standardFirstResp.data?.totalItems || standardFirstResp.data?.total || allRows.length;
+    const totalPages = Math.ceil(totalForPagination / pageSize);
+
+    const promises = [];
     for (let page = 2; page <= totalPages; page++) {
-        const pageReq = JSON.parse(JSON.stringify(view))
-        pageReq.chartExtRequest = pageReq.chartExtRequest || {}
-        pageReq.chartExtRequest.pageNo = page
-        pageReq.chartExtRequest.pageSize = pageSize
-        promises.push(getData(pageReq))
+        const nextPageReq = JSON.parse(JSON.stringify(view));
+        nextPageReq.chartExtRequest = nextPageReq.chartExtRequest || {};
+        nextPageReq.chartExtRequest.pageNo = page;
+        nextPageReq.chartExtRequest.pageSize = pageSize;
+        delete nextPageReq.chartExtRequest.resultMode;
+        delete nextPageReq.chartExtRequest.resultCount;
+        // console.log(`[fetchAllTableRows] Standard pagination - Next page (${page}) request object:`, JSON.parse(JSON.stringify(nextPageReq)));
+        promises.push(getData(nextPageReq));
     }
-    const results = await Promise.all(promises)
+    const results = await Promise.all(promises);
     results.forEach(resp => {
-        const rows = resp.tableRow || []
-        allRows = allRows.concat(rows)
-    })
-    // 返回完整数据对象（合并所有tableRow）
-    const fullDataObj = { ...firstResp, tableRow: allRows }
-    return fullDataObj
+        const rows = resp.data?.tableRow || [];
+        allRows = allRows.concat(rows);
+    });
+
+    return {
+        ...standardFirstResp,
+        data: {
+            ...(standardFirstResp.data || {}),
+            tableRow: allRows,
+            totalItems: totalForPagination,
+            total: totalForPagination
+        }
+    };
 }
 
 // 下载带格式的 Excel（明细表），包括多级表头
@@ -1529,31 +1547,35 @@ export async function exportDetailExcelWithMultiHeader(
     groupKeyToLeafIndexMap = {},
     expectedSecondaryKeyOrderMap = {} // 新参数，例如 expectedDateOrderInShop
 ) {
-    // 1. 获取分组结构
-    const rawViewInfo = viewInfo.value || viewInfo._value || viewInfo
-    const headerGroupConfig = rawViewInfo.customAttr?.tableHeader?.headerGroupConfig
-    const columns = headerGroupConfig?.columns
-    const meta = headerGroupConfig?.meta || []
+    // 统一在函数开始处获取 rawViewInfo
+    const rawViewInfo = viewInfo.value || viewInfo._value || viewInfo;
 
-    // 2. 获取字段名映射
-    const fields = viewDataInfo.fields || viewDataInfo.sourceFields || []
-    const keyNameMap = {}
+    // 1. 获取分组结构 (用于多级表头判断)
+    const headerGroupConfig = rawViewInfo.customAttr?.tableHeader?.headerGroupConfig;
+    const columns = headerGroupConfig?.columns;
+    const meta = headerGroupConfig?.meta || [];
+
+    // 2. 获取字段名映射 (两个分支都需要)
+    const fields = viewDataInfo.fields || viewDataInfo.sourceFields || [];
+    const keyNameMap = {};
     fields.forEach(f => {
-        keyNameMap[f.dataeaseName || f.key] = f.name
-    })
+        keyNameMap[f.dataeaseName || f.key] = f.name;
+    });
 
     // 3. 判断是否有分组合并（一级表头）
     if (meta && Array.isArray(meta) && meta.length > 0 && columns && columns.length > 0) {
         // ====== 多级表头导出 ======
-        const maxLevel = getMaxLevel(columns)
-        const workbook = new ExcelJS.Workbook()
+        const maxLevel = getMaxLevel(columns);
+        const workbook = new ExcelJS.Workbook();
         // 使用传入的 title，确保是字符串
         const worksheet = workbook.addWorksheet(String(title));
         writeMultiHeader(worksheet, columns, meta, keyNameMap, 1, 1, maxLevel);
 
         // 1. 使用传入的 leafKeys (决定列顺序)
         const leafKeys = actualLeafKeys;
-        if (!leafKeys || leafKeys.length === 0) { /* error */ return; }
+        if (!leafKeys || leafKeys.length === 0) { /* error */
+            return;
+        }
 
         // 2. 使用传入的 groupingKeys (决定哪些 key 需要计算合并区间)
         const groupingKeys = actualGroupingKeys;
@@ -1605,6 +1627,7 @@ export async function exportDetailExcelWithMultiHeader(
                 return 0;
             });
         }
+
         const tableRow = viewDataInfo.tableRow || [];
         let sortedTableRow = tableRow;
 
@@ -1625,7 +1648,9 @@ export async function exportDetailExcelWithMultiHeader(
         // 4. 生成分层合并区间 (Accurate Hierarchical Recursive Logic - FINAL VERSION)
         const mergeRanges = {};
         if (actualGroupingKeys?.length > 0) { //  <<<<< 注意：这里的分组合并判断依旧使用 actualGroupingKeys
-            actualGroupingKeys.forEach(key => { mergeRanges[key] = []; });
+            actualGroupingKeys.forEach(key => {
+                mergeRanges[key] = [];
+            });
 
             function calculateRangesRecursive(keyIndex, parentRanges) {
                 if (keyIndex >= actualGroupingKeys.length || !parentRanges || parentRanges.length === 0) {
@@ -1655,6 +1680,7 @@ export async function exportDetailExcelWithMultiHeader(
                 });
                 calculateRangesRecursive(keyIndex + 1, nextLevelRanges);
             }
+
             calculateRangesRecursive(0, [{ start: 0, end: sortedTableRow.length - 1 }]);
         }
         console.log('Final Accurate Recursive Merge Ranges:', mergeRanges);
@@ -1725,19 +1751,140 @@ export async function exportDetailExcelWithMultiHeader(
         ElMessage.error('明细表字段定义为空，无法导出')
         return
     }
-    const workbook = new ExcelJS.Workbook()
-    const worksheet = workbook.addWorksheet(title)
-    // 写入表头
-    worksheet.addRow(fields.map(f => f.name))
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet(String(title)); // 确保 title 是字符串
+
+    // 准备表头行数据
+    const fieldsForExport = viewDataInfo.fields || viewDataInfo.sourceFields || [];
+    const headerRowValues = fieldsForExport.map(f => f.name);
+    const addedHeaderRow = worksheet.addRow(headerRowValues);
+
+    // 设置表头样式
+    addedHeaderRow.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; // 白色粗体字
+        cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF1E90FF' } // 蓝色背景
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+        };
+    });
+
     // 写入数据
-    const tableRow = viewDataInfo.tableRow || []
-    tableRow.forEach(row => {
-        worksheet.addRow(fields.map(f => row[f.dataeaseName || f.key]))
-    })
-    // 可加样式、自动列宽
-    const buffer = await workbook.xlsx.writeBuffer()
-    saveAs(new Blob([buffer]), `${title}.xlsx`)
+    const tableDataRows = viewDataInfo.tableRow || [];
+
+    // 检查是否需要合并第一列 (针对普通表)
+    const mergeCellsConfig = rawViewInfo.customAttr?.tableCell?.mergeCells;
+    const dimensionFieldsFromXAxis = (rawViewInfo.xAxis || []).filter(f => f.groupType === 'd');
+    const activeDimensionFieldDataeaseNames = dimensionFieldsFromXAxis.map(f => f.dataeaseName);
+
+    const finalMergeRangesForWorksheet = {};
+
+    if (mergeCellsConfig && activeDimensionFieldDataeaseNames.length > 0 && tableDataRows.length > 0) {
+        let activeRanges = [{ start: 0, end: tableDataRows.length - 1 }];
+
+        for (const fieldKey of activeDimensionFieldDataeaseNames) {
+            finalMergeRangesForWorksheet[fieldKey] = [];
+            const nextActiveRanges = [];
+
+            for (const range of activeRanges) {
+                if (range.start > range.end || range.start >= tableDataRows.length) continue;
+
+                let currentBlockStartRow = range.start;
+                for (let currentRow = range.start; currentRow <= range.end; currentRow++) {
+                    const currentValue = tableDataRows[currentRow]?.[fieldKey];
+                    // Check next row within the current range or if it's the last row of the table
+                    const nextRowValue = (currentRow + 1 <= range.end) ? tableDataRows[currentRow + 1]?.[fieldKey] : undefined;
+
+                    if (currentRow === range.end || currentValue !== nextRowValue) {
+                        if (currentRow >= currentBlockStartRow && (currentRow - currentBlockStartRow + 1) > 1) {
+                            finalMergeRangesForWorksheet[fieldKey].push({ start: currentBlockStartRow, end: currentRow });
+                        }
+                        nextActiveRanges.push({ start: currentBlockStartRow, end: currentRow });
+                        currentBlockStartRow = currentRow + 1;
+                    }
+                }
+            }
+            activeRanges = nextActiveRanges;
+            if (activeRanges.length === 0) break;
+        }
+        // console.log('Plain table export - Final Hierarchical Merge Ranges:', finalMergeRangesForWorksheet);
+    }
+
+
+    tableDataRows.forEach((dataRow, rowIndex) => {
+        const rowValues = [];
+        fieldsForExport.forEach((field) => {
+            const fieldKey = field.dataeaseName || field.key;
+            let valueToWrite = dataRow[fieldKey] ?? '';
+
+            if (finalMergeRangesForWorksheet[fieldKey]) {
+                if (finalMergeRangesForWorksheet[fieldKey].some(r => rowIndex > r.start && rowIndex <= r.end)) {
+                    valueToWrite = '';
+                }
+            }
+            rowValues.push(valueToWrite);
+        });
+        const addedDataRow = worksheet.addRow(rowValues);
+        addedDataRow.eachCell((cell) => {
+            cell.alignment = { vertical: 'middle', horizontal: 'left' }; // 数据左对齐
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+        });
+    });
+
+    // 批量合并第一列 (如果需要)
+    const dataStartRowOffset = 2; // 表头占1行，数据从第2行开始（ExcelJS是1-indexed）
+    if (mergeCellsConfig && activeDimensionFieldDataeaseNames.length > 0) {
+        activeDimensionFieldDataeaseNames.forEach(fieldKey => {
+            const colIndex = fieldsForExport.findIndex(f => (f.dataeaseName || f.key) === fieldKey);
+            if (colIndex !== -1 && finalMergeRangesForWorksheet[fieldKey]?.length > 0) {
+                finalMergeRangesForWorksheet[fieldKey].forEach(r => {
+                    worksheet.mergeCells(r.start + dataStartRowOffset, colIndex + 1, r.end + dataStartRowOffset, colIndex + 1);
+                    // 设置合并后单元格的样式，特别是边框和对齐
+                    const mergedCell = worksheet.getCell(r.start + dataStartRowOffset, colIndex + 1);
+                    mergedCell.border = {
+                        top: { style: 'thin' },
+                        left: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        right: { style: 'thin' }
+                    };
+                    mergedCell.alignment = { vertical: 'middle', horizontal: mergedCell.alignment?.horizontal || 'left' };
+                });
+            }
+        });
+    }
+
+    // 自动调整列宽 (确保在所有内容写入和合并后进行)
+    worksheet.columns.forEach(column => {
+        let maxLength = 0;
+        column.eachCell({ includeEmpty: true }, cell => {
+            const cellValue = cell.value;
+            // ExcelJS might return RichText instances, so check for .toString()
+            const columnLength = cellValue ? (typeof cellValue === 'object' && cellValue.richText ? cellValue.richText.map(rt => rt.text).join('').length : cellValue.toString().length) : 10;
+            if (columnLength > maxLength) {
+                maxLength = columnLength;
+            }
+        });
+        column.width = maxLength < 10 ? 10 : maxLength + 2;
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), `${String(title)}.xlsx`);
+    // 这个 return 是为了确保如果走了普通导出分支，就不会再执行任何后续代码（虽然理论上不应该有）
+    return;
 }
+
 // 下载带格式的 Excel（明细表） 辅助函数 start
 function writeMultiHeader(worksheet, columns, meta, keyNameMap, startRow = 1, startCol = 1, maxLevel = 1) {
     let col = startCol
@@ -1765,10 +1912,12 @@ function writeMultiHeader(worksheet, columns, meta, keyNameMap, startRow = 1, st
         col += colSpan
     })
 }
+
 function getLeafCount(node) {
     if (!node.children || node.children.length === 0) return 1
     return node.children.reduce((sum, child) => sum + getLeafCount(child), 0)
 }
+
 function getMaxLevel(columns, level = 1) {
     let max = level
     columns.forEach(node => {
@@ -1779,6 +1928,7 @@ function getMaxLevel(columns, level = 1) {
     })
     return max
 }
+
 // 下载带格式的 Excel（明细表） 辅助函数 end
 
 export function configMergeCells(chart: Chart, options: S2Options, dataConfig: S2DataConfig) {

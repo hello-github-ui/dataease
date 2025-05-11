@@ -401,21 +401,50 @@ const exportAsFormattedExcel = async () => {
     if (viewInfo.value.type === 'table-pivot') {
         exportPivotExcel(s2Instance, chart)
     } else if (viewInfo.value.type === 'table-info') {
-        // 明细表的带格式导出实现
-        // 1、拉取全量数据
-        console.log('viewInfo.value: ', viewInfo.value)
-        const allData = await fetchAllTableRows(viewInfo.value, 100);
-        console.log('allData: ', allData);
+        const rawViewInfo = viewInfo.value;
 
-        const headerGroupConfig = viewInfo.value.customAttr?.tableHeader?.headerGroupConfig;
-        const columns = headerGroupConfig?.columns;
-        if (!columns || columns.length === 0) {
-            console.error("Columns definition is missing in headerGroupConfig.");
-            exportDetailExcelWithMultiHeader(viewInfo, allData.data, viewInfo.value.title || '明细表'); // 降级到无分组导出
+        // 1. 获取S2首页顺序
+        const s2FirstPageRows = s2Instance.dataSet.getDisplayDataSet() || [];
+        // 2. 获取全量API顺序
+        const allDataFetched = await fetchAllTableRows(rawViewInfo, 100);
+        const allRows = allDataFetched.data?.tableRow || [];
+        // 3. 获取每页条数
+        const pageSize = rawViewInfo.customAttr?.basicStyle?.tablePageSize || 20;
+        // 4. 拆分后续页
+        const restRows = allRows.slice(pageSize);
+        // 5. 拼接
+        const finalRows = [...s2FirstPageRows, ...restRows];
+
+        let s2MetaFields = null; 
+        if (s2Instance && s2Instance.options?.dataCfg?.fields) {
+            s2MetaFields = s2Instance.options.dataCfg.fields;
+            console.log("S2 options.dataCfg.fields captured for field definitions (column order/names).");
+        }
+        const sourceFieldsForExport = allDataFetched.data?.fields || allDataFetched.data?.sourceFields || [];
+        const fieldsForExport = s2MetaFields ? 
+            (s2MetaFields.values || s2MetaFields.columns || s2MetaFields.rows || []).map(f_key => {
+                const f_detail = sourceFieldsForExport.find(fd => fd.dataeaseName === f_key || fd.key === f_key);
+                return f_detail || { key: f_key, name: f_key, dataeaseName: f_key };
+            }) 
+            : sourceFieldsForExport;
+
+        const viewDataInfoForExport = {
+            ...(allDataFetched.data || {}),
+            tableRow: finalRows,
+            fields: fieldsForExport
+        };
+
+        const headerGroupConfig = rawViewInfo.customAttr?.tableHeader?.headerGroupConfig;
+        const configColumns = headerGroupConfig?.columns;
+
+        if (!configColumns || configColumns.length === 0) {
+            console.log("No valid headerGroupConfig.columns found, treating as a plain table export.");
+            exportDetailExcelWithMultiHeader(viewInfo, viewDataInfoForExport, rawViewInfo.title || '明细表');
             return;
         }
 
-        // 1. 获取所有叶子节点 key (输出列顺序，严格深度优先)
+        console.log('Valid headerGroupConfig.columns found, proceeding with multi-header export logic.');
+
         const leafKeys = [];
         function collectLeafKeysRecursive(nodes) {
             nodes?.forEach(node => {
@@ -426,29 +455,57 @@ const exportAsFormattedExcel = async () => {
                 }
             });
         }
-        collectLeafKeysRecursive(columns);
+        collectLeafKeysRecursive(configColumns);
 
-        // 2. 获取语义上的分组节点key，以确定分组层级数
-        const semanticGroupNodeKeysRaw = [];
-        function findSemanticGroupNodeKeysRecursive(nodes) {
-            nodes?.forEach(node => {
-                if (node.children && node.children.length > 0) {
-                    semanticGroupNodeKeysRaw.push(String(node.key));
-                    // 递归查找所有层级的语义分组节点
-                    findSemanticGroupNodeKeysRecursive(node.children);
+        if (leafKeys.length === 0 && configColumns.length > 0) {
+            console.warn("collectLeafKeysRecursive did not populate leafKeys, attempting direct map from configColumns.");
+            configColumns.forEach(node => leafKeys.push(String(node.key)));
+        }
+
+        if (leafKeys.length === 0) {
+            console.error("Failed to derive leafKeys. Check table header configuration or data structure.");
+            exportDetailExcelWithMultiHeader(viewInfo, viewDataInfoForExport, rawViewInfo.title || '明细表');
+            return;
+        }
+
+        let tempActualGroupingKeys = [];
+        const customAttr = rawViewInfo.customAttr;
+        const tableCellMerge = customAttr?.tableCell?.mergeCells;
+        const xAxisFields = rawViewInfo.xAxis || [];
+
+        if (tableCellMerge && xAxisFields.length > 0) {
+            const dimensionFieldDataeaseNames = new Set(
+                xAxisFields.filter(f => f.groupType === 'd').map(f => f.dataeaseName)
+            );
+            leafKeys.forEach(lk => {
+                if (dimensionFieldDataeaseNames.has(lk)) {
+                    tempActualGroupingKeys.push(lk);
                 }
             });
+            if (tempActualGroupingKeys.length === 0 && leafKeys.length > 0) {
+                tempActualGroupingKeys.push(leafKeys[0]);
+            }
+        } else if (leafKeys.length > 0) {
+            const semanticGroupNodeKeysRaw = [];
+            function findSemanticGroupNodeKeysRecursive(nodes) {
+                nodes?.forEach(node => {
+                    if (node.children && node.children.length > 0) {
+                        semanticGroupNodeKeysRaw.push(String(node.key));
+                        findSemanticGroupNodeKeysRecursive(node.children);
+                    }
+                });
+            }
+            findSemanticGroupNodeKeysRecursive(configColumns);
+            const uniqueSemanticGroupNodeKeys = [...new Set(semanticGroupNodeKeysRaw)];
+            let numBasedOnStructure = uniqueSemanticGroupNodeKeys.length;
+            if (numBasedOnStructure === 0 && leafKeys.length > 0) {
+                numBasedOnStructure = 1;
+            }
+            tempActualGroupingKeys = leafKeys.slice(0, Math.min(numBasedOnStructure, leafKeys.length));
         }
-        findSemanticGroupNodeKeysRecursive(columns);
-        // 使用 Set 获取唯一的语义分组节点key，其数量代表分组层级
-        const uniqueSemanticGroupNodeKeys = [...new Set(semanticGroupNodeKeysRaw)];
-        const numGroupingLevels = uniqueSemanticGroupNodeKeys.length;
 
-        // 3. 确定实际用于分组的数据字段key (actualGroupingKeys)
-        // 这些是 leafKeys 中的前 numGroupingLevels 个字段
-        const actualDataFieldKeysForGrouping = leafKeys.slice(0, numGroupingLevels);
+        const actualDataFieldKeysForGrouping = tempActualGroupingKeys;
 
-        // 4. 创建 actualDataFieldKeysForGrouping 到其在 leafKeys 中索引的映射
         const actualGroupKeyToLeafIndexMap = {};
         actualDataFieldKeysForGrouping.forEach(key => {
             const index = leafKeys.indexOf(key);
@@ -457,27 +514,24 @@ const exportAsFormattedExcel = async () => {
             }
         });
 
-        // Attempt to get the displayed order of dates within each shop group from S2 instance
         const expectedDateOrderInShop = {};
         if (s2Instance && actualDataFieldKeysForGrouping.length >= 2) {
-            const shopFieldKey = actualDataFieldKeysForGrouping[0]; // Assumes first grouping key is shop
-            const dateFieldKey = actualDataFieldKeysForGrouping[1]; // Assumes second grouping key is date
+            const primaryGroupKey = actualDataFieldKeysForGrouping[0];
+            const secondaryGroupKey = actualDataFieldKeysForGrouping[1];
             const displayData = s2Instance.dataSet.getDisplayDataSet();
 
-            if (displayData && shopFieldKey && dateFieldKey) {
-                console.log('S2 getDisplayDataSet():', displayData.slice(0, 5)); // Log first 5 rows for inspection
+            if (displayData && primaryGroupKey && secondaryGroupKey) {
+                console.log('S2 getDisplayDataSet():', displayData.slice(0, 5));
                 displayData.forEach(row => {
-                    const shopValue = row[shopFieldKey];
-                    const dateValue = row[dateFieldKey];
+                    const shopValue = row[primaryGroupKey];
+                    const dateValue = row[secondaryGroupKey];
                     if (shopValue && dateValue !== undefined && dateValue !== null) {
                         if (!expectedDateOrderInShop[shopValue]) {
                             expectedDateOrderInShop[shopValue] = [];
                         }
-                        // Add dateValue only if it's not already the last one added for this shop
-                        // This tries to capture the sequence as S2 renders it, robust to some data quirks
                         const shopDates = expectedDateOrderInShop[shopValue];
                         if (shopDates.length === 0 || shopDates[shopDates.length - 1] !== dateValue) {
-                             if (!shopDates.includes(dateValue)) { // Only add if not present to represent unique sequence
+                             if (!shopDates.includes(dateValue)) {
                                 shopDates.push(dateValue);
                              }
                         }
@@ -493,15 +547,65 @@ const exportAsFormattedExcel = async () => {
 
         exportDetailExcelWithMultiHeader(
             viewInfo,
-            allData.data,
-            viewInfo.value.title || '明细表',
-            leafKeys, // 传递完整的 leafKeys (决定列顺序)
-            actualDataFieldKeysForGrouping, // 传递实际用于排序和合并区间计算的字段key
-            actualGroupKeyToLeafIndexMap,    // 传递这些字段key到其列索引的映射
-            expectedDateOrderInShop // NEW: Pass the expected order map
+            viewDataInfoForExport,
+            rawViewInfo.title || '明细表',
+            leafKeys,
+            actualDataFieldKeysForGrouping,
+            actualGroupKeyToLeafIndexMap,
+            expectedDateOrderInShop
         );
     }
 }
+
+// Helper functions for sorting (can be placed at the top level of the script setup or imported from a util)
+function valueCompare(valA, valB, deType) {
+    const aIsNull = valA === null || valA === undefined;
+    const bIsNull = valB === null || valB === undefined;
+    if (aIsNull && bIsNull) return 0;
+    if (aIsNull) return -1;
+    if (bIsNull) return 1;
+
+    if (deType === 1) { // DATETIME
+        // Ensure valid dates before comparing
+        const timeA = new Date(valA).getTime();
+        const timeB = new Date(valB).getTime();
+        if (isNaN(timeA) && isNaN(timeB)) return 0;
+        if (isNaN(timeA)) return -1;
+        if (isNaN(timeB)) return 1;
+        return timeA - timeB;
+    } else if (deType === 2 || deType === 3 || deType === 4) { // BIGINT, DECIMAL, NUMBER (assuming 4 is also numeric like INTEGER)
+        valA = parseFloat(valA);
+        valB = parseFloat(valB);
+        if (isNaN(valA) && isNaN(valB)) return 0;
+        if (isNaN(valA)) return -1;
+        if (isNaN(valB)) return 1;
+        return valA - valB;
+    } else if (typeof valA === 'string' && typeof valB === 'string') {
+        return valA.localeCompare(valB);
+    }
+    // Default comparison for other types or mixed types
+    if (valA < valB) return -1;
+    if (valA > valB) return 1;
+    return 0;
+}
+
+function multiSort(array, criteria) {
+    if (!array || !criteria || criteria.length === 0) return array;
+    const sortedArray = [...array];
+
+    sortedArray.sort((a, b) => {
+        for (const criterion of criteria) {
+            const { fieldId, sortMethod, deType } = criterion;
+            const comparisonResult = valueCompare(a[fieldId], b[fieldId], deType);
+            if (comparisonResult !== 0) {
+                return sortMethod === 'ASC' ? comparisonResult : -comparisonResult;
+            }
+        }
+        return 0;
+    });
+    return sortedArray;
+}
+
 const exportData = () => {
     useEmitt().emitter.emit('data-export-center', {activeName: 'IN_PROGRESS'})
 }

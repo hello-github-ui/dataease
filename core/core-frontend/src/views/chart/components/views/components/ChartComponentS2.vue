@@ -133,6 +133,40 @@ let chartData = shallowRef<Partial<Chart['data']>>({
 const containerId = 'container-' + showPosition.value + '-' + view.value.id + '-' + suffixId.value
 const viewTrack = ref(null)
 
+// ====== 统一排序函数（与导出Excel一致） ======
+function sortTableRowByKeys(tableRow, primaryKeys, secondaryKey, expectedOrderMapForSecondary) {
+  return tableRow.slice().sort((a, b) => {
+    let shopValueA, shopValueB;
+    for (let pk of primaryKeys) {
+      shopValueA = a[pk];
+      shopValueB = b[pk];
+      if (shopValueA < shopValueB) return -1;
+      if (shopValueA > shopValueB) return 1;
+    }
+    if (secondaryKey && expectedOrderMapForSecondary) {
+      const currentShopValue = shopValueA;
+      const expectedOrder = expectedOrderMapForSecondary[currentShopValue];
+      if (expectedOrder) {
+        const indexA = expectedOrder.indexOf(a[secondaryKey]);
+        const indexB = expectedOrder.indexOf(b[secondaryKey]);
+        if (indexA !== -1 && indexB !== -1) {
+          if (indexA < indexB) return -1;
+          if (indexA > indexB) return 1;
+        } else if (indexA !== -1) {
+          return -1;
+        } else if (indexB !== -1) {
+          return 1;
+        }
+      }
+    }
+    if (secondaryKey) {
+      if (a[secondaryKey] < b[secondaryKey]) return -1;
+      if (a[secondaryKey] > b[secondaryKey]) return 1;
+    }
+    return 0;
+  });
+}
+
 const calcData = (view: Chart, callback, resetPageInfo = true) => {
   if (view.customAttr.basicStyle.tablePageStyle === 'general') {
     if (state.currentPageSize !== 0) {
@@ -144,6 +178,7 @@ const calcData = (view: Chart, callback, resetPageInfo = true) => {
   if (view.tableId || view['dataFrom'] === 'template') {
     isError.value = false
     const v = JSON.parse(JSON.stringify(view))
+    console.log('[ChartComponentS2.vue -> calcData] Request object `v` being sent to getData:', JSON.parse(JSON.stringify(v)));
     getData(v)
       .then(res => {
         if (res.code && res.code !== 0) {
@@ -152,6 +187,7 @@ const calcData = (view: Chart, callback, resetPageInfo = true) => {
         } else {
           chartData.value = res?.data as Partial<Chart['data']>
           state.totalItems = res?.totalItems
+            console.log('ChartComponentS2.vue->res:', res)
           dvMainStore.setViewDataDetails(view.id, res)
           emit('onDrillFilters', res?.drillFilters)
           renderChart(res as unknown as Chart, resetPageInfo)
@@ -215,6 +251,99 @@ const renderChart = (viewInfo: Chart, resetPageInfo: boolean) => {
     data: chartData.value,
     fontFamily: props.fontFamily
   } as ChartObj)
+
+  // ====== 页面渲染前排序，逻辑与导出Excel(带格式)完全一致 ======
+  if (actualChart.type === 'table-info' && actualChart.data?.tableRow?.length) {
+    // 1. 获取分组结构
+    const headerGroupConfig = actualChart.customAttr?.tableHeader?.headerGroupConfig;
+    const configColumns = headerGroupConfig?.columns;
+    // 如果没有多级表头，直接用API顺序，不做任何排序
+    if (!configColumns || configColumns.length === 0) {
+      // 不排序，直接渲染API顺序
+    } else {
+      let leafKeys = [];
+      function collectLeafKeysRecursive(nodes) {
+        nodes?.forEach(node => {
+          if (!node.children || node.children.length === 0) {
+            leafKeys.push(String(node.key));
+          } else {
+            collectLeafKeysRecursive(node.children);
+          }
+        });
+      }
+      collectLeafKeysRecursive(configColumns);
+      if (leafKeys.length === 0 && configColumns && configColumns.length > 0) {
+        configColumns.forEach(node => leafKeys.push(String(node.key)));
+      }
+      // 2. 推导分组key
+      let tempActualGroupingKeys = [];
+      const customAttr = actualChart.customAttr;
+      const tableCellMerge = customAttr?.tableCell?.mergeCells;
+      const xAxisFields = actualChart.xAxis || [];
+      if (tableCellMerge && xAxisFields.length > 0) {
+        const dimensionFieldDataeaseNames = new Set(
+          xAxisFields.filter(f => f.groupType === 'd').map(f => f.dataeaseName)
+        );
+        leafKeys.forEach(lk => {
+          if (dimensionFieldDataeaseNames.has(lk)) {
+            tempActualGroupingKeys.push(lk);
+          }
+        });
+        if (tempActualGroupingKeys.length === 0 && leafKeys.length > 0) {
+          tempActualGroupingKeys.push(leafKeys[0]);
+        }
+      } else if (leafKeys.length > 0) {
+        const semanticGroupNodeKeysRaw = [];
+        function findSemanticGroupNodeKeysRecursive(nodes) {
+          nodes?.forEach(node => {
+            if (node.children && node.children.length > 0) {
+              semanticGroupNodeKeysRaw.push(String(node.key));
+              findSemanticGroupNodeKeysRecursive(node.children);
+            }
+          });
+        }
+        findSemanticGroupNodeKeysRecursive(configColumns);
+        const uniqueSemanticGroupNodeKeys = [...new Set(semanticGroupNodeKeysRaw)];
+        let numBasedOnStructure = uniqueSemanticGroupNodeKeys.length;
+        if (numBasedOnStructure === 0 && leafKeys.length > 0) {
+          numBasedOnStructure = 1;
+        }
+        tempActualGroupingKeys = leafKeys.slice(0, Math.min(numBasedOnStructure, leafKeys.length));
+      }
+      // 3. 推导期望顺序（如有）
+      let expectedDateOrderInShop = {};
+      if (tempActualGroupingKeys.length >= 2) {
+        const primaryGroupKey = tempActualGroupingKeys[0];
+        const secondaryGroupKey = tempActualGroupingKeys[1];
+        actualChart.data.tableRow.forEach(row => {
+          const shopValue = row[primaryGroupKey];
+          const dateValue = row[secondaryGroupKey];
+          if (shopValue && dateValue !== undefined && dateValue !== null) {
+            if (!expectedDateOrderInShop[shopValue]) {
+              expectedDateOrderInShop[shopValue] = [];
+            }
+            const shopDates = expectedDateOrderInShop[shopValue];
+            if (shopDates.length === 0 || shopDates[shopDates.length - 1] !== dateValue) {
+              if (!shopDates.includes(dateValue)) {
+                shopDates.push(dateValue);
+              }
+            }
+          }
+        });
+      }
+      // 4. 排序
+      if (tempActualGroupingKeys.length > 0) {
+        const shopFieldKey = tempActualGroupingKeys[0];
+        const dateFieldKey = tempActualGroupingKeys.length > 1 ? tempActualGroupingKeys[1] : null;
+        if (shopFieldKey && dateFieldKey && Object.keys(expectedDateOrderInShop).length > 0) {
+          actualChart.data.tableRow = sortTableRowByKeys(actualChart.data.tableRow, [shopFieldKey], dateFieldKey, expectedDateOrderInShop);
+        } else {
+          actualChart.data.tableRow = sortTableRowByKeys(actualChart.data.tableRow, tempActualGroupingKeys, null, null);
+        }
+      }
+    }
+  }
+  // ====== 页面渲染前排序 END ======
 
   recursionTransObj(customAttrTrans, actualChart.customAttr, scale.value, terminal.value)
   recursionTransObj(customStyleTrans, actualChart.customStyle, scale.value, terminal.value)
