@@ -1,146 +1,68 @@
 <template>
-    <el-dialog
-        ref="enlargeDialog"
-        :title="viewInfo?.title"
-        :append-to-body="true"
-        v-model="dialogShow"
-        width="70vw"
-        trigger="click"
-        class="userViewEnlarge-class"
-    >
+    <el-dialog ref="enlargeDialog" :title="viewInfo?.title" :append-to-body="true" v-model="dialogShow" width="70vw"
+        trigger="click" class="userViewEnlarge-class">
         <template #header v-if="!isIframe">
             <div class="header-title">
                 <div>{{ viewInfo?.title }}</div>
                 <div class="export-button">
-                    <el-select
-                        v-if="optType === 'enlarge' && exportPermissions[0]"
-                        v-model="pixel"
-                        class="pixel-select"
-                        size="small"
-                    >
+                    <el-select v-if="optType === 'enlarge' && exportPermissions[0]" v-model="pixel" class="pixel-select"
+                        size="small">
                         <el-option-group v-for="group in pixelOptions" :key="group.label" :label="group.label">
-                            <el-option
-                                v-for="item in group.options"
-                                :key="item.value"
-                                :label="item.label"
-                                :value="item.value"
-                            />
+                            <el-option v-for="item in group.options" :key="item.value" :label="item.label"
+                                :value="item.value" />
                         </el-option-group>
                     </el-select>
-                    <el-button
-                        class="m-button"
-                        v-if="optType === 'enlarge' && exportPermissions[0]"
-                        link
-                        size="middle"
-                        @click="downloadViewImage"
-                    >
-                        <el-icon color="#1F2329" size="16" style="margin-right: 3px"
-                        >
-                            <icon_download_outlined
-                            />
+                    <el-button class="m-button" v-if="optType === 'enlarge' && exportPermissions[0]" link size="middle"
+                        @click="downloadViewImage">
+                        <el-icon color="#1F2329" size="16" style="margin-right: 3px">
+                            <icon_download_outlined />
                         </el-icon>
                         {{ t('chart.export_img') }}
                     </el-button>
-                    <el-button
-                        class="m-button"
-                        v-if="optType === 'details' && exportPermissions[1]"
-                        link
-                        size="middle"
-                        :loading="exportLoading"
-                        :disabled="
-              requestStore.loadingMap[permissionStore.currentPath] > 0 ||
-              state.dataFrom === 'template'
-            "
-                        @click="downloadViewDetails('view')"
-                    >
-                        <el-icon color="#1F2329" size="16" style="margin-right: 3px"
-                        >
-                            <icon_download_outlined
-                            />
+                    <el-button class="m-button" v-if="optType === 'details' && exportPermissions[1]" link size="middle"
+                        :loading="exportLoading" :disabled="requestStore.loadingMap[permissionStore.currentPath] > 0 ||
+                            state.dataFrom === 'template'
+                            " @click="downloadViewDetails('view')">
+                        <el-icon color="#1F2329" size="16" style="margin-right: 3px">
+                            <icon_download_outlined />
                         </el-icon>
                         {{ t('chart.export_excel') }}
                     </el-button>
-                    <el-button
-                        class="m-button"
-                        v-if="optType === 'details' && exportPermissions[2]"
-                        link
-                        size="middle"
-                        :loading="exportLoading"
-                        @click="downloadViewDetails('dataset')"
-                        :disabled="
-              requestStore.loadingMap[permissionStore.currentPath] > 0 ||
-              state.dataFrom === 'template'
-            "
-                    >
-                        <el-icon color="#1F2329" size="16" style="margin-right: 3px"
-                        >
-                            <icon_download_outlined
-                            />
+                    <el-button class="m-button" v-if="optType === 'details' && exportPermissions[2]" link size="middle"
+                        :loading="exportLoading" @click="downloadViewDetails('dataset')" :disabled="requestStore.loadingMap[permissionStore.currentPath] > 0 ||
+                            state.dataFrom === 'template'
+                            ">
+                        <el-icon color="#1F2329" size="16" style="margin-right: 3px">
+                            <icon_download_outlined />
                         </el-icon>
                         {{ t('chart.export_raw_details') }}
                     </el-button>
-                    <el-button
-                        class="m-button"
-                        v-if="optType === 'details' && (viewInfo.type === 'table-pivot' || viewInfo.type === 'table-info')"
-                        link
-                        size="middle"
-                        :loading="exportLoading"
-                        @click="exportAsFormattedExcel"
-                    >
-                        <el-icon color="#1F2329" size="16" style="margin-right: 3px"
-                        >
-                            <icon_download_outlined
-                            />
+                    <el-button class="m-button"
+                        v-if="optType === 'details' && (viewInfo.type === 'table-pivot' || viewInfo.type === 'table-info' || viewInfo.type === 'table-normal')"
+                        link size="middle" :loading="exportLoading" @click="exportAsFormattedExcel">
+                        <el-icon color="#1F2329" size="16" style="margin-right: 3px">
+                            <icon_download_outlined />
                         </el-icon>
                         {{ t('chart.export_excel_formatter') }}
                     </el-button>
-                    <el-divider
-                        class="close-divider"
-                        direction="vertical"
-                        v-if="exportPermissions[0] || exportPermissions[1] || exportPermissions[2]"
-                    />
+                    <el-divider class="close-divider" direction="vertical"
+                        v-if="exportPermissions[0] || exportPermissions[1] || exportPermissions[2]" />
                 </div>
             </div>
         </template>
-        <div
-            v-loading="downLoading"
-            :element-loading-text="t('visualization.export_loading')"
-            element-loading-background="rgba(122, 122, 122, 1)"
-            class="enlarge-outer"
-            v-if="dialogShow"
-        >
-            <div
-                id="enlarge-inner-content"
-                class="enlarge-inner"
-                :class="{
-          'enlarge-inner-with-header': optType === 'details' && sourceViewType.includes('chart-mix')
-        }"
-                v-loading="requestStore.loadingMap[permissionStore.currentPath]"
-                ref="viewContainer"
-                :style="customExport"
-            >
-                <component-wrapper
-                    v-if="optType === 'enlarge'"
-                    class="enlarge-wrapper"
-                    :opt-type="optType"
-                    :view-info="viewInfo"
-                    :config="config"
-                    :dv-info="dvInfo"
-                    :font-family="canvasStyleData?.fontFamily"
-                    show-position="viewDialog"
-                />
+        <div v-loading="downLoading" :element-loading-text="t('visualization.export_loading')"
+            element-loading-background="rgba(122, 122, 122, 1)" class="enlarge-outer" v-if="dialogShow">
+            <div id="enlarge-inner-content" class="enlarge-inner" :class="{
+                'enlarge-inner-with-header': optType === 'details' && sourceViewType.includes('chart-mix')
+            }" v-loading="requestStore.loadingMap[permissionStore.currentPath]" ref="viewContainer" :style="customExport">
+                <component-wrapper v-if="optType === 'enlarge'" class="enlarge-wrapper" :opt-type="optType"
+                    :view-info="viewInfo" :config="config" :dv-info="dvInfo" :font-family="canvasStyleData?.fontFamily"
+                    show-position="viewDialog" />
                 <template v-if="optType === 'details' && !sourceViewType.includes('chart-mix')">
-                    <chart-component-s2
-                        v-if="!detailsError"
-                        :view="viewInfo"
-                        show-position="viewDialog"
-                        ref="chartComponentDetails"
-                    />
-                    <empty-background
-                        v-if="detailsError"
-                        :description="t('visualization.no_details')"
-                        img-type="noneWhite"
-                    />
+                    <chart-component-s2 v-if="!detailsError" :view="viewInfo" show-position="viewDialog"
+                        ref="chartComponentDetails" />
+                    <empty-background v-if="detailsError" :description="t('visualization.no_details')"
+                        img-type="noneWhite" />
                 </template>
                 <template v-else-if="optType === 'details' && sourceViewType.includes('chart-mix')">
                     <el-tabs class="tab-header" v-model="activeName" @tab-change="handleClick">
@@ -148,18 +70,10 @@
                         <el-tab-pane :label="t('chart.drag_block_value_axis_right')" name="right"></el-tab-pane>
                     </el-tabs>
                     <div style="flex: 1">
-                        <chart-component-s2
-                            v-if="activeName === 'left'"
-                            :view="viewInfo"
-                            show-position="viewDialog"
-                            ref="chartComponentDetails"
-                        />
-                        <chart-component-s2
-                            v-else-if="activeName === 'right'"
-                            :view="viewInfo"
-                            show-position="viewDialog"
-                            ref="chartComponentDetails2"
-                        />
+                        <chart-component-s2 v-if="activeName === 'left'" :view="viewInfo" show-position="viewDialog"
+                            ref="chartComponentDetails" />
+                        <chart-component-s2 v-else-if="activeName === 'right'" :view="viewInfo"
+                            show-position="viewDialog" ref="chartComponentDetails2" />
                     </div>
                 </template>
             </div>
@@ -169,28 +83,28 @@
 
 <script setup lang="ts">
 import ComponentWrapper from '@/components/data-visualization/canvas/ComponentWrapper.vue'
-import {computed, h, nextTick, reactive, ref} from 'vue'
-import {toPng} from 'html-to-image'
-import {useI18n} from '@/hooks/web/useI18n'
-import {deepCopy, exportPermission} from '@/utils/utils'
+import { computed, h, nextTick, reactive, ref } from 'vue'
+import { toPng } from 'html-to-image'
+import { useI18n } from '@/hooks/web/useI18n'
+import { deepCopy, exportPermission } from '@/utils/utils'
 import icon_download_outlined from '@/assets/svg/icon_download_outlined.svg'
 import ChartComponentS2 from '@/views/chart/components/views/components/ChartComponentS2.vue'
-import {dvMainStoreWithOut} from '@/store/modules/data-visualization/dvMain'
-import {exportExcelDownload} from '@/views/chart/components/js/util'
-import {storeToRefs} from 'pinia'
-import {RefreshLeft} from '@element-plus/icons-vue'
-import {assign} from 'lodash-es'
-import {useEmitt} from '@/hooks/web/useEmitt'
-import {ElButton, ElMessage} from 'element-plus-secondary'
-import {exportDetailExcelWithMultiHeader, exportPivotExcel, fetchAllTableRows } from '@/views/chart/components/js/panel/common/common_table'
-import {useRequestStoreWithOut} from '@/store/modules/request'
-import {usePermissionStoreWithOut} from '@/store/modules/permission'
-import {activeWatermarkCheckUser} from '@/components/watermark/watermark'
-import {getCanvasStyle} from '@/utils/style'
+import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
+import { exportExcelDownload } from '@/views/chart/components/js/util'
+import { storeToRefs } from 'pinia'
+import { RefreshLeft } from '@element-plus/icons-vue'
+import { assign } from 'lodash-es'
+import { useEmitt } from '@/hooks/web/useEmitt'
+import { ElButton, ElMessage } from 'element-plus-secondary'
+import { exportDetailExcelWithMultiHeader, exportPivotExcel, fetchAllTableRows } from '@/views/chart/components/js/panel/common/common_table'
+import { useRequestStoreWithOut } from '@/store/modules/request'
+import { usePermissionStoreWithOut } from '@/store/modules/permission'
+import { activeWatermarkCheckUser } from '@/components/watermark/watermark'
+import { getCanvasStyle } from '@/utils/style'
 import EmptyBackground from '../empty-background/src/EmptyBackground.vue'
-import {supportExtremumChartType} from '@/views/chart/components/js/extremumUitl'
+import { supportExtremumChartType } from '@/views/chart/components/js/extremumUitl'
 import Exceljs from 'exceljs'
-import {saveAs} from 'file-saver'
+import { saveAs } from 'file-saver'
 import { innerExportDetails } from '@/api/chart'
 
 const downLoading = ref(false)
@@ -201,11 +115,11 @@ const permissionStore = usePermissionStoreWithOut()
 let viewInfo = ref<DeepPartial<ChartObj>>(null)
 const config = ref(null)
 const viewContainer = ref(null)
-const {t} = useI18n()
+const { t } = useI18n()
 const optType = ref(null)
 const chartComponentDetails = ref(null)
 const chartComponentDetails2 = ref(null)
-const {dvInfo, editMode, isIframe, canvasStyleData} = storeToRefs(dvMainStore)
+const { dvInfo, editMode, isIframe, canvasStyleData } = storeToRefs(dvMainStore)
 const exportLoading = ref(false)
 const sourceViewType = ref()
 const activeName = ref('left')
@@ -311,7 +225,7 @@ const pixelOptions = [
         ]
     }
 ]
-const dialogInit = (canvasStyle, view, item, opt, params = {scale: 0.5}) => {
+const dialogInit = (canvasStyle, view, item, opt, params = { scale: 0.5 }) => {
     state.scale = params.scale
     sourceViewType.value = view.type
     detailsError.value = false
@@ -395,6 +309,7 @@ const exportAsFormattedExcel = async () => {
     console.log('最上面的 viewInfo.value: ', viewInfo.value)
     const s2Instance = dvMainStore.getViewInstanceInfo(viewInfo.value.id)
     if (!s2Instance) {
+        console.error('未获取到S2实例，无法导出带格式Excel')
         return
     }
     const chart = dvMainStore.getViewDetails(viewInfo.value.id)
@@ -415,17 +330,17 @@ const exportAsFormattedExcel = async () => {
         // 5. 拼接
         const finalRows = [...s2FirstPageRows, ...restRows];
 
-        let s2MetaFields = null; 
+        let s2MetaFields = null;
         if (s2Instance && s2Instance.options?.dataCfg?.fields) {
             s2MetaFields = s2Instance.options.dataCfg.fields;
             console.log("S2 options.dataCfg.fields captured for field definitions (column order/names).");
         }
         const sourceFieldsForExport = allDataFetched.data?.fields || allDataFetched.data?.sourceFields || [];
-        const fieldsForExport = s2MetaFields ? 
+        const fieldsForExport = s2MetaFields ?
             (s2MetaFields.values || s2MetaFields.columns || s2MetaFields.rows || []).map(f_key => {
                 const f_detail = sourceFieldsForExport.find(fd => fd.dataeaseName === f_key || fd.key === f_key);
                 return f_detail || { key: f_key, name: f_key, dataeaseName: f_key };
-            }) 
+            })
             : sourceFieldsForExport;
 
         const viewDataInfoForExport = {
@@ -531,9 +446,9 @@ const exportAsFormattedExcel = async () => {
                         }
                         const shopDates = expectedDateOrderInShop[shopValue];
                         if (shopDates.length === 0 || shopDates[shopDates.length - 1] !== dateValue) {
-                             if (!shopDates.includes(dateValue)) {
+                            if (!shopDates.includes(dateValue)) {
                                 shopDates.push(dateValue);
-                             }
+                            }
                         }
                     }
                 });
@@ -549,6 +464,151 @@ const exportAsFormattedExcel = async () => {
             viewInfo,
             viewDataInfoForExport,
             rawViewInfo.title || '明细表',
+            leafKeys,
+            actualDataFieldKeysForGrouping,
+            actualGroupKeyToLeafIndexMap,
+            expectedDateOrderInShop
+        );
+    } else if (["table-normal", "table-summary", "table-total"].includes(viewInfo.value.type)) {
+        console.log('[汇总表导出] 开始导出，viewInfo:', viewInfo.value)
+        const rawViewInfo = viewInfo.value;
+        // 1. 获取S2首页顺序
+        const s2FirstPageRows = s2Instance.dataSet.getDisplayDataSet() || [];
+        console.log('[汇总表导出] S2首页顺序数据:', s2FirstPageRows.slice(0, 5), '... 共', s2FirstPageRows.length, '条')
+        // 2. 获取全量API顺序
+        const allDataFetched = await fetchAllTableRows(rawViewInfo, 100);
+        const allRows = allDataFetched.data?.tableRow || [];
+        console.log('[汇总表导出] 全量API数据:', allRows.slice(0, 5), '... 共', allRows.length, '条')
+        // 3. 获取每页条数
+        const pageSize = rawViewInfo.customAttr?.basicStyle?.tablePageSize || 20;
+        // 4. 拆分后续页
+        const restRows = allRows.slice(pageSize);
+        // 5. 拼接
+        const finalRows = [...s2FirstPageRows, ...restRows];
+        // 字段定义
+        let s2MetaFields = null;
+        if (s2Instance && s2Instance.options?.dataCfg?.fields) {
+            s2MetaFields = s2Instance.options.dataCfg.fields;
+            console.log('[汇总表导出] S2 options.dataCfg.fields:', s2MetaFields)
+        }
+        const sourceFieldsForExport = allDataFetched.data?.fields || allDataFetched.data?.sourceFields || [];
+        const fieldsForExport = s2MetaFields ?
+            (s2MetaFields.values || s2MetaFields.columns || s2MetaFields.rows || []).map(f_key => {
+                const f_detail = sourceFieldsForExport.find(fd => fd.dataeaseName === f_key || fd.key === f_key);
+                return f_detail || { key: f_key, name: f_key, dataeaseName: f_key };
+            })
+            : sourceFieldsForExport;
+        const viewDataInfoForExport = {
+            ...(allDataFetched.data || {}),
+            tableRow: finalRows,
+            fields: fieldsForExport
+        };
+        // 多级表头结构
+        const headerGroupConfig = rawViewInfo.customAttr?.tableHeader?.headerGroupConfig;
+        const configColumns = headerGroupConfig?.columns;
+        if (!configColumns || configColumns.length === 0) {
+            console.log('[汇总表导出] 未找到多级表头结构，按普通表导出');
+            exportDetailExcelWithMultiHeader(viewInfo, viewDataInfoForExport, rawViewInfo.title || '汇总表');
+            return;
+        }
+        console.log('[汇总表导出] 多级表头结构:', configColumns)
+        // 叶子key
+        const leafKeys = [];
+        function collectLeafKeysRecursive(nodes) {
+            nodes?.forEach(node => {
+                if (!node.children || node.children.length === 0) {
+                    leafKeys.push(String(node.key));
+                } else {
+                    collectLeafKeysRecursive(node.children);
+                }
+            });
+        }
+        collectLeafKeysRecursive(configColumns);
+        if (leafKeys.length === 0 && configColumns.length > 0) {
+            console.warn('[汇总表导出] collectLeafKeysRecursive未获取到叶子key，尝试直接取columns');
+            configColumns.forEach(node => leafKeys.push(String(node.key)));
+        }
+        if (leafKeys.length === 0) {
+            console.error('[汇总表导出] 叶子key为空，无法导出');
+            exportDetailExcelWithMultiHeader(viewInfo, viewDataInfoForExport, rawViewInfo.title || '汇总表');
+            return;
+        }
+        // 分组key
+        let tempActualGroupingKeys = [];
+        const customAttr = rawViewInfo.customAttr;
+        const tableCellMerge = customAttr?.tableCell?.mergeCells;
+        const xAxisFields = rawViewInfo.xAxis || [];
+        if (tableCellMerge && xAxisFields.length > 0) {
+            const dimensionFieldDataeaseNames = new Set(
+                xAxisFields.filter(f => f.groupType === 'd').map(f => f.dataeaseName)
+            );
+            leafKeys.forEach(lk => {
+                if (dimensionFieldDataeaseNames.has(lk)) {
+                    tempActualGroupingKeys.push(lk);
+                }
+            });
+            if (tempActualGroupingKeys.length === 0 && leafKeys.length > 0) {
+                tempActualGroupingKeys.push(leafKeys[0]);
+            }
+        } else if (leafKeys.length > 0) {
+            const semanticGroupNodeKeysRaw = [];
+            function findSemanticGroupNodeKeysRecursive(nodes) {
+                nodes?.forEach(node => {
+                    if (node.children && node.children.length > 0) {
+                        semanticGroupNodeKeysRaw.push(String(node.key));
+                        findSemanticGroupNodeKeysRecursive(node.children);
+                    }
+                });
+            }
+            findSemanticGroupNodeKeysRecursive(configColumns);
+            const uniqueSemanticGroupNodeKeys = [...new Set(semanticGroupNodeKeysRaw)];
+            let numBasedOnStructure = uniqueSemanticGroupNodeKeys.length;
+            if (numBasedOnStructure === 0 && leafKeys.length > 0) {
+                numBasedOnStructure = 1;
+            }
+            tempActualGroupingKeys = leafKeys.slice(0, Math.min(numBasedOnStructure, leafKeys.length));
+        }
+        const actualDataFieldKeysForGrouping = tempActualGroupingKeys;
+        const actualGroupKeyToLeafIndexMap = {};
+        actualDataFieldKeysForGrouping.forEach(key => {
+            const index = leafKeys.indexOf(key);
+            if (index !== -1) {
+                actualGroupKeyToLeafIndexMap[key] = index;
+            }
+        });
+        // 顺序map（如有）
+        const expectedDateOrderInShop = {};
+        if (s2Instance && actualDataFieldKeysForGrouping.length >= 2) {
+            const primaryGroupKey = actualDataFieldKeysForGrouping[0];
+            const secondaryGroupKey = actualDataFieldKeysForGrouping[1];
+            const displayData = s2Instance.dataSet.getDisplayDataSet();
+            if (displayData && primaryGroupKey && secondaryGroupKey) {
+                console.log('[汇总表导出] S2 getDisplayDataSet():', displayData.slice(0, 5));
+                displayData.forEach(row => {
+                    const shopValue = row[primaryGroupKey];
+                    const dateValue = row[secondaryGroupKey];
+                    if (shopValue && dateValue !== undefined && dateValue !== null) {
+                        if (!expectedDateOrderInShop[shopValue]) {
+                            expectedDateOrderInShop[shopValue] = [];
+                        }
+                        const shopDates = expectedDateOrderInShop[shopValue];
+                        if (shopDates.length === 0 || shopDates[shopDates.length - 1] !== dateValue) {
+                            if (!shopDates.includes(dateValue)) {
+                                shopDates.push(dateValue);
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        console.log('[汇总表导出] leafKeys:', leafKeys);
+        console.log('[汇总表导出] actualDataFieldKeysForGrouping:', actualDataFieldKeysForGrouping);
+        console.log('[汇总表导出] actualGroupKeyToLeafIndexMap:', actualGroupKeyToLeafIndexMap);
+        console.log('[汇总表导出] expectedDateOrderInShop:', expectedDateOrderInShop);
+        exportDetailExcelWithMultiHeader(
+            viewInfo,
+            viewDataInfoForExport,
+            rawViewInfo.title || '汇总表',
             leafKeys,
             actualDataFieldKeysForGrouping,
             actualGroupKeyToLeafIndexMap,
@@ -607,7 +667,7 @@ function multiSort(array, criteria) {
 }
 
 const exportData = () => {
-    useEmitt().emitter.emit('data-export-center', {activeName: 'IN_PROGRESS'})
+    useEmitt().emitter.emit('data-export-center', { activeName: 'IN_PROGRESS' })
 }
 
 const openMessageLoading = cb => {
@@ -645,7 +705,7 @@ const htmlToImage = () => {
     // 表格和支持最值图表的渲染时间为2000毫秒，其他图表为500毫秒。
     const renderTime =
         viewInfo.value.type?.includes('table') ||
-        supportExtremumChartType({type: viewInfo.value.type})
+            supportExtremumChartType({ type: viewInfo.value.type })
             ? 2000
             : 500
     setTimeout(() => {
