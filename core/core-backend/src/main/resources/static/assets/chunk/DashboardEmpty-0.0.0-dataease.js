@@ -1,1 +1,0 @@
-import{_ as e}from"./_plugin-vue_export-helper-0.0.0-dataease.js";import{o,c as t}from"./@vue-0.0.0-dataease.js";const _={},s={class:"not-support"};function c(a,r){return o(),t("div",s,"仪表板未开启移动端，因此无法正常展示")}const p=e(_,[["render",c],["__scopeId","data-v-78ed3e03"]]);export{p as default};

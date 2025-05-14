@@ -1,1 +1,0 @@
-import{E as e}from"./EmptyBackground-0.0.0-dataease.js";import{d as o,o as t,Z as n}from"./@vue-0.0.0-dataease.js";const m=o({__name:"exp",setup(r){return(p,a)=>(t(),n(e,{"img-type":"noneWhite",description:"链接已过期"}))}});export{m as _};

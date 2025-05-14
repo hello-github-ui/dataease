@@ -1,1 +1,0 @@
-import{u as t}from"./vue-router-0.0.0-dataease.js";import{d as r,ah as n,o as a,Z as s,u}from"./@vue-0.0.0-dataease.js";const f=r({__name:"LayoutTransition",setup(c){const e=t();return(p,_)=>{const o=n("router-view");return a(),s(o,{key:u(e).path})}}});export{f as default};

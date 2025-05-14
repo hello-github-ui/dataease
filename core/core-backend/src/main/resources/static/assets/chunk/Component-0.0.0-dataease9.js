@@ -1,1 +1,0 @@
-import{_ as e}from"./_plugin-vue_export-helper-0.0.0-dataease.js";import{o as _,c as o}from"./@vue-0.0.0-dataease.js";const t={},c={class:"area"};function s(n,r){return _(),o("div",c)}const p=e(t,[["render",s],["__scopeId","data-v-bb0d3289"]]);export{p as default};
