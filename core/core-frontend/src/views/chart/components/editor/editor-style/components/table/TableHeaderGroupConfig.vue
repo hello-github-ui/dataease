@@ -417,59 +417,6 @@ const renderTable = (chart: ChartObj) => {
                 s2.interaction.clearState()
             }
             // 新增：分组节点重命名按钮（仅分组节点显示）
-            // 判断当前节点是否为分组节点（有children）
-            const [curCol] = getColumns([curCell.getMeta().field], curColumns)
-            if (curCol && curCol.children && curCol.children.length > 0) {
-                const renameGroupBtn = document.createElement('span')
-                groupMenuContainer.appendChild(renameGroupBtn)
-                renameGroupBtn.innerText = t('chart.rename_group') || '重命名分组'
-                renameGroupBtn.onclick = () => {
-                    s2.hideTooltip()
-                    ElMessageBox.prompt('', t('chart.group_name'), {
-                        confirmButtonText: t('chart.confirm'),
-                        cancelButtonText: t('chart.cancel'),
-                        showClose: false,
-                        showInput: true,
-                        inputPlaceholder: t('chart.group_name_edit_tip'),
-                        inputValue: curCol.name || '',
-                        inputErrorMessage: t('chart.group_name_error_tip'),
-                        inputValidator: val => {
-                            if (val?.length < 1 || val?.length > 20) {
-                                return t('chart.group_name_error_tip')
-                            }
-                            return true
-                        }
-                    })
-                        .then(res => {
-                            const newName = res.value
-                            // 递归更新columns树结构中该分组节点的name
-                            const updateGroupName = (columns, key, name) => {
-                                for (const col of columns) {
-                                    if (col.key === key) {
-                                        col.name = name
-                                        break
-                                    }
-                                    if (col.children) {
-                                        updateGroupName(col.children, key, name)
-                                    }
-                                }
-                            }
-                            updateGroupName(curColumns, curCell.getMeta().field, newName)
-                            // 重新emit并刷新
-                            const allFields = (props.chart.xAxis || []).concat(props.chart.yAxis || []);
-                            const filledColumns = fillColumnNames(curColumns, allFields);
-                            emits('onConfigChange', { columns: cloneDeep(filledColumns), meta: cloneDeep(curMeta) })
-                            s2.setDataCfg({
-                                fields: {
-                                    columns: curColumns
-                                },
-                                meta: curMeta
-                            })
-                            s2.render(true)
-                        })
-                        .catch(() => { })
-                }
-            }
             const renameBtn = document.createElement('span')
             groupMenuContainer.appendChild(renameBtn)
             renameBtn.innerText = t('chart.rename')

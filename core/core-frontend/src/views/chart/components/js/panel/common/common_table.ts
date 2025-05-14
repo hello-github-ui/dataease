@@ -3,6 +3,8 @@ import { copyString, hexColorToRGBA, isAlphaColor, isTransparent, parseJson, res
 import { DEFAULT_BASIC_STYLE, DEFAULT_TABLE_CELL, DEFAULT_TABLE_HEADER } from '@/views/chart/components/editor/util/chart'
 import {
     BaseTooltip,
+    ColCell,
+    ColumnNode,
     DataCellBrushSelection,
     FONT_FAMILY,
     getAutoAdjustPosition,
@@ -1690,30 +1692,34 @@ export async function exportDetailExcelWithMultiHeader(
             const row = [];
             // 使用 actualLeafKeys 保证列的输出顺序
             actualLeafKeys.forEach((leafKey, colIdx) => {
+                // 提前声明所有变量，避免作用域提升问题
                 let valueToWrite = sortedTableRow[rowIdx]?.[leafKey] ?? '';
                 let shouldWriteEmpty = false;
-                // Check if this specific column (colIdx) is the designated column
-                // for *any* grouping key that has a merge range for this row
-                // 这里的 groupKeyToLeafIndexMap 的 key 应该是 actualGroupingKeys 里的元素
-                for (const groupKey in groupKeyToLeafIndexMap) {
-                    if (actualGroupingKeys.includes(groupKey) && groupKeyToLeafIndexMap[groupKey] === colIdx) { // Is this column controlled by a groupKey from actualGroupingKeys?
-                        if (
-                            mergeRanges[groupKey] && // Does this groupKey have ranges?
-                            mergeRanges[groupKey].some(r => rowIdx > r.start && rowIdx <= r.end) // Is this row in a non-first position of a range?
-                        ) {
-                            shouldWriteEmpty = true;
-                            break;
+                // 汇总表类型，直接写入所有分组字段的值，不做合并判断
+                if (rawViewInfo.type === 'table-normal') {
+                    row.push(valueToWrite);
+                } else {
+                    for (let groupKey in groupKeyToLeafIndexMap) {
+                        if (actualGroupingKeys.includes(groupKey) && groupKeyToLeafIndexMap[groupKey] === colIdx) {
+                            if (
+                                mergeRanges[groupKey] &&
+                                mergeRanges[groupKey].some(r => rowIdx > r.start && rowIdx <= r.end)
+                            ) {
+                                shouldWriteEmpty = true;
+                                break;
+                            }
                         }
                     }
+                    row.push(shouldWriteEmpty ? '' : valueToWrite);
                 }
-                row.push(shouldWriteEmpty ? '' : valueToWrite);
             });
             worksheet.addRow(row);
         }
 
         // 6. 批量合并单元格 (Revised with tracker - Logic largely remains)
         const dataStartRow = maxLevel + 1;
-        if (actualGroupingKeys?.length > 0 && Object.keys(groupKeyToLeafIndexMap).length > 0) {
+        // 判断是否为明细表类型
+        if (rawViewInfo.type === 'table-info' && actualGroupingKeys?.length > 0 && Object.keys(groupKeyToLeafIndexMap).length > 0) {
             const mergedCellTracker = new Set();
             // 这里的迭代顺序也应该基于 actualGroupingKeys，以匹配 mergeRanges 的构建
             actualGroupingKeys.forEach(groupingKey => { // Iterate in the order of actualGroupingKeys
@@ -1725,8 +1731,6 @@ export async function exportDetailExcelWithMultiHeader(
                             try {
                                 worksheet.mergeCells(r.start + dataStartRow, colIdx + 1, r.end + dataStartRow, colIdx + 1);
                                 for (let row = r.start; row <= r.end; row++) {
-                                    // Mark only the top-left cell of a merged area to simplify tracking
-                                    // More precise tracking might be needed if sub-merges are possible within a merged area by another key
                                     mergedCellTracker.add(`${row + dataStartRow}:${colIdx + 1}`);
                                 }
                             } catch (e) {

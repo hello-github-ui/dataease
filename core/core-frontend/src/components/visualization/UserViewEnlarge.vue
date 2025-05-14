@@ -476,22 +476,14 @@ const exportAsFormattedExcel = async () => {
             actualGroupKeyToLeafIndexMap,
             expectedDateOrderInShop
         );
-    } else if (["table-normal", "table-summary", "table-total"].includes(viewInfo.value.type)) {
+    } else if (viewInfo.value.type === 'table-normal') {
+        // 汇总表类型
         console.log('[汇总表导出] 开始导出，viewInfo:', viewInfo.value)
         const rawViewInfo = viewInfo.value;
-        // 1. 获取S2首页顺序
-        const s2FirstPageRows = s2Instance.dataSet.getDisplayDataSet() || [];
-        console.log('[汇总表导出] S2首页顺序数据:', s2FirstPageRows.slice(0, 5), '... 共', s2FirstPageRows.length, '条')
-        // 2. 获取全量API顺序
+        // 只用API返回的全量数据，不拼接首页顺序
         const allDataFetched = await fetchAllTableRows(rawViewInfo, 100);
         const allRows = allDataFetched.data?.tableRow || [];
         console.log('[汇总表导出] 全量API数据:', allRows.slice(0, 5), '... 共', allRows.length, '条')
-        // 3. 获取每页条数
-        const pageSize = rawViewInfo.customAttr?.basicStyle?.tablePageSize || 20;
-        // 4. 拆分后续页
-        const restRows = allRows.slice(pageSize);
-        // 5. 拼接
-        const finalRows = [...s2FirstPageRows, ...restRows];
         // 字段定义
         let s2MetaFields = null;
         if (s2Instance && s2Instance.options?.dataCfg?.fields) {
@@ -507,7 +499,7 @@ const exportAsFormattedExcel = async () => {
             : sourceFieldsForExport;
         const viewDataInfoForExport = {
             ...(allDataFetched.data || {}),
-            tableRow: finalRows,
+            tableRow: allRows,
             fields: fieldsForExport
         };
         // 多级表头结构
@@ -608,14 +600,7 @@ const exportAsFormattedExcel = async () => {
                 });
             }
         }
-        console.log('[汇总表导出] leafKeys:', leafKeys);
-        console.log('[汇总表导出] actualDataFieldKeysForGrouping:', actualDataFieldKeysForGrouping);
-        console.log('[汇总表导出] actualGroupKeyToLeafIndexMap:', actualGroupKeyToLeafIndexMap);
-        console.log('[汇总表导出] expectedDateOrderInShop:', expectedDateOrderInShop);
-        console.log('[弹窗确认 emits] columns:', JSON.stringify(configColumns, null, 2))
-        console.log('[弹窗确认 emits] meta:', JSON.stringify(s2MetaFields, null, 2))
-        console.log('[主界面实际渲染前] columns:', JSON.stringify(headerGroupConfig.columns, null, 2))
-        console.log('[主界面实际渲染前] meta:', JSON.stringify(headerGroupConfig.meta, null, 2))
+
         exportDetailExcelWithMultiHeader(
             viewInfo,
             viewDataInfoForExport,
