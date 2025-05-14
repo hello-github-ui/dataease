@@ -2457,3 +2457,22 @@ export const getColumns = (fields, cols: Array<ColumnNode>) => {
     }
     return result
 }
+
+export function fillColumnNames(columns, allFields) {
+    return columns.map(col => {
+        let name = col.name;
+        if (!name) {
+            if (col.children && col.children.length > 0) {
+                name = col.name || col.key;
+            } else {
+                const fieldDef = allFields.find(f => f.dataeaseName === col.key);
+                name = fieldDef?.chartShowName || fieldDef?.name || col.name || col.key;
+            }
+        }
+        const newCol = { ...col, name };
+        if (col.children && col.children.length > 0) {
+            newCol.children = fillColumnNames(col.children, allFields);
+        }
+        return newCol;
+    });
+}
