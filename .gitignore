@@ -21,9 +21,8 @@ dist/
 package-lock.json
 .DS_Store
 .stylelintcache
-
 # SpecStory explanation file
 #.specstory/.what-is-this.md
 
 # 前端资源
-core/core-backend/src/main/resources/static
+core/core-backend/src/main/resources/static/
