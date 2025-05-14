@@ -2459,20 +2459,52 @@ export const getColumns = (fields, cols: Array<ColumnNode>) => {
 }
 
 export function fillColumnNames(columns, allFields) {
-    return columns.map(col => {
-        let name = col.name;
-        if (!name) {
-            if (col.children && col.children.length > 0) {
-                name = col.name || col.key;
-            } else {
-                const fieldDef = allFields.find(f => f.dataeaseName === col.key);
-                name = fieldDef?.chartShowName || fieldDef?.name || col.name || col.key;
+    if (!columns || !columns.length || !allFields || !allFields.length) {
+        return columns;
+    }
+
+    // 深度克隆，确保不影响原始 columns
+    const result = JSON.parse(JSON.stringify(columns));
+
+    function fillRecursive(nodes) {
+        if (!nodes) return;
+
+        for (let i = 0; i < nodes.length; i++) {
+            const node = nodes[i];
+
+            // 1. 如果是分组节点（有 children），确保有 name
+            if (node.children && node.children.length > 0) {
+                // 分组节点会有自己设置的 name，不需要从 allFields 查找
+                node.name = node.name || `分组${i + 1}`;
+                // 递归处理子节点
+                fillRecursive(node.children);
+            }
+            // 2. 如果是叶子节点，从 allFields 找对应的 name
+            else if (node.key) {
+                // 查找叶子节点的中文名称
+                const field = allFields.find(f =>
+                    (f.dataeaseName === node.key) ||
+                    (f.key === node.key)
+                );
+
+                if (field) {
+                    // 优先使用已有的名称，否则从字段定义获取
+                    node.name = node.name || field.name;
+
+                    // 添加测试标记
+                    node.__filled = true;
+
+                    // 调试日志
+                    console.log(`[fillColumnNames] 字段 ${node.key} 名称设置为: ${node.name}`);
+                }
             }
         }
-        const newCol = { ...col, name };
-        if (col.children && col.children.length > 0) {
-            newCol.children = fillColumnNames(col.children, allFields);
-        }
-        return newCol;
-    });
+    }
+
+    fillRecursive(result);
+
+    // 调试：打印处理后的完整结构
+    console.log('[fillColumnNames] 处理后的结构:', JSON.stringify(result, null, 2));
+
+    return result;
 }

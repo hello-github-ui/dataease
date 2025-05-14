@@ -54,7 +54,8 @@
             element-loading-background="rgba(122, 122, 122, 1)" class="enlarge-outer" v-if="dialogShow">
             <div id="enlarge-inner-content" class="enlarge-inner" :class="{
                 'enlarge-inner-with-header': optType === 'details' && sourceViewType.includes('chart-mix')
-            }" v-loading="requestStore.loadingMap[permissionStore.currentPath]" ref="viewContainer" :style="customExport">
+            }" v-loading="requestStore.loadingMap[permissionStore.currentPath]" ref="viewContainer"
+                :style="customExport">
                 <component-wrapper v-if="optType === 'enlarge'" class="enlarge-wrapper" :opt-type="optType"
                     :view-info="viewInfo" :config="config" :dv-info="dvInfo" :font-family="canvasStyleData?.fontFamily"
                     show-position="viewDialog" />
@@ -460,6 +461,12 @@ const exportAsFormattedExcel = async () => {
         console.log('UserViewEnlarge.vue -> REVISED actualDataFieldKeysForGrouping: ', actualDataFieldKeysForGrouping);
         console.log('UserViewEnlarge.vue -> REVISED actualGroupKeyToLeafIndexMap: ', actualGroupKeyToLeafIndexMap);
 
+        console.log('[弹窗确认 emits] columns:', JSON.stringify(configColumns, null, 2))
+        console.log('[弹窗确认 emits] meta:', JSON.stringify(s2MetaFields, null, 2))
+
+        console.log('[主界面实际渲染前] columns:', JSON.stringify(headerGroupConfig.columns, null, 2))
+        console.log('[主界面实际渲染前] meta:', JSON.stringify(headerGroupConfig.meta, null, 2))
+
         exportDetailExcelWithMultiHeader(
             viewInfo,
             viewDataInfoForExport,
@@ -605,6 +612,10 @@ const exportAsFormattedExcel = async () => {
         console.log('[汇总表导出] actualDataFieldKeysForGrouping:', actualDataFieldKeysForGrouping);
         console.log('[汇总表导出] actualGroupKeyToLeafIndexMap:', actualGroupKeyToLeafIndexMap);
         console.log('[汇总表导出] expectedDateOrderInShop:', expectedDateOrderInShop);
+        console.log('[弹窗确认 emits] columns:', JSON.stringify(configColumns, null, 2))
+        console.log('[弹窗确认 emits] meta:', JSON.stringify(s2MetaFields, null, 2))
+        console.log('[主界面实际渲染前] columns:', JSON.stringify(headerGroupConfig.columns, null, 2))
+        console.log('[主界面实际渲染前] meta:', JSON.stringify(headerGroupConfig.meta, null, 2))
         exportDetailExcelWithMultiHeader(
             viewInfo,
             viewDataInfoForExport,
