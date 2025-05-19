@@ -2472,34 +2472,20 @@ export function fillColumnNames(columns, allFields) {
 
     function fillRecursive(nodes) {
         if (!nodes) return;
-
         for (let i = 0; i < nodes.length; i++) {
             const node = nodes[i];
-
-            // 1. 如果是分组节点（有 children），确保有 name
             if (node.children && node.children.length > 0) {
-                // 分组节点会有自己设置的 name，不需要从 allFields 查找
                 node.name = node.name || `分组${i + 1}`;
-                // 递归处理子节点
+                node.title = node.name;
+                node.key = node.name; // 关键：分组节点key直接用中文名
                 fillRecursive(node.children);
-            }
-            // 2. 如果是叶子节点，从 allFields 找对应的 name
-            else if (node.key) {
-                // 查找叶子节点的中文名称
+            } else if (node.key) {
                 const field = allFields.find(f =>
                     (f.dataeaseName === node.key) ||
                     (f.key === node.key)
                 );
-
                 if (field) {
-                    // 优先使用已有的名称，否则从字段定义获取
                     node.name = node.name || field.name;
-
-                    // 添加测试标记
-                    node.__filled = true;
-
-                    // 调试日志
-                    console.log(`[fillColumnNames] 字段 ${node.key} 名称设置为: ${node.name}`);
                 }
             }
         }

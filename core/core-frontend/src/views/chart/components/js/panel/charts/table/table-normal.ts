@@ -131,71 +131,15 @@ export class TableNormal extends S2ChartView<TableSheet> {
         const { basicStyle, tableCell, tableHeader, tooltip } = parseJson(chart.customAttr)
         // ====== 表头分组（多级表头）支持，复用明细表逻辑 ======
         if (tableHeader.headerGroup && tableHeader.showTableHeader !== false) {
-            // ====== 优先使用从 ChartComponentS2.vue 传入的处理好的 columns 结构 ======
-            if (specialColumns && specialColumns.length > 0) {
-                console.log('[table-normal.ts] 使用特殊传入的 columns 结构:', JSON.stringify(specialColumns, null, 2));
-                columns.length = 0;
-                columns.push(...specialColumns);
-                // 递归生成 meta，保证只有叶子节点，顺序和 columns 叶子节点一致
-                const getLeafKeys = (cols) => {
-                    const result = [];
-                    function dfs(nodes) {
-                        nodes.forEach(node => {
-                            if (node.children && node.children.length > 0) {
-                                dfs(node.children);
-                            } else {
-                                result.push(node.key);
-                            }
-                        });
-                    }
-                    dfs(cols);
-                    return result;
-                };
-                const leafKeys = getLeafKeys(specialColumns);
-                meta.length = 0;
-                const allFields = (chart.xAxis || []).concat(chart.yAxis || []);
-                leafKeys.forEach(key => {
-                    const fieldDef = allFields.find((f: any) => f.dataeaseName === key || f.key === key);
-                    meta.push({
-                        field: key,
-                        name: fieldDef?.name || key
-                    });
-                });
-                console.log('[table-normal.ts] 特殊处理后的 meta:', JSON.stringify(meta, null, 2));
-
-                // 打印构造S2实例前的完整配置信息
-                console.log('[table-normal.ts 创建S2实例前] 完整配置:');
-                console.log('- containerDom:', containerDom?.id);
-                console.log('- columns类型:', Object.prototype.toString.call(columns));
-                console.log('- columns内容:', JSON.stringify(columns, null, 2));
-                console.log('- meta类型:', Object.prototype.toString.call(meta));
-                console.log('- meta内容:', JSON.stringify(meta, null, 2));
-                // 引用透传测试
-                (columns as any).__test_columns_pass = true;
-
-                const result = this.finishDrawChart(containerDom, columns, meta, chart, action, resizeAction);
-                console.log('[table-normal.ts S2实例创建后] 实例:', Object.prototype.toString.call(result));
-                console.log('[table-normal.ts S2实例创建后] dataCfg.fields:', result.dataCfg?.fields);
-                console.log('[table-normal.ts S2实例创建后] dataCfg.meta:', result.dataCfg?.meta);
-                console.log('[table-normal.ts S2实例创建后] 引用透传测试:', (result.dataCfg?.fields?.columns as any)?.__test_columns_pass);
-                // 再次打印 columns
-                console.log('[table-normal.ts S2实例创建后] 原始columns引用测试:', (columns as any).__test_columns_pass);
-                // 尝试强制设置 S2 实例的结构
-                if (result.dataCfg?.fields) {
-                    console.log('[table-normal.ts] 尝试强制设置S2实例的field.columns');
-                    result.dataCfg.fields.columns = columns;
-                }
-                return result;
-            }
-            // ====== 如果没有特殊传入的 columns 结构，使用原有逻辑 ======
-            const { headerGroupConfig } = tableHeader;
+            const headerGroupConfig = tableHeader.headerGroupConfig;
             if (headerGroupConfig?.columns?.length) {
-                // 递归补全 columns 的 name 字段
+                // 1. 获取所有字段定义
                 const allFields = (chart.xAxis || []).concat(chart.yAxis || []);
+                // 2. 递归补全 columns 的 name 字段（key 保持字段ID，不动）
                 const columnsWithName = fillColumnNames(headerGroupConfig.columns, allFields);
                 columns.length = 0;
                 columns.push(...columnsWithName);
-                // 递归生成 meta，保证只有叶子节点，顺序和 columns 叶子节点一致
+                // 3. 递归生成 meta，保证只有叶子节点，顺序和 columns 叶子节点一致
                 const getLeafKeys = (cols) => {
                     const result = [];
                     function dfs(nodes) {
@@ -213,7 +157,7 @@ export class TableNormal extends S2ChartView<TableSheet> {
                 const leafKeys = getLeafKeys(columnsWithName);
                 meta.length = 0;
                 leafKeys.forEach(key => {
-                    const fieldDef = allFields.find((f: any) => f.dataeaseName === key || f.key === key);
+                    const fieldDef = allFields.find((f: any) => f.dataeaseName === key);
                     meta.push({
                         field: key,
                         name: fieldDef?.name || key
@@ -230,7 +174,7 @@ export class TableNormal extends S2ChartView<TableSheet> {
         const newData = this.configEmptyDataStrategy(chart)
         console.log('[S2实际渲染前] columns:', JSON.stringify(columns, null, 2));
         console.log('[S2实际渲染前] meta:', JSON.stringify(meta, null, 2));
-        console.log('[S2实际渲染前] data.fields:', (chart.data.fields || []).map(f => f.dataeaseName || f.key));
+        console.log('[S2实际渲染前] data.fields:', (chart.data.fields || []).map(f => f.dataeaseName));
 
         // data config
         const s2DataConfig: S2DataConfig = {
@@ -243,7 +187,7 @@ export class TableNormal extends S2ChartView<TableSheet> {
 
         console.log('[S2实际渲染] columns:', JSON.stringify(columns, null, 2));
         console.log('[S2实际渲染] meta:', JSON.stringify(meta, null, 2));
-        console.log('[S2实际渲染] data.fields:', (chart.data.fields || []).map(f => f.dataeaseName || f.key));
+        console.log('[S2实际渲染] data.fields:', (chart.data.fields || []).map(f => f.dataeaseName));
 
         // options
         const s2Options: S2Options = {
@@ -411,13 +355,8 @@ export class TableNormal extends S2ChartView<TableSheet> {
         // 空值处理
         const newData = this.configEmptyDataStrategy(chart)
 
-        // 打印 columns 和 meta，确保没有丢失
-        console.log('[finishDrawChart] columns:', JSON.stringify(columns, null, 2));
-        console.log('[finishDrawChart] meta:', JSON.stringify(meta, null, 2));
-        console.log('[finishDrawChart] columns.__test_columns_pass:', (columns as any).__test_columns_pass);
-
         // data config
-        const s2DataConfig = {
+        const s2DataConfig: S2DataConfig = {
             fields: {
                 columns: columns
             },
@@ -425,11 +364,8 @@ export class TableNormal extends S2ChartView<TableSheet> {
             data: newData
         }
 
-        console.log('[finishDrawChart] s2DataConfig.fields.columns:', JSON.stringify(s2DataConfig.fields.columns, null, 2));
-        console.log('[finishDrawChart] s2DataConfig.meta:', JSON.stringify(s2DataConfig.meta, null, 2));
-
         // options
-        const s2Options = {
+        const s2Options: S2Options = {
             width: containerDom.getBoundingClientRect().width,
             height: containerDom.offsetHeight,
             showSeriesNumber: chart.customAttr.tableHeader.showIndex,
@@ -445,6 +381,48 @@ export class TableNormal extends S2ChartView<TableSheet> {
                     : ScrollbarPositionType.CANVAS
             }
         }
+
+        // 处理表头分组配置
+        if (chart.customAttr.tableHeader.headerGroup &&
+            chart.customAttr.tableHeader.showTableHeader !== false &&
+            chart.customAttr.tableHeader.headerGroupConfig?.columns?.length) {
+            // 1. 获取所有字段定义
+            const allFields = (chart.xAxis || []).concat(chart.yAxis || []);
+            // 2. 递归补全 columns 的 name 字段（key 保持字段ID，不动）
+            const columnsWithName = fillColumnNames(chart.customAttr.tableHeader.headerGroupConfig.columns, allFields);
+            s2DataConfig.fields.columns = columnsWithName;
+            // 3. 递归生成 meta，保证只有叶子节点，顺序和 columns 叶子节点一致
+            const getLeafKeys = (cols) => {
+                const result = [];
+                function dfs(nodes) {
+                    nodes.forEach(node => {
+                        if (node.children && node.children.length > 0) {
+                            dfs(node.children);
+                        } else {
+                            result.push(node.key);
+                        }
+                    });
+                }
+                dfs(cols);
+                return result;
+            };
+            const leafKeys = getLeafKeys(columnsWithName);
+            const newMeta = [];
+            leafKeys.forEach(key => {
+                const fieldDef = allFields.find((f: any) => f.dataeaseName === key);
+                newMeta.push({
+                    field: key,
+                    name: fieldDef?.name || key
+                });
+            });
+            s2DataConfig.meta = newMeta;
+            // 关键打印
+            console.log('[finishDrawChart] 表头分组配置:', {
+                columns: columnsWithName,
+                meta: newMeta
+            });
+        }
+
         s2Options.style = this.configStyle(chart, s2DataConfig)
         if (chart.customAttr.tableCell.tableFreeze) {
             s2Options.frozenColCount = chart.customAttr.tableCell.tableColumnFreezeHead ?? 0
@@ -465,6 +443,7 @@ export class TableNormal extends S2ChartView<TableSheet> {
                 return new TableDataCell(meta, meta.spreadsheet)
             }
         }
+
         this.configTooltip(chart, s2Options)
         if (chart.customAttr.tableHeader.showTableHeader === false) {
             s2Options.style.colCfg.height = 1
@@ -484,28 +463,19 @@ export class TableNormal extends S2ChartView<TableSheet> {
         }
         configSummaryRow(chart, s2Options, newData, chart.customAttr.tableHeader, chart.customAttr.basicStyle, chart.customAttr.basicStyle.showSummary)
 
-        // 打印 S2 实例创建前的最终配置
-        console.log('[finishDrawChart] 最终s2DataConfig:', {
-            columns: s2DataConfig.fields.columns,
-            meta: s2DataConfig.meta,
-            columnsType: Object.prototype.toString.call(s2DataConfig.fields.columns),
-            metaType: Object.prototype.toString.call(s2DataConfig.meta)
-        });
-
         // 创建 TableSheet 实例
         const newChart = new TableSheet(containerDom, s2DataConfig, s2Options)
 
-        // 打印创建后的状态
-        console.log('[finishDrawChart] S2实例创建后:', {
-            instance: Object.prototype.toString.call(newChart),
-            dataCfg: newChart.dataCfg,
-            options: newChart.options
+        // 添加渲染后的检查
+        newChart.on(S2Event.LAYOUT_AFTER_RENDER, () => {
+            console.log('[finishDrawChart] 渲染完成:', {
+                columns: newChart.dataCfg.fields.columns,
+                meta: newChart.dataCfg.meta,
+                facet: newChart.facet
+            });
         });
 
-        // 检查实例是否成功应用 columns
-        console.log('[finishDrawChart] S2实例fields:', newChart.dataCfg?.fields);
-        console.log('[finishDrawChart] S2实例fields.columns引用测试:', (newChart.dataCfg?.fields?.columns as any)?.__test_columns_pass);
-        // 总计
+        // 总计紧贴在单元格后面
         summaryRowStyle(newChart, newData, chart.customAttr.tableCell, chart.customAttr.tableHeader, chart.customAttr.basicStyle.showSummary)
         // 自适应铺满
         if (chart.customAttr.basicStyle.tableColumnMode === 'adapt') {
@@ -550,6 +520,7 @@ export class TableNormal extends S2ChartView<TableSheet> {
                 ev.colsHierarchy.width = containerWidth
             })
         }
+
         configEmptyDataStyle(newChart, chart.customAttr.basicStyle, newData, containerDom.id)
         newChart.on(S2Event.DATA_CELL_CLICK, ev => {
             const cell = newChart.getCell(ev.target)
@@ -574,6 +545,7 @@ export class TableNormal extends S2ChartView<TableSheet> {
             }
             action(param)
         })
+
         const { show } = chart.customAttr.tooltip
         if (show) {
             newChart.on(S2Event.COL_CELL_HOVER, event => this.showTooltip(newChart, event, meta))
@@ -584,6 +556,7 @@ export class TableNormal extends S2ChartView<TableSheet> {
         this.configTouchEvent(newChart, { container: containerDom.id, chart, action, resizeAction }, meta)
         const customTheme = this.configTheme(chart)
         newChart.setThemeCfg({ theme: customTheme })
+
         return newChart;
     }
 
