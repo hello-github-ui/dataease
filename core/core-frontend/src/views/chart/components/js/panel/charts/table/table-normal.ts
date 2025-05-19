@@ -26,6 +26,22 @@ import { fillColumnNames, getLeafNodes } from '@/views/chart/components/js/panel
 
 const { t } = useI18n()
 
+// ====== 明细表辅助函数：多级表头宽度递归计算 ======
+function calcTreeWidth(node) {
+    if (!node.children?.length) {
+        return node.width
+    }
+    return node.children.reduce((pre, cur) => {
+        return pre + calcTreeWidth(cur)
+    }, 0)
+}
+function getStartPosition(node) {
+    if (!node.children?.length) {
+        return node.x
+    }
+    return getStartPosition(node.children[0])
+}
+
 /**
  * 汇总表
  */
@@ -70,15 +86,18 @@ export class TableNormal extends S2ChartView<TableSheet> {
     }
 
     drawChart(drawOption: S2DrawOptions<TableSheet>): TableSheet {
-        const { container, chart, action, resizeAction, specialColumns } = drawOption
+        const { container, chart, action, resizeAction } = drawOption
         const containerDom = document.getElementById(container)
         if (!containerDom) return
 
         // fields
-        let fields = chart.data.fields
-
-        const columns = []
-        const meta = []
+        let fields = chart.data?.fields ?? []
+        let columns: any[] = []
+        let meta: any[] = []
+        const axisMap = [...chart.xAxis, ...chart.yAxis].reduce((pre, cur) => {
+            pre[cur.dataeaseName] = cur
+            return pre
+        }, {})
         if (chart.drill) {
             // 下钻过滤字段
             const filterFields = chart.drillFilters.map(i => i.fieldId)
@@ -95,11 +114,6 @@ export class TableNormal extends S2ChartView<TableSheet> {
             })
             fields.splice(drillFieldIndex, 0, ...curDrillField)
         }
-        const axisMap = [...chart.xAxis, ...chart.yAxis].reduce((pre, cur) => {
-            pre[cur.dataeaseName] = cur
-            return pre
-        }, {})
-        // add drill list
         fields.forEach(ele => {
             const f = axisMap[ele.dataeaseName]
             if (f?.hide === true) {
@@ -127,55 +141,28 @@ export class TableNormal extends S2ChartView<TableSheet> {
                 }
             })
         })
-
         const { basicStyle, tableCell, tableHeader, tooltip } = parseJson(chart.customAttr)
-        // ====== 表头分组（多级表头）支持，复用明细表逻辑 ======
-        if (tableHeader.headerGroup && tableHeader.showTableHeader !== false) {
-            const headerGroupConfig = tableHeader.headerGroupConfig;
+        // ====== 多级表头分组适配，完全复用明细表逻辑 ======
+        const { headerGroup, showTableHeader } = tableHeader
+        if (headerGroup && showTableHeader !== false) {
+            const { headerGroupConfig } = tableHeader
             if (headerGroupConfig?.columns?.length) {
-                // 1. 获取所有字段定义
-                const allFields = (chart.xAxis || []).concat(chart.yAxis || []);
-                // 2. 递归补全 columns 的 name 字段（key 保持字段ID，不动）
-                const columnsWithName = fillColumnNames(headerGroupConfig.columns, allFields);
-                columns.length = 0;
-                columns.push(...columnsWithName);
-                // 3. 递归生成 meta，保证只有叶子节点，顺序和 columns 叶子节点一致
-                const getLeafKeys = (cols) => {
-                    const result = [];
-                    function dfs(nodes) {
-                        nodes.forEach(node => {
-                            if (node.children && node.children.length > 0) {
-                                dfs(node.children);
-                            } else {
-                                result.push(node.key);
-                            }
-                        });
-                    }
-                    dfs(cols);
-                    return result;
-                };
-                const leafKeys = getLeafKeys(columnsWithName);
-                meta.length = 0;
-                leafKeys.forEach(key => {
-                    const fieldDef = allFields.find((f: any) => f.dataeaseName === key);
-                    meta.push({
-                        field: key,
-                        name: fieldDef?.name || key
-                    });
-                });
-                // 关键打印
-                console.log('[S2递归渲染] columns:', JSON.stringify(columns, null, 2));
-                console.log('[S2递归渲染] meta:', JSON.stringify(meta, null, 2));
-                return this.finishDrawChart(containerDom, columns, meta, chart, action, resizeAction);
+                const allKeys = columns
+                const leafNodes = getLeafNodes(headerGroupConfig.columns as any)
+                const leafKeys = leafNodes.map(c => c.key)
+                if (JSON.stringify(leafKeys) === JSON.stringify(allKeys)) {
+                    columns.splice(0, columns.length, ...headerGroupConfig.columns)
+                    meta.splice(0, meta.length, ...headerGroupConfig.meta)
+                }
             }
         }
-
         // 空值处理
         const newData = this.configEmptyDataStrategy(chart)
-        console.log('[S2实际渲染前] columns:', JSON.stringify(columns, null, 2));
-        console.log('[S2实际渲染前] meta:', JSON.stringify(meta, null, 2));
-        console.log('[S2实际渲染前] data.fields:', (chart.data.fields || []).map(f => f.dataeaseName));
-
+        if (Array.isArray((chart as any).fields?.columns) && (chart as any).fields.columns[0]?.children) {
+            // 传进来的是树结构，直接用
+            columns = (chart as any).fields.columns
+            meta = (chart as any).meta || []
+        }
         // data config
         const s2DataConfig: S2DataConfig = {
             fields: {
@@ -184,11 +171,6 @@ export class TableNormal extends S2ChartView<TableSheet> {
             meta: meta,
             data: newData
         }
-
-        console.log('[S2实际渲染] columns:', JSON.stringify(columns, null, 2));
-        console.log('[S2实际渲染] meta:', JSON.stringify(meta, null, 2));
-        console.log('[S2实际渲染] data.fields:', (chart.data.fields || []).map(f => f.dataeaseName));
-
         // options
         const s2Options: S2Options = {
             width: containerDom.getBoundingClientRect().width,
@@ -206,14 +188,11 @@ export class TableNormal extends S2ChartView<TableSheet> {
                     : ScrollbarPositionType.CANVAS
             }
         }
-        // 列宽设置
         s2Options.style = this.configStyle(chart, s2DataConfig)
-        // 行列冻结
         if (tableCell.tableFreeze) {
             s2Options.frozenColCount = tableCell.tableColumnFreezeHead ?? 0
             s2Options.frozenRowCount = tableCell.tableRowFreezeHead ?? 0
         }
-        // 开启序号之后，第一列就是序号列，修改 label 即可
         if (s2Options.showSeriesNumber) {
             let indexLabel = tableHeader.indexLabel
             if (!indexLabel) {
@@ -229,9 +208,7 @@ export class TableNormal extends S2ChartView<TableSheet> {
                 return new TableDataCell(meta, meta.spreadsheet)
             }
         }
-        // tooltip
         this.configTooltip(chart, s2Options)
-        // 隐藏表头，保留顶部的分割线, 禁用表头横向 resize
         if (tableHeader.showTableHeader === false) {
             s2Options.style.colCfg.height = 1
             if (tableCell.showHorizonBorder === false) {
@@ -245,13 +222,14 @@ export class TableNormal extends S2ChartView<TableSheet> {
                 return new TableColCell(node, sheet, config)
             }
         } else {
-            // header interaction
             chart.container = container
             this.configHeaderInteraction(chart, s2Options)
         }
-
         // 总计
         configSummaryRow(chart, s2Options, newData, tableHeader, basicStyle, basicStyle.showSummary)
+
+        console.log('[最终传给S2的columns]', JSON.stringify(s2DataConfig.fields.columns, null, 2));
+
         // 开始渲染
         const newChart = new TableSheet(containerDom, s2DataConfig, s2Options)
         // 总计紧贴在单元格后面
@@ -262,9 +240,8 @@ export class TableNormal extends S2ChartView<TableSheet> {
                 newChart.store.set('lastLayoutResult', newChart.facet.layoutResult)
             })
             newChart.on(S2Event.LAYOUT_AFTER_HEADER_LAYOUT, (ev: LayoutResult) => {
-                const lastLayoutResult = newChart.store.get('lastLayoutResult') as LayoutResult
+                const lastLayoutResult = newChart.store.get('lastLayoutResult') as any
                 if (lastLayoutResult) {
-                    // 拖动表头 resize
                     const widthByFieldValue = newChart.options.style?.colCfg?.widthByFieldValue
                     const lastLayoutWidthMap: Record<string, number> =
                         lastLayoutResult?.colLeafNodes.reduce((p, n) => {
@@ -276,30 +253,23 @@ export class TableNormal extends S2ChartView<TableSheet> {
                         n.x = p
                         return p + n.width
                     }, 0)
+                    // 处理分组的单元格，宽度为所有叶子节点之和
+                    ev.colNodes.forEach(n => {
+                        if (n.colIndex === -1) {
+                            n.width = calcTreeWidth(n)
+                            n.x = getStartPosition(n)
+                        }
+                    })
                     ev.colsHierarchy.width = totalWidth
                     newChart.store.set('lastLayoutResult', undefined)
                     return
                 }
                 const containerWidth = containerDom.getBoundingClientRect().width
-                const scale = containerWidth / ev.colsHierarchy.width
-                if (scale <= 1) {
-                    // 图库计算的布局宽度已经大于等于容器宽度，不需要再扩大，但是需要处理非整数宽度值，不然会出现透明细线
-                    ev.colLeafNodes.reduce((p, n) => {
-                        n.width = Math.round(n.width)
-                        n.x = p
-                        return p + n.width
-                    }, 0)
-                    return
-                }
                 const totalWidth = ev.colLeafNodes.reduce((p, n) => {
-                    n.width = Math.round(n.width * scale)
+                    n.width = Math.round(n.width)
                     n.x = p
                     return p + n.width
                 }, 0)
-                if (totalWidth > containerWidth) {
-                    // 从最后一列减掉
-                    ev.colLeafNodes[ev.colLeafNodes.length - 1].width -= totalWidth - containerWidth
-                }
                 ev.colsHierarchy.width = containerWidth
             })
         }
@@ -312,8 +282,7 @@ export class TableNormal extends S2ChartView<TableSheet> {
                 pre[next['dataeaseName']] = next['id']
                 return pre
             }, {})
-
-            const rowData = newChart.dataSet.getRowData(meta)
+            const rowData = newChart.dataSet.getRowData(meta as ViewMeta)
             const dimensionList = []
             for (const key in rowData) {
                 if (nameIdMap[key]) {
@@ -347,7 +316,6 @@ export class TableNormal extends S2ChartView<TableSheet> {
         // theme
         const customTheme = this.configTheme(chart)
         newChart.setThemeCfg({ theme: customTheme })
-
         return newChart
     }
 
@@ -483,7 +451,7 @@ export class TableNormal extends S2ChartView<TableSheet> {
                 newChart.store.set('lastLayoutResult', newChart.facet.layoutResult)
             })
             newChart.on(S2Event.LAYOUT_AFTER_HEADER_LAYOUT, (ev) => {
-                const lastLayoutResult = newChart.store.get('lastLayoutResult')
+                const lastLayoutResult = newChart.store.get('lastLayoutResult') as any
                 if (lastLayoutResult) {
                     const widthByFieldValue = newChart.options.style?.colCfg?.widthByFieldValue
                     const lastLayoutWidthMap = lastLayoutResult?.colLeafNodes.reduce((p, n) => {
@@ -524,9 +492,9 @@ export class TableNormal extends S2ChartView<TableSheet> {
         configEmptyDataStyle(newChart, chart.customAttr.basicStyle, newData, containerDom.id)
         newChart.on(S2Event.DATA_CELL_CLICK, ev => {
             const cell = newChart.getCell(ev.target)
-            const meta = cell.getMeta()
+            const meta = cell.getMeta() as ViewMeta
             const nameIdMap = meta.field ? { [meta.field]: meta.field } : {}
-            const rowData = newChart.dataSet.getRowData(meta)
+            const rowData = newChart.dataSet.getRowData(meta as ViewMeta)
             const dimensionList = []
             for (const key in rowData) {
                 if (nameIdMap[key]) {

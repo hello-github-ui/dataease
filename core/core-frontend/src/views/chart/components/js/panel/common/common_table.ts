@@ -2470,15 +2470,14 @@ export function fillColumnNames(columns, allFields) {
     // 深度克隆，确保不影响原始 columns
     const result = JSON.parse(JSON.stringify(columns));
 
-    function fillRecursive(nodes) {
+    function fillRecursive(nodes, groupLevel = 1, parentIdx = 0) {
         if (!nodes) return;
         for (let i = 0; i < nodes.length; i++) {
             const node = nodes[i];
             if (node.children && node.children.length > 0) {
-                node.name = node.name || `分组${i + 1}`;
+                node.name = node.name || `分组${groupLevel}`;
                 node.title = node.name;
-                node.key = node.name; // 关键：分组节点key直接用中文名
-                fillRecursive(node.children);
+                fillRecursive(node.children, groupLevel + 1, i);
             } else if (node.key) {
                 const field = allFields.find(f =>
                     (f.dataeaseName === node.key) ||

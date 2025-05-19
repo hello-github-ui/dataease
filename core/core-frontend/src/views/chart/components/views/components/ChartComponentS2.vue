@@ -489,6 +489,21 @@ const debounceRender = debounce(resetPageInfo => {
             headerConfig.meta = leafNodes;
             console.log('[S2初始化前] 创建的meta:', JSON.stringify(headerConfig.meta, null, 2));
         }
+
+        // 修正 chartParams 里的 chart 字段
+        chartParams.chart = {
+            ...chartParams.chart,
+            // 直接覆盖 S2 需要的结构
+            data: {
+                ...chartParams.chart.data,
+                // 这里不动，data.tableRow 还是原始数据
+            },
+            // 关键：fields.columns 用分组树结构，meta 用叶子节点
+            fields: {
+                columns: headerConfig.columns,
+            },
+            meta: headerConfig.meta
+        }
     }
 
     myChart = chartView.drawChart(chartParams)
@@ -496,8 +511,6 @@ const debounceRender = debounce(resetPageInfo => {
 
     // 在 render 前，打印最终实际渲染的配置，确保没有被其他过程覆盖
     if (actualChart.type === 'table-normal' && actualChart.customAttr?.tableHeader?.headerGroup && myChart) {
-        // 最后确认一次配置是否正确
-        console.log('[S2最终渲染配置] 实例ID:', actualChart.id);
         if (myChart.dataCfg?.fields?.columns) {
             console.log('[S2最终渲染配置] dataCfg.fields.columns:',
                 Array.isArray(myChart.dataCfg.fields.columns) ?
