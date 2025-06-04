@@ -2470,12 +2470,32 @@ export function fillColumnNames(columns, allFields) {
     // 深度克隆，确保不影响原始 columns
     const result = JSON.parse(JSON.stringify(columns));
 
+    // 创建字段映射
+    const fieldNameMap = {};
+    allFields.forEach(field => {
+        if (field.dataeaseName && (field.chartShowName || field.name)) {
+            fieldNameMap[field.dataeaseName] = field.chartShowName || field.name;
+        }
+    });
+
     function fillRecursive(nodes, groupLevel = 1, parentIdx = 0) {
         if (!nodes) return;
         for (let i = 0; i < nodes.length; i++) {
             const node = nodes[i];
             if (node.children && node.children.length > 0) {
-                node.name = node.name || `分组${groupLevel}`;
+                // 对于分组节点，只有在没有名称或名称明显是key值时才重置
+                // 更严格的判断条件：只有当名称完全是UUID格式或非常长的字符串时才重置
+                const shouldForceUpdate = !node.name || 
+                    /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(node.name) || // UUID格式
+                    (node.name.length > 30 && /^[a-f0-9]{20,}/.test(node.name)) || // 很长的十六进制字符串
+                    node.name === node.key; // 名称和key完全相同
+                
+                if (shouldForceUpdate) {
+                    node.name = `分组${groupLevel}`;
+                    console.log(`[fillColumnNames] 重置分组名称: ${node.key} => ${node.name}`);
+                } else {
+                    console.log(`[fillColumnNames] 保留分组名称: ${node.key} => ${node.name}`);
+                }
                 node.title = node.name;
                 fillRecursive(node.children, groupLevel + 1, i);
             } else if (node.key) {
@@ -2484,7 +2504,10 @@ export function fillColumnNames(columns, allFields) {
                     (f.key === node.key)
                 );
                 if (field) {
-                    node.name = node.name || field.name;
+                    // 对于叶子节点，始终更新为字段的中文名称
+                    const newName = field.chartShowName || field.name;
+                    console.log(`[fillColumnNames] 设置叶子节点名称: ${node.key} => ${newName}`);
+                    node.name = newName;
                 }
             }
         }

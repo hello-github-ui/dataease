@@ -359,7 +359,45 @@ const renderChart = (viewInfo: Chart, resetPageInfo: boolean) => {
         if (headerGroupConfig?.columns?.length) {
             // 递归补全 columns 的 name 字段
             const allFields = (actualChart.xAxis || []).concat(actualChart.yAxis || []);
-            const columnsWithName = fillColumnNames(headerGroupConfig.columns, allFields);
+            
+            // ====== 新增：自动补全遗漏的指标字段 ======
+            // 1. 收集当前分组树中已存在的字段key
+            const existingKeys = new Set();
+            function collectExistingKeys(nodes) {
+                nodes.forEach(node => {
+                    if (node.key) {
+                        existingKeys.add(node.key);
+                    }
+                    if (node.children && node.children.length > 0) {
+                        collectExistingKeys(node.children);
+                    }
+                });
+            }
+            collectExistingKeys(headerGroupConfig.columns);
+            
+            // 2. 找出未包含的指标字段（yAxis中groupType为'q'的字段）
+            const missingIndicators = allFields.filter(field => 
+                field.groupType === 'q' && // 指标字段
+                !field.hide && // 未隐藏
+                !existingKeys.has(field.dataeaseName) // 未在分组树中
+            );
+            
+            // 3. 将遗漏的指标字段追加到分组树的根节点
+            const columnsWithIndicators = [...headerGroupConfig.columns];
+            missingIndicators.forEach(indicator => {
+                columnsWithIndicators.push({
+                    key: indicator.dataeaseName,
+                    name: indicator.name,
+                    title: indicator.name
+                });
+            });
+            
+            console.log('[自动补全指标] 原分组配置:', JSON.stringify(headerGroupConfig.columns, null, 2));
+            console.log('[自动补全指标] 遗漏的指标:', missingIndicators.map(i => ({key: i.dataeaseName, name: i.name})));
+            console.log('[自动补全指标] 补全后配置:', JSON.stringify(columnsWithIndicators, null, 2));
+            // ====== 自动补全指标字段 END ======
+            
+            const columnsWithName = fillColumnNames(columnsWithIndicators, allFields);
 
             // 这里不要直接修改 actualChart.customAttr.tableHeader.headerGroupConfig.columns
             // 而是在后续的 S2 实例创建时，传入正确的配置

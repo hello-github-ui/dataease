@@ -148,21 +148,129 @@ export class TableNormal extends S2ChartView<TableSheet> {
             const { headerGroupConfig } = tableHeader
             if (headerGroupConfig?.columns?.length) {
                 const allKeys = columns
-                const leafNodes = getLeafNodes(headerGroupConfig.columns as any)
-                const leafKeys = leafNodes.map(c => c.key)
-                if (JSON.stringify(leafKeys) === JSON.stringify(allKeys)) {
-                    columns.splice(0, columns.length, ...headerGroupConfig.columns)
-                    meta.splice(0, meta.length, ...headerGroupConfig.meta)
+                
+                // ====== 开始：自动补全指标字段（避免用户分组时遗漏字段） ======
+                console.log('[table-normal自动补全指标] 开始执行...');
+                console.log('[table-normal自动补全指标] chart.yAxis:', chart.yAxis);
+                console.log('[table-normal自动补全指标] allKeys:', allKeys);
+                
+                if (chart.yAxis && chart.yAxis.length > 0) {
+                    // 1. 从allKeys中找出指标字段（不是维度字段）
+                    const dimensionKeys = (chart.xAxis || []).map(f => f.dataeaseName);
+                    const indicatorKeys = allKeys.filter(key => !dimensionKeys.includes(key));
+                    console.log('[table-normal自动补全指标] dimensionKeys:', dimensionKeys);
+                    console.log('[table-normal自动补全指标] indicatorKeys:', indicatorKeys);
+                    
+                    // 2. 检查当前分组配置中是否包含所有指标字段
+                    const leafNodes = getLeafNodes(headerGroupConfig.columns as any);
+                    const leafKeys = leafNodes.map(node => node.key);
+                    console.log('[table-normal自动补全指标] 分组配置leafKeys:', leafKeys);
+                    
+                    const missingIndicators = indicatorKeys.filter(key => !leafKeys.includes(key));
+                    console.log('[table-normal自动补全指标] 遗漏的指标字段:', missingIndicators);
+                    
+                    if (missingIndicators.length > 0) {
+                        console.log('[table-normal自动补全指标] 发现遗漏指标，开始补全...');
+                        
+                        // 3. 将遗漏的指标字段追加到分组树的根节点
+                        const columnsWithIndicators = [...headerGroupConfig.columns];
+                        missingIndicators.forEach(indicatorKey => {
+                            const indicator = chart.yAxis.find(f => f.dataeaseName === indicatorKey);
+                            if (indicator) {
+                                columnsWithIndicators.push({
+                                    key: indicator.dataeaseName
+                                });
+                                console.log('[table-normal自动补全指标] 添加指标:', indicator.chartShowName || indicator.dataeaseName);
+                            }
+                        });
+                        
+                        console.log('[table-normal自动补全指标] 原分组配置:', JSON.stringify(headerGroupConfig.columns, null, 2));
+                        console.log('[table-normal自动补全指标] 补全后配置:', JSON.stringify(columnsWithIndicators, null, 2));
+                        
+                        // 使用fillColumnNames确保所有节点都有正确的name字段（包括原有分组和新补全的指标）
+                        const finalColumns = fillColumnNames(columnsWithIndicators, fields);
+                        const leafNodes = getLeafNodes(finalColumns as any)
+                        const leafKeys = leafNodes.map(c => c.key)
+                        
+                        // ====== 修复：补全指标后，需要生成对应的meta配置 ======
+                        // 从补全后的叶子节点生成完整的meta配置
+                        const updatedMeta = [];
+                        leafKeys.forEach(key => {
+                            const fieldDef = fields.find(f => f.dataeaseName === key);
+                            const axisDef = axisMap[key]; // 从axisMap获取配置信息
+                            if (fieldDef) {
+                                updatedMeta.push({
+                                    field: key,
+                                    name: fieldDef.chartShowName ?? fieldDef.name,
+                                    formatter: function (value) {
+                                        if (!axisDef) {
+                                            return value
+                                        }
+                                        if (value === null || value === undefined) {
+                                            return value
+                                        }
+                                        if (![2, 3, 4].includes(axisDef.deType) || !isNumber(value)) {
+                                            return value
+                                        }
+                                        let formatCfg = axisDef.formatterCfg
+                                        if (!formatCfg) {
+                                            formatCfg = formatterItem
+                                        }
+                                        return valueFormatter(value, formatCfg)
+                                    }
+                                });
+                            }
+                        });
+                        
+                        console.log('[table-normal自动补全指标] allKeys原始字段:', JSON.stringify(allKeys, null, 2));
+                        console.log('[table-normal自动补全指标] leafKeys补全后叶子:', JSON.stringify(leafKeys, null, 2));
+                        console.log('[table-normal自动补全指标] finalColumns经fillColumnNames处理:', JSON.stringify(finalColumns, null, 2));
+                        console.log('[table-normal自动补全指标] updatedMeta:', JSON.stringify(updatedMeta, null, 2));
+                        
+                        // 应用补全后的配置
+                        columns.splice(0, columns.length, ...finalColumns)
+                        meta.splice(0, meta.length, ...updatedMeta)
+                        console.log('[table-normal自动补全指标] 已应用补全后的配置到columns和meta');
+                        console.log('[table-normal自动补全指标] 新columns:', JSON.stringify(columns, null, 2));
+                        console.log('[table-normal自动补全指标] 新meta:', meta.map(m => ({field: m.field, name: m.name})));
+                    } else {
+                        // 即使没有补全指标，也要确保原有分组有正确的名称
+                        const finalColumns = fillColumnNames(headerGroupConfig.columns, fields);
+                        const leafNodes = getLeafNodes(finalColumns as any)
+                        const leafKeys = leafNodes.map(c => c.key)
+                        if (JSON.stringify(leafKeys) === JSON.stringify(allKeys)) {
+                            columns.splice(0, columns.length, ...finalColumns)
+                            meta.splice(0, meta.length, ...headerGroupConfig.meta)
+                            console.log('[table-normal自动补全指标] 应用了fillColumnNames处理的原分组配置');
+                        }
+                    }
                 }
+                // ====== 修复补全逻辑 END ======
             }
         }
         // 空值处理
         const newData = this.configEmptyDataStrategy(chart)
-        if (Array.isArray((chart as any).fields?.columns) && (chart as any).fields.columns[0]?.children) {
-            // 传进来的是树结构，直接用
-            columns = (chart as any).fields.columns
-            meta = (chart as any).meta || []
+        
+        // ====== 新增：检查数据中是否包含补全的指标字段 ======
+        if (tableHeader.headerGroup && tableHeader.headerGroupConfig && tableHeader.headerGroupConfig.columns) {
+            console.log('[table-normal数据检查] 处理后的数据长度:', newData.length);
+            if (newData.length > 0) {
+                console.log('[table-normal数据检查] 数据样本:', newData[0]);
+                console.log('[table-normal数据检查] 数据包含的字段:', Object.keys(newData[0]));
+                
+                // 检查补全的指标字段是否在数据中存在
+                const allFields = (chart.xAxis || []).concat(chart.yAxis || []);
+                const missingIndicators = allFields.filter(field => 
+                    field.groupType === 'q' && 
+                    !field.hide
+                );
+                missingIndicators.forEach(indicator => {
+                    const hasData = newData.some(row => row.hasOwnProperty(indicator.dataeaseName));
+                    console.log(`[table-normal数据检查] 指标字段 ${indicator.dataeaseName} 在数据中存在:`, hasData);
+                });
+            }
         }
+        // ====== 数据检查 END ======
         // data config
         const s2DataConfig: S2DataConfig = {
             fields: {
@@ -225,6 +333,39 @@ export class TableNormal extends S2ChartView<TableSheet> {
             chart.container = container
             this.configHeaderInteraction(chart, s2Options)
         }
+        
+        // ====== 新增：为多级表头配置colCell，确保显示正确的名称 ======
+        if (tableHeader.headerGroup && tableHeader.headerGroupConfig?.columns?.length) {
+            s2Options.colCell = (node, sheet, config) => {
+                // 对于分组节点，使用配置中的name字段作为显示文本
+                if (node.field && tableHeader.headerGroupConfig?.columns) {
+                    // 递归查找匹配的配置节点
+                    function findNodeConfig(configs, targetKey) {
+                        for (const configNode of configs) {
+                            if (configNode.key === targetKey) {
+                                return configNode;
+                            }
+                            if (configNode.children && configNode.children.length > 0) {
+                                const found = findNodeConfig(configNode.children, targetKey);
+                                if (found) return found;
+                            }
+                        }
+                        return null;
+                    }
+                    
+                    const configNode = findNodeConfig(tableHeader.headerGroupConfig.columns, node.field);
+                    if (configNode && configNode.name) {
+                        // 设置显示名称
+                        node.label = configNode.name;
+                        console.log(`[colCell配置] 设置节点 ${node.field} 显示名称为: ${configNode.name}`);
+                    }
+                }
+                return new TableColCell(node, sheet, config);
+            };
+            console.log('[多级表头colCell] 已配置表头分组显示名称');
+        }
+        // ====== 多级表头colCell配置 END ======
+        
         // 总计
         configSummaryRow(chart, s2Options, newData, tableHeader, basicStyle, basicStyle.showSummary)
 
@@ -356,8 +497,45 @@ export class TableNormal extends S2ChartView<TableSheet> {
             chart.customAttr.tableHeader.headerGroupConfig?.columns?.length) {
             // 1. 获取所有字段定义
             const allFields = (chart.xAxis || []).concat(chart.yAxis || []);
+            
+            // ====== 新增：自动补全遗漏的指标字段 ======
+            // 1. 收集当前分组树中已存在的字段key
+            const existingKeys = new Set();
+            function collectExistingKeys(nodes) {
+                nodes.forEach(node => {
+                    if (node.key) {
+                        existingKeys.add(node.key);
+                    }
+                    if (node.children && node.children.length > 0) {
+                        collectExistingKeys(node.children);
+                    }
+                });
+            }
+            collectExistingKeys(chart.customAttr.tableHeader.headerGroupConfig.columns);
+            
+            // 2. 找出未包含的指标字段（yAxis中groupType为'q'的字段）
+            const missingIndicators = allFields.filter(field => 
+                field.groupType === 'q' && // 指标字段
+                !field.hide && // 未隐藏
+                !existingKeys.has(field.dataeaseName) // 未在分组树中
+            );
+            
+            // 3. 将遗漏的指标字段追加到分组树的根节点
+            const columnsWithIndicators = [...chart.customAttr.tableHeader.headerGroupConfig.columns];
+            missingIndicators.forEach(indicator => {
+                columnsWithIndicators.push({
+                    key: indicator.dataeaseName
+                    // name字段会由fillColumnNames函数统一设置
+                });
+            });
+            
+            console.log('[finishDrawChart自动补全指标] 原分组配置:', JSON.stringify(chart.customAttr.tableHeader.headerGroupConfig.columns, null, 2));
+            console.log('[finishDrawChart自动补全指标] 遗漏的指标:', missingIndicators.map(i => ({key: i.dataeaseName, name: i.chartShowName || i.dataeaseName})));
+            console.log('[finishDrawChart自动补全指标] 补全后配置:', JSON.stringify(columnsWithIndicators, null, 2));
+            // ====== 自动补全指标字段 END ======
+            
             // 2. 递归补全 columns 的 name 字段（key 保持字段ID，不动）
-            const columnsWithName = fillColumnNames(chart.customAttr.tableHeader.headerGroupConfig.columns, allFields);
+            const columnsWithName = fillColumnNames(columnsWithIndicators, allFields);
             s2DataConfig.fields.columns = columnsWithName;
             // 3. 递归生成 meta，保证只有叶子节点，顺序和 columns 叶子节点一致
             const getLeafKeys = (cols) => {
@@ -429,6 +607,39 @@ export class TableNormal extends S2ChartView<TableSheet> {
             chart.container = containerDom.id
             this.configHeaderInteraction(chart, s2Options)
         }
+        
+        // ====== 新增：为多级表头配置colCell，确保显示正确的名称 ======
+        if (chart.customAttr.tableHeader.headerGroup && chart.customAttr.tableHeader.headerGroupConfig?.columns?.length) {
+            s2Options.colCell = (node, sheet, config) => {
+                // 对于分组节点，使用配置中的name字段作为显示文本
+                if (node.field && chart.customAttr.tableHeader.headerGroupConfig?.columns) {
+                    // 递归查找匹配的配置节点
+                    function findNodeConfig(configs, targetKey) {
+                        for (const configNode of configs) {
+                            if (configNode.key === targetKey) {
+                                return configNode;
+                            }
+                            if (configNode.children && configNode.children.length > 0) {
+                                const found = findNodeConfig(configNode.children, targetKey);
+                                if (found) return found;
+                            }
+                        }
+                        return null;
+                    }
+                    
+                    const configNode = findNodeConfig(chart.customAttr.tableHeader.headerGroupConfig.columns, node.field);
+                    if (configNode && configNode.name) {
+                        // 设置显示名称
+                        node.label = configNode.name;
+                        console.log(`[colCell配置] 设置节点 ${node.field} 显示名称为: ${configNode.name}`);
+                    }
+                }
+                return new TableColCell(node, sheet, config);
+            };
+            console.log('[多级表头colCell] 已配置表头分组显示名称');
+        }
+        // ====== 多级表头colCell配置 END ======
+        
         configSummaryRow(chart, s2Options, newData, chart.customAttr.tableHeader, chart.customAttr.basicStyle, chart.customAttr.basicStyle.showSummary)
 
         // 创建 TableSheet 实例

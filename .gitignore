@@ -26,3 +26,8 @@ package-lock.json
 
 # 前端资源
 core/core-backend/src/main/resources/static/
+core/core-backend/.flattened-pom.xml
+core/core-frontend/.flattened-pom.xml
+core/core-frontend/node
+core/core-frontend/node_modules
+core/core-frontend/yarn.lock
