@@ -106,14 +106,40 @@ import EmptyBackground from '../empty-background/src/EmptyBackground.vue'
 import { supportExtremumChartType } from '@/views/chart/components/js/extremumUitl'
 import Exceljs from 'exceljs'
 import { saveAs } from 'file-saver'
-import { innerExportDetails } from '@/api/chart'
+import { innerExportDetails, getData } from '@/api/chart'
+
+// 更新数据接口定义
+interface DataResponse {
+    data?: {
+        tableRow: any[];
+        fields: any[];
+        sourceFields?: any[];
+        totalItems: number;
+        total: number;
+    };
+    chartExtRequest?: {
+        goPage?: number;
+    };
+}
+
+interface ExtendedChartObj extends DeepPartial<ChartObj> {
+    chartExtRequest?: {
+        goPage?: number;
+        pageSize?: number;
+        resultMode?: string;
+        resultCount?: number;
+    };
+    isExcelExport?: boolean;
+    name: string;  // 添加必需的name属性
+    id: string;    // 添加必需的id属性
+}
 
 const downLoading = ref(false)
 const dvMainStore = dvMainStoreWithOut()
 const dialogShow = ref(false)
 const requestStore = useRequestStoreWithOut()
 const permissionStore = usePermissionStoreWithOut()
-let viewInfo = ref<DeepPartial<ChartObj>>(null)
+let viewInfo = ref<ExtendedChartObj>(null)
 const config = ref(null)
 const viewContainer = ref(null)
 const { t } = useI18n()
@@ -307,459 +333,369 @@ const downloadViewDetails = (downloadType = 'view') => {
 }
 
 const exportAsFormattedExcel = async () => {
-    console.log('最上面的 viewInfo.value: ', viewInfo.value)
+    console.log('开始导出带格式Excel...');
     const s2Instance = dvMainStore.getViewInstanceInfo(viewInfo.value.id)
+    console.log('获取到的S2实例:', s2Instance ? '成功' : '失败');
     if (!s2Instance) {
         console.error('未获取到S2实例，无法导出带格式Excel')
+        ElMessage.error('S2 实例不存在，无法导出');
         return
     }
     const chart = dvMainStore.getViewDetails(viewInfo.value.id)
+    console.log('获取到的chart(ViewDetails)信息:', chart);
+
+    // 定义在函数作用域内的辅助函数，接收参数以避免作用域混淆
+    function collectLeafKeysRecursive(nodes, targetLeafKeysArray) {
+        if (!Array.isArray(nodes)) {
+            console.warn('[collectLeafKeysRecursive] Input nodes is not an array, skipping.');
+            return;
+        }
+        nodes.forEach(node => {
+            if (!node.children || node.children.length === 0) {
+                targetLeafKeysArray.push(String(node.key));
+            } else {
+                if (Array.isArray(node.children)) {
+                    collectLeafKeysRecursive(node.children, targetLeafKeysArray);
+                } else {
+                    console.warn('[collectLeafKeysRecursive] Node children is not an array, skipping recursion for node:', node.key);
+                }
+            }
+        });
+    }
+
+    function findSemanticGroupNodeKeysRecursive(nodes, targetSemanticGroupKeysArray) {
+        if (!Array.isArray(nodes)) {
+            console.warn('[findSemanticGroupNodeKeysRecursive] Input nodes is not an array, skipping.');
+            return;
+        }
+        nodes.forEach(node => {
+            if (node.children && node.children.length > 0) {
+                targetSemanticGroupKeysArray.push(String(node.key));
+                if (Array.isArray(node.children)) {
+                    findSemanticGroupNodeKeysRecursive(node.children, targetSemanticGroupKeysArray);
+                } else {
+                    console.warn('[findSemanticGroupNodeKeysRecursive] Node children is not an array, skipping recursion for node:', node.key);
+                }
+            }
+        });
+    }
+
     if (viewInfo.value.type === 'table-pivot') {
-        exportPivotExcel(s2Instance, chart)
+        console.log('导出透视表...');
+        const chartForPivot = viewInfo.value as ChartObj;
+        exportPivotExcel(s2Instance, chartForPivot);
     } else if (viewInfo.value.type === 'table-info') {
-        const rawViewInfo = viewInfo.value;
+        console.log('[导出明细表带格式] 导出明细表...');
+        const rawViewInfoForDetail = viewInfo.value as ExtendedChartObj;
+        console.log('[导出明细表带格式] 原始viewInfo:', rawViewInfoForDetail);
 
-        // 1. 获取S2首页显示的数据（保持页面排序）
-        const s2FirstPageRows = s2Instance.dataSet.getDisplayDataSet() || [];
-        console.log(`[导出明细表带格式] S2首页显示数据: ${s2FirstPageRows.length} 条`);
-        
-        // 2. 动态获取用户设置的每页条数（仅用于确定首页数据量）
-        const userPageSize = rawViewInfo.customAttr?.basicStyle?.tablePageSize || 20;
-        console.log(`[导出明细表带格式] 用户设置每页条数: ${userPageSize}`);
-        
-        // 3. 验证S2首页数据量是否与设置一致
-        if (s2FirstPageRows.length > 0 && s2FirstPageRows.length !== userPageSize) {
-            console.warn(`[导出明细表带格式] 注意：S2首页实际数据${s2FirstPageRows.length}条，与设置的${userPageSize}条不一致`);
+        const userPageSizeForDetail = rawViewInfoForDetail.customAttr?.basicStyle?.tablePageSize || 20;
+        console.log(`[导出明细表带格式] 用户UI设置的每页条数: ${userPageSizeForDetail}`);
+
+        console.log('[导出明细表带格式] 开始使用 fetchAllTableRows 获取全部数据，pageSize将使用用户UI设置...');
+        const allDataFetchedForDetail = await fetchAllTableRows(rawViewInfoForDetail, userPageSizeForDetail);
+        const finalRowsForDetail = allDataFetchedForDetail.data?.tableRow || [];
+        console.log(`[导出明细表带格式] fetchAllTableRows 获取到数据: ${finalRowsForDetail.length} 条`);
+
+        if (finalRowsForDetail.length === 0) {
+            console.warn('[导出明细表带格式] fetchAllTableRows 未返回有效数据，可能无法正确导出。');
         }
-        
-        // 4. 获取后续页面的数据（从第2页开始，使用大pageSize加快速度）
-        console.log('[导出明细表带格式] 开始获取后续页面数据...');
-        const fastPageSize = 5000; // 后续页使用固定的大pageSize
-        let restRows = [];
-        let skipCount = userPageSize; // 跳过第一页的数据量
-        let currentRequestPage = 1; // API请求的页码
-        
-        while (true) {
-            const pageReq = JSON.parse(JSON.stringify(rawViewInfo));
-            pageReq.chartExtRequest = pageReq.chartExtRequest || {};
-            pageReq.chartExtRequest.goPage = currentRequestPage;
-            pageReq.chartExtRequest.pageSize = fastPageSize; // 使用固定的大pageSize
-            delete pageReq.chartExtRequest.resultMode;
-            delete pageReq.chartExtRequest.resultCount;
 
-            // ====== 关键修复：临时设置tablePageMode为'page'，避免后端重置goPage ======
-            if (pageReq.customAttr && pageReq.customAttr.basicStyle) {
-                pageReq.customAttr.basicStyle.tablePageMode = 'page';
-            }
-
-            // ====== 关键修复：明确设置isExcelExport为false，避免后端强制设置resultMode为CUSTOM ======
-            pageReq.isExcelExport = false;
-
-            console.log(`[导出明细表带格式] 请求第 ${currentRequestPage} 页数据 (每页${fastPageSize}条, goPage=${currentRequestPage})`);
-            console.log(`[导出明细表带格式] 发送的请求对象:`, {
-                goPage: pageReq.chartExtRequest.goPage,
-                pageSize: pageReq.chartExtRequest.pageSize,
-                tablePageMode: pageReq.customAttr?.basicStyle?.tablePageMode,
-                isExcelExport: pageReq.isExcelExport,
-                resultMode: pageReq.chartExtRequest.resultMode,
-                resultCount: pageReq.chartExtRequest.resultCount
-            });
-            
-            // ====== 详细调试：完整的chartExtRequest对象 ======
-            console.log(`[导出明细表带格式] 完整的chartExtRequest对象:`, JSON.stringify(pageReq.chartExtRequest, null, 2));
-            console.log(`[导出明细表带格式] 完整的pageReq对象:`, JSON.stringify(pageReq, null, 2));
-            
-            try {
-                const response = await getData(pageReq);
-                const currentPageRows = response.data?.tableRow || [];
-                console.log(`[导出明细表带格式] 第 ${currentRequestPage} 页获取到 ${currentPageRows.length} 条数据`);
-                console.log(`[导出明细表带格式] 后端响应详情:`, {
-                    totalItems: response.totalItems,
-                    totalPage: response.totalPage,
-                    currentPage: currentRequestPage,
-                    backendGoPage: response.chartExtRequest?.goPage,
-                    requestGoPage: pageReq.chartExtRequest.goPage,
-                    responseDataLength: currentPageRows.length
-                });
-                
-                if (currentPageRows.length === 0) {
-                    console.log(`[导出明细表带格式] 第 ${currentRequestPage} 页无数据，停止获取`);
-                    break;
-                }
-                
-                // 跳过已在S2首页显示的数据
-                let dataToAdd = currentPageRows;
-                if (skipCount > 0) {
-                    if (skipCount >= currentPageRows.length) {
-                        // 当前页数据全部需要跳过
-                        skipCount -= currentPageRows.length;
-                        console.log(`[导出明细表带格式] 跳过第 ${currentRequestPage} 页全部数据，剩余需跳过 ${skipCount} 条`);
-                        dataToAdd = [];
-                    } else {
-                        // 当前页部分数据需要跳过
-                        dataToAdd = currentPageRows.slice(skipCount);
-                        console.log(`[导出明细表带格式] 跳过第 ${currentRequestPage} 页前 ${skipCount} 条数据，取后 ${dataToAdd.length} 条`);
-                        skipCount = 0;
-                    }
-                }
-                
-                if (dataToAdd.length > 0) {
-                    restRows = restRows.concat(dataToAdd);
-                }
-                
-                currentRequestPage++;
-                
-                // 安全机制：防止无限循环
-                if (currentRequestPage > 50) { // 减少最大页数限制，因为使用大pageSize
-                    console.warn(`[导出明细表带格式] 已请求${currentRequestPage}页，达到最大页数限制`);
-                    break;
-                }
-                
-            } catch (error) {
-                console.error(`[导出明细表带格式] 获取第 ${currentRequestPage} 页数据时出错:`, error);
-                break;
-            }
-        }
-        
-        // 5. 拼接第一页显示数据和后续页API数据
-        const finalRows = [...s2FirstPageRows, ...restRows];
-        console.log(`[导出明细表带格式] 最终数据: S2首页 ${s2FirstPageRows.length} 条 + 后续页 ${restRows.length} 条 = 总计 ${finalRows.length} 条`);
-        
-        // 6. 构建导出用的数据结构
-        const allDataFetched = {
-            data: {
-                tableRow: finalRows,
-                fields: s2Instance.dataSet.fields || [],
-                totalItems: finalRows.length,
-                total: finalRows.length
-            }
-        };
-
-        let s2MetaFields = null;
+        let s2MetaFieldsForDetail = null;
         if (s2Instance && s2Instance.options?.dataCfg?.fields) {
-            s2MetaFields = s2Instance.options.dataCfg.fields;
-            console.log("S2 options.dataCfg.fields captured for field definitions (column order/names).");
+            s2MetaFieldsForDetail = s2Instance.options.dataCfg.fields;
+            console.log("[导出明细表带格式] S2 options.dataCfg.fields captured for field definitions (column order/names).");
         }
-        const sourceFieldsForExport = allDataFetched.data?.fields || allDataFetched.data?.sourceFields || [];
-        const fieldsForExport = s2MetaFields ?
-            (s2MetaFields.values || s2MetaFields.columns || s2MetaFields.rows || []).map(f_key => {
-                const f_detail = sourceFieldsForExport.find(fd => fd.dataeaseName === f_key || fd.key === f_key);
+
+        const sourceFieldsFromFetchedForDetail = allDataFetchedForDetail.data?.fields || [];
+        const fieldsForExportForDetail = s2MetaFieldsForDetail
+            ? (s2MetaFieldsForDetail.values || s2MetaFieldsForDetail.columns || s2MetaFieldsForDetail.rows || []).map(f_key => {
+                const f_detail = sourceFieldsFromFetchedForDetail.find(fd => fd.dataeaseName === f_key || fd.key === f_key);
                 return f_detail || { key: f_key, name: f_key, dataeaseName: f_key };
             })
-            : sourceFieldsForExport;
+            : sourceFieldsFromFetchedForDetail;
 
-        const viewDataInfoForExport = {
-            ...(allDataFetched.data || {}),
-            tableRow: finalRows,
-            fields: fieldsForExport
+        const viewDataInfoForExportForDetail = {
+            ...(allDataFetchedForDetail.data || {}),
+            tableRow: finalRowsForDetail,
+            fields: fieldsForExportForDetail,
+            totalItems: finalRowsForDetail.length,
+            total: finalRowsForDetail.length
         };
 
-        const headerGroupConfig = rawViewInfo.customAttr?.tableHeader?.headerGroupConfig;
-        const configColumns = headerGroupConfig?.columns;
+        const headerGroupConfigDetail = rawViewInfoForDetail.customAttr?.tableHeader?.headerGroupConfig;
+        const configColumnsDetail = headerGroupConfigDetail?.columns;
+        console.log('[导出明细表带格式] headerGroupConfig:', headerGroupConfigDetail);
+        console.log('[导出明细表带格式] configColumnsDetail type:', typeof configColumnsDetail, 'is Array:', Array.isArray(configColumnsDetail), 'value:', configColumnsDetail);
 
-        if (!configColumns || configColumns.length === 0) {
-            console.log("No valid headerGroupConfig.columns found, treating as a plain table export.");
-            exportDetailExcelWithMultiHeader(viewInfo, viewDataInfoForExport, rawViewInfo.title || '明细表');
+        if (!configColumnsDetail || !Array.isArray(configColumnsDetail) || configColumnsDetail.length === 0) {
+            console.log("[导出明细表带格式] No valid array headerGroupConfig.columns found, treating as a plain table export.");
+            exportDetailExcelWithMultiHeader(rawViewInfoForDetail, viewDataInfoForExportForDetail, rawViewInfoForDetail.title || '明细表');
             return;
         }
 
-        console.log('Valid headerGroupConfig.columns found, proceeding with multi-header export logic.');
+        console.log('Valid headerGroupConfig.columns found, proceeding with multi-header export logic for Detail Table.');
 
-        const leafKeys = [];
-        function collectLeafKeysRecursive(nodes) {
-            nodes?.forEach(node => {
-                if (!node.children || node.children.length === 0) {
-                    leafKeys.push(String(node.key));
-                } else {
-                    collectLeafKeysRecursive(node.children);
-                }
-            });
-        }
-        collectLeafKeysRecursive(configColumns);
+        const leafKeysForDetail = [];
+        collectLeafKeysRecursive(configColumnsDetail, leafKeysForDetail);
 
-        if (leafKeys.length === 0 && configColumns.length > 0) {
-            console.warn("collectLeafKeysRecursive did not populate leafKeys, attempting direct map from configColumns.");
-            configColumns.forEach(node => leafKeys.push(String(node.key)));
+        if (leafKeysForDetail.length === 0 && configColumnsDetail.length > 0) {
+            console.warn("[Detail Table Export] collectLeafKeysRecursive did not populate leafKeys, attempting direct map from configColumns.");
+            configColumnsDetail.forEach(node => leafKeysForDetail.push(String(node.key)));
         }
 
-        if (leafKeys.length === 0) {
-            console.error("Failed to derive leafKeys. Check table header configuration or data structure.");
-            exportDetailExcelWithMultiHeader(viewInfo, viewDataInfoForExport, rawViewInfo.title || '明细表');
+        if (leafKeysForDetail.length === 0) {
+            console.error("[Detail Table Export] Failed to derive leafKeys. Check table header configuration or data structure.");
+            exportDetailExcelWithMultiHeader(rawViewInfoForDetail, viewDataInfoForExportForDetail, rawViewInfoForDetail.title || '明细表');
             return;
         }
 
-        let tempActualGroupingKeys = [];
-        const customAttr = rawViewInfo.customAttr;
-        const tableCellMerge = customAttr?.tableCell?.mergeCells;
-        const xAxisFields = rawViewInfo.xAxis || [];
+        let tempActualGroupingKeysForDetail = [];
+        const customAttrForDetail = rawViewInfoForDetail.customAttr;
+        const tableCellMergeForDetail = customAttrForDetail?.tableCell?.mergeCells;
+        const xAxisFieldsForDetail = rawViewInfoForDetail.xAxis || [];
 
-        if (tableCellMerge && xAxisFields.length > 0) {
-            const dimensionFieldDataeaseNames = new Set(
-                xAxisFields.filter(f => f.groupType === 'd').map(f => f.dataeaseName)
+        if (tableCellMergeForDetail && xAxisFieldsForDetail.length > 0) {
+            const dimensionFieldDataeaseNamesForDetail = new Set(
+                xAxisFieldsForDetail.filter(f => f.groupType === 'd').map(f => f.dataeaseName)
             );
-            leafKeys.forEach(lk => {
-                if (dimensionFieldDataeaseNames.has(lk)) {
-                    tempActualGroupingKeys.push(lk);
+            leafKeysForDetail.forEach(lk => {
+                if (dimensionFieldDataeaseNamesForDetail.has(lk)) {
+                    tempActualGroupingKeysForDetail.push(lk);
                 }
             });
-            if (tempActualGroupingKeys.length === 0 && leafKeys.length > 0) {
-                tempActualGroupingKeys.push(leafKeys[0]);
+            if (tempActualGroupingKeysForDetail.length === 0 && leafKeysForDetail.length > 0) {
+                // Fallback: if specific dimension fields from xAxis are not in leafKeys, but merge is enabled,
+                // and we have leaf keys, group by the first leaf key by default for merge.
+                // This might not be semantically correct for all cases but prevents errors.
+                // tempActualGroupingKeysForDetail.push(leafKeysForDetail[0]);
+                // More robust: check if xAxisFields exist in leafKeys at all
+                const firstMatchedXAxisDim = xAxisFieldsForDetail.find(xf => xf.groupType === 'd' && leafKeysForDetail.includes(xf.dataeaseName));
+                if (firstMatchedXAxisDim) {
+                    tempActualGroupingKeysForDetail = [firstMatchedXAxisDim.dataeaseName];
+                } else if (leafKeysForDetail.length > 0) {
+                    console.warn("[Detail Table Export] Merge cells enabled, but no xAxis dimension fields found in leafKeys. Defaulting to group by first leafKey if any.");
+                    tempActualGroupingKeysForDetail.push(leafKeysForDetail[0]);
+                }
+
             }
-        } else if (leafKeys.length > 0) {
-            const semanticGroupNodeKeysRaw = [];
-            function findSemanticGroupNodeKeysRecursive(nodes) {
-                nodes?.forEach(node => {
-                    if (node.children && node.children.length > 0) {
-                        semanticGroupNodeKeysRaw.push(String(node.key));
-                        findSemanticGroupNodeKeysRecursive(node.children);
-                    }
-                });
+        } else if (leafKeysForDetail.length > 0) { // No explicit mergeCells config from xAxis, derive from header structure
+            const semanticGroupNodeKeysRawForDetail = [];
+            findSemanticGroupNodeKeysRecursive(configColumnsDetail, semanticGroupNodeKeysRawForDetail);
+            const uniqueSemanticGroupNodeKeysForDetail = [...new Set(semanticGroupNodeKeysRawForDetail)];
+            let numBasedOnStructureForDetail = uniqueSemanticGroupNodeKeysForDetail.length;
+
+            if (numBasedOnStructureForDetail === 0 && leafKeysForDetail.length > 0) {
+                numBasedOnStructureForDetail = 1; // Default to merge by the first column if no explicit groups
             }
-            findSemanticGroupNodeKeysRecursive(configColumns);
-            const uniqueSemanticGroupNodeKeys = [...new Set(semanticGroupNodeKeysRaw)];
-            let numBasedOnStructure = uniqueSemanticGroupNodeKeys.length;
-            if (numBasedOnStructure === 0 && leafKeys.length > 0) {
-                numBasedOnStructure = 1;
-            }
-            tempActualGroupingKeys = leafKeys.slice(0, Math.min(numBasedOnStructure, leafKeys.length));
+            tempActualGroupingKeysForDetail = leafKeysForDetail.slice(0, Math.min(numBasedOnStructureForDetail, leafKeysForDetail.length));
         }
 
-        const actualDataFieldKeysForGrouping = tempActualGroupingKeys;
-
-        const actualGroupKeyToLeafIndexMap = {};
-        actualDataFieldKeysForGrouping.forEach(key => {
-            const index = leafKeys.indexOf(key);
+        const actualDataFieldKeysForGroupingForDetail = tempActualGroupingKeysForDetail;
+        const actualGroupKeyToLeafIndexMapForDetail = {};
+        actualDataFieldKeysForGroupingForDetail.forEach(key => {
+            const index = leafKeysForDetail.indexOf(key);
             if (index !== -1) {
-                actualGroupKeyToLeafIndexMap[key] = index;
+                actualGroupKeyToLeafIndexMapForDetail[key] = index;
             }
         });
 
-        const expectedDateOrderInShop = {};
-        if (s2Instance && actualDataFieldKeysForGrouping.length >= 2) {
-            const primaryGroupKey = actualDataFieldKeysForGrouping[0];
-            const secondaryGroupKey = actualDataFieldKeysForGrouping[1];
-            const displayData = s2Instance.dataSet.getDisplayDataSet();
+        const expectedDateOrderInShopForDetail = {};
+        if (s2Instance && actualDataFieldKeysForGroupingForDetail.length >= 2) {
+            const primaryGroupKeyForDetail = actualDataFieldKeysForGroupingForDetail[0];
+            const secondaryGroupKeyForDetail = actualDataFieldKeysForGroupingForDetail[1];
+            const displayDataForDetail = s2Instance.dataSet.getDisplayDataSet();
 
-            if (displayData && primaryGroupKey && secondaryGroupKey) {
-                console.log('S2 getDisplayDataSet():', displayData.slice(0, 5));
-                displayData.forEach(row => {
-                    const shopValue = row[primaryGroupKey];
-                    const dateValue = row[secondaryGroupKey];
-                    if (shopValue && dateValue !== undefined && dateValue !== null) {
-                        if (!expectedDateOrderInShop[shopValue]) {
-                            expectedDateOrderInShop[shopValue] = [];
+            if (displayDataForDetail && primaryGroupKeyForDetail && secondaryGroupKeyForDetail) {
+                displayDataForDetail.forEach(row => {
+                    const shopValueForDetail = row[primaryGroupKeyForDetail];
+                    const dateValueForDetail = row[secondaryGroupKeyForDetail];
+                    if (shopValueForDetail && dateValueForDetail !== undefined && dateValueForDetail !== null) {
+                        if (!expectedDateOrderInShopForDetail[shopValueForDetail]) {
+                            expectedDateOrderInShopForDetail[shopValueForDetail] = [];
                         }
-                        const shopDates = expectedDateOrderInShop[shopValue];
-                        if (shopDates.length === 0 || shopDates[shopDates.length - 1] !== dateValue) {
-                            if (!shopDates.includes(dateValue)) {
-                                shopDates.push(dateValue);
-                            }
+                        const shopDatesForDetail = expectedDateOrderInShopForDetail[shopValueForDetail];
+                        if (!shopDatesForDetail.includes(dateValueForDetail)) {
+                            shopDatesForDetail.push(dateValueForDetail);
                         }
                     }
                 });
             }
         }
-        console.log('UserViewEnlarge.vue -> expectedDateOrderInShop:', expectedDateOrderInShop);
-
-        console.log('UserViewEnlarge.vue -> REVISED leafKeys: ', leafKeys);
-        console.log('UserViewEnlarge.vue -> REVISED actualDataFieldKeysForGrouping: ', actualDataFieldKeysForGrouping);
-        console.log('UserViewEnlarge.vue -> REVISED actualGroupKeyToLeafIndexMap: ', actualGroupKeyToLeafIndexMap);
-
-        console.log('[弹窗确认 emits] columns:', JSON.stringify(configColumns, null, 2))
-        console.log('[弹窗确认 emits] meta:', JSON.stringify(s2MetaFields, null, 2))
-
-        console.log('[主界面实际渲染前] columns:', JSON.stringify(headerGroupConfig.columns, null, 2))
-        console.log('[主界面实际渲染前] meta:', JSON.stringify(headerGroupConfig.meta, null, 2))
+        console.log('[Detail Table Export] expectedDateOrderInShopForDetail:', expectedDateOrderInShopForDetail);
+        console.log('[Detail Table Export] leafKeysForDetail: ', leafKeysForDetail);
+        console.log('[Detail Table Export] actualDataFieldKeysForGroupingForDetail: ', actualDataFieldKeysForGroupingForDetail);
+        console.log('[Detail Table Export] actualGroupKeyToLeafIndexMapForDetail: ', actualGroupKeyToLeafIndexMapForDetail);
 
         exportDetailExcelWithMultiHeader(
-            viewInfo,
-            viewDataInfoForExport,
-            rawViewInfo.title || '明细表',
-            leafKeys,
-            actualDataFieldKeysForGrouping,
-            actualGroupKeyToLeafIndexMap,
-            expectedDateOrderInShop
+            rawViewInfoForDetail,
+            viewDataInfoForExportForDetail,
+            rawViewInfoForDetail.title || '明细表',
+            leafKeysForDetail,
+            actualDataFieldKeysForGroupingForDetail,
+            actualGroupKeyToLeafIndexMapForDetail,
+            expectedDateOrderInShopForDetail
         );
+
     } else if (viewInfo.value.type === 'table-normal') {
-        // 汇总表类型
-        console.log('[汇总表导出] 开始导出，viewInfo:', viewInfo.value)
-        const rawViewInfo = viewInfo.value;
-        
-        // 汇总表直接获取全量数据，不需要分页
-        console.log('[导出汇总表带格式] 开始获取数据...');
-        
-        const pageReq = JSON.parse(JSON.stringify(rawViewInfo));
-        pageReq.chartExtRequest = pageReq.chartExtRequest || {};
-        // 移除分页参数，让后端返回全量数据
-        delete pageReq.chartExtRequest.pageNo;
-        delete pageReq.chartExtRequest.pageSize;
-        delete pageReq.chartExtRequest.resultMode;
-        delete pageReq.chartExtRequest.resultCount;
+        console.log('[导出汇总表带格式] 开始导出，viewInfo:', viewInfo.value)
+        const rawViewInfoForSummary = viewInfo.value as ExtendedChartObj;
 
-        console.log('[导出汇总表带格式] 请求全量数据');
-        
-        let allDataFetched;
+        // Prepare request data for a single fetch of all summary data
+        const requestDataForSummary = JSON.parse(JSON.stringify(rawViewInfoForSummary));
+        if (requestDataForSummary.chartExtRequest) {
+            delete requestDataForSummary.chartExtRequest.goPage;
+            delete requestDataForSummary.chartExtRequest.pageSize;
+            // Optionally, set a flag if the backend API uses it for full data export
+            // requestDataForSummary.chartExtRequest.resultMode = 'all'; 
+        }
+        // Indicate this is for an export context, if backend uses this flag
+        requestDataForSummary.isExcelExport = true;
+
+        console.log('[导出汇总表带格式] 开始使用 getData 直接获取全部数据，请求参数:', requestDataForSummary);
         try {
-            const response = await getData(pageReq);
-            const allRows = response.data?.tableRow || [];
-            console.log(`[导出汇总表带格式] 获取到数据条数: ${allRows.length}`);
-            
-            // 构建完整的数据结构
-            allDataFetched = {
-                data: {
-                    tableRow: allRows,
-                    fields: response.data?.fields || response.data?.sourceFields || [],
-                    totalItems: allRows.length,
-                    total: allRows.length
-                }
-            };
-            
-        } catch (error) {
-            console.error('[导出汇总表带格式] 获取数据时出错:', error);
-            return;
-        }
+            const allDataFetchedForSummary = await getData(requestDataForSummary);
+            const allRowsForSummary = allDataFetchedForSummary?.data?.tableRow || [];
+            console.log(`[导出汇总表带格式] getData 获取到数据: ${allRowsForSummary.length} 条`);
 
-        // 构建完整的数据结构
-        if (!allDataFetched) {
-            allDataFetched = {
-                data: {
-                    fields: [],
-                    totalItems: allRows.length,
-                    total: allRows.length
-                }
-            };
-        }
-        allDataFetched.data.tableRow = allRows;
-        allDataFetched.data.totalItems = allRows.length;
-        const allDataFetched = await fetchAllTableRows(rawViewInfo);
-        const allRows = allDataFetched.data?.tableRow || [];
-        console.log(`[导出汇总表带格式] 实际获取数据条数: ${allRows.length}`);
-        // 字段定义
-        let s2MetaFields = null;
-        if (s2Instance && s2Instance.options?.dataCfg?.fields) {
-            s2MetaFields = s2Instance.options.dataCfg.fields;
-            console.log('[汇总表导出] S2 options.dataCfg.fields:', s2MetaFields)
-        }
-        const sourceFieldsForExport = allDataFetched.data?.fields || allDataFetched.data?.sourceFields || [];
-        const fieldsForExport = s2MetaFields ?
-            (s2MetaFields.values || s2MetaFields.columns || s2MetaFields.rows || []).map(f_key => {
-                const f_detail = sourceFieldsForExport.find(fd => fd.dataeaseName === f_key || fd.key === f_key);
-                return f_detail || { key: f_key, name: f_key, dataeaseName: f_key };
-            })
-            : sourceFieldsForExport;
-        const viewDataInfoForExport = {
-            ...(allDataFetched.data || {}),
-            tableRow: allRows,
-            fields: fieldsForExport
-        };
-        // 多级表头结构
-        const headerGroupConfig = rawViewInfo.customAttr?.tableHeader?.headerGroupConfig;
-        const configColumns = headerGroupConfig?.columns;
-        if (!configColumns || configColumns.length === 0) {
-            console.log('[汇总表导出] 未找到多级表头结构，按普通表导出');
-            exportDetailExcelWithMultiHeader(viewInfo, viewDataInfoForExport, rawViewInfo.title || '汇总表');
-            return;
-        }
-        console.log('[汇总表导出] 多级表头结构:', configColumns)
-        // 叶子key
-        const leafKeys = [];
-        function collectLeafKeysRecursive(nodes) {
-            nodes?.forEach(node => {
-                if (!node.children || node.children.length === 0) {
-                    leafKeys.push(String(node.key));
-                } else {
-                    collectLeafKeysRecursive(node.children);
-                }
-            });
-        }
-        collectLeafKeysRecursive(configColumns);
-        if (leafKeys.length === 0 && configColumns.length > 0) {
-            console.warn('[汇总表导出] collectLeafKeysRecursive未获取到叶子key，尝试直接取columns');
-            configColumns.forEach(node => leafKeys.push(String(node.key)));
-        }
-        if (leafKeys.length === 0) {
-            console.error('[汇总表导出] 叶子key为空，无法导出');
-            exportDetailExcelWithMultiHeader(viewInfo, viewDataInfoForExport, rawViewInfo.title || '汇总表');
-            return;
-        }
-        // 分组key
-        let tempActualGroupingKeys = [];
-        const customAttr = rawViewInfo.customAttr;
-        const tableCellMerge = customAttr?.tableCell?.mergeCells;
-        const xAxisFields = rawViewInfo.xAxis || [];
-        if (tableCellMerge && xAxisFields.length > 0) {
-            const dimensionFieldDataeaseNames = new Set(
-                xAxisFields.filter(f => f.groupType === 'd').map(f => f.dataeaseName)
-            );
-            leafKeys.forEach(lk => {
-                if (dimensionFieldDataeaseNames.has(lk)) {
-                    tempActualGroupingKeys.push(lk);
-                }
-            });
-            if (tempActualGroupingKeys.length === 0 && leafKeys.length > 0) {
-                tempActualGroupingKeys.push(leafKeys[0]);
+            if (allRowsForSummary.length === 0) {
+                console.warn('[导出汇总表带格式] getData 未返回有效数据，可能无法正确导出。');
             }
-        } else if (leafKeys.length > 0) {
-            const semanticGroupNodeKeysRaw = [];
-            function findSemanticGroupNodeKeysRecursive(nodes) {
-                nodes?.forEach(node => {
-                    if (node.children && node.children.length > 0) {
-                        semanticGroupNodeKeysRaw.push(String(node.key));
-                        findSemanticGroupNodeKeysRecursive(node.children);
+            if (allRowsForSummary.length > 300000) {
+                console.warn(`[导出汇总表带格式] getData 返回数据超过30万条 (${allRowsForSummary.length} 条)，将截断至30万条。`);
+                allRowsForSummary.splice(300000); // Truncate to 300,000 rows
+            }
+
+            let s2MetaFieldsForSummary = null;
+            if (s2Instance && s2Instance.options?.dataCfg?.fields) {
+                s2MetaFieldsForSummary = s2Instance.options.dataCfg.fields;
+                console.log('[导出汇总表带格式] S2 options.dataCfg.fields:', s2MetaFieldsForSummary)
+            }
+            const sourceFieldsForExportForSummary = allDataFetchedForSummary?.data?.fields || allDataFetchedForSummary?.data?.sourceFields || [];
+            const fieldsForExportForSummary = s2MetaFieldsForSummary ?
+                (s2MetaFieldsForSummary.values || s2MetaFieldsForSummary.columns || s2MetaFieldsForSummary.rows || []).map(f_key => {
+                    const f_detail = sourceFieldsForExportForSummary.find(fd => fd.dataeaseName === f_key || fd.key === f_key);
+                    return f_detail || { key: f_key, name: f_key, dataeaseName: f_key };
+                })
+                : sourceFieldsForExportForSummary;
+
+            const viewDataInfoForExportForSummary = {
+                ...(allDataFetchedForSummary?.data || {}),
+                tableRow: allRowsForSummary,
+                fields: fieldsForExportForSummary,
+                totalItems: allRowsForSummary.length,
+                total: allRowsForSummary.length
+            };
+
+            const headerGroupConfigSummary = rawViewInfoForSummary.customAttr?.tableHeader?.headerGroupConfig;
+            const configColumnsSummary = headerGroupConfigSummary?.columns;
+            console.log('[导出汇总表带格式] headerGroupConfig:', headerGroupConfigSummary);
+            console.log('[导出汇总表带格式] configColumnsSummary type:', typeof configColumnsSummary, 'is Array:', Array.isArray(configColumnsSummary), 'value:', configColumnsSummary);
+
+            if (!configColumnsSummary || !Array.isArray(configColumnsSummary) || configColumnsSummary.length === 0) {
+                console.log('[导出汇总表带格式] 未找到有效数组多级表头结构，按普通表导出');
+                exportDetailExcelWithMultiHeader(rawViewInfoForSummary, viewDataInfoForExportForSummary, rawViewInfoForSummary.title || '汇总表');
+                return;
+            }
+            console.log('[导出汇总表带格式] 多级表头结构:', configColumnsSummary)
+
+            const leafKeysForSummary = [];
+            collectLeafKeysRecursive(configColumnsSummary, leafKeysForSummary);
+
+            if (leafKeysForSummary.length === 0 && configColumnsSummary.length > 0) {
+                console.warn('[Summary Table Export] collectLeafKeysRecursive未获取到叶子key，尝试直接取columns');
+                configColumnsSummary.forEach(node => leafKeysForSummary.push(String(node.key)));
+            }
+            if (leafKeysForSummary.length === 0) {
+                console.error('[Summary Table Export] 叶子key为空，无法导出');
+                exportDetailExcelWithMultiHeader(rawViewInfoForSummary, viewDataInfoForExportForSummary, rawViewInfoForSummary.title || '汇总表');
+                return;
+            }
+
+            let tempActualGroupingKeysForSummary = [];
+            const customAttrForSummary = rawViewInfoForSummary.customAttr;
+            const tableCellMergeForSummary = customAttrForSummary?.tableCell?.mergeCells;
+            const xAxisFieldsForSummary = rawViewInfoForSummary.xAxis || [];
+
+            if (tableCellMergeForSummary && xAxisFieldsForSummary.length > 0) {
+                const dimensionFieldDataeaseNamesForSummary = new Set(
+                    xAxisFieldsForSummary.filter(f => f.groupType === 'd').map(f => f.dataeaseName)
+                );
+                leafKeysForSummary.forEach(lk => {
+                    if (dimensionFieldDataeaseNamesForSummary.has(lk)) {
+                        tempActualGroupingKeysForSummary.push(lk);
                     }
                 });
+                if (tempActualGroupingKeysForSummary.length === 0 && leafKeysForSummary.length > 0) {
+                    const firstMatchedXAxisDim = xAxisFieldsForSummary.find(xf => xf.groupType === 'd' && leafKeysForSummary.includes(xf.dataeaseName));
+                    if (firstMatchedXAxisDim) {
+                        tempActualGroupingKeysForSummary = [firstMatchedXAxisDim.dataeaseName];
+                    } else if (leafKeysForSummary.length > 0) {
+                        console.warn("[Summary Table Export] Merge cells enabled, but no xAxis dimension fields found in leafKeys. Defaulting to group by first leafKey if any.");
+                        tempActualGroupingKeysForSummary.push(leafKeysForSummary[0]);
+                    }
+                }
+            } else if (leafKeysForSummary.length > 0) {
+                const semanticGroupNodeKeysRawForSummary = [];
+                findSemanticGroupNodeKeysRecursive(configColumnsSummary, semanticGroupNodeKeysRawForSummary);
+                const uniqueSemanticGroupNodeKeysForSummary = [...new Set(semanticGroupNodeKeysRawForSummary)];
+                let numBasedOnStructureForSummary = uniqueSemanticGroupNodeKeysForSummary.length;
+                if (numBasedOnStructureForSummary === 0 && leafKeysForSummary.length > 0) {
+                    numBasedOnStructureForSummary = 1;
+                }
+                tempActualGroupingKeysForSummary = leafKeysForSummary.slice(0, Math.min(numBasedOnStructureForSummary, leafKeysForSummary.length));
             }
-            findSemanticGroupNodeKeysRecursive(configColumns);
-            const uniqueSemanticGroupNodeKeys = [...new Set(semanticGroupNodeKeysRaw)];
-            let numBasedOnStructure = uniqueSemanticGroupNodeKeys.length;
-            if (numBasedOnStructure === 0 && leafKeys.length > 0) {
-                numBasedOnStructure = 1;
-            }
-            tempActualGroupingKeys = leafKeys.slice(0, Math.min(numBasedOnStructure, leafKeys.length));
-        }
-        const actualDataFieldKeysForGrouping = tempActualGroupingKeys;
-        const actualGroupKeyToLeafIndexMap = {};
-        actualDataFieldKeysForGrouping.forEach(key => {
-            const index = leafKeys.indexOf(key);
-            if (index !== -1) {
-                actualGroupKeyToLeafIndexMap[key] = index;
-            }
-        });
-        // 顺序map（如有）
-        const expectedDateOrderInShop = {};
-        if (s2Instance && actualDataFieldKeysForGrouping.length >= 2) {
-            const primaryGroupKey = actualDataFieldKeysForGrouping[0];
-            const secondaryGroupKey = actualDataFieldKeysForGrouping[1];
-            const displayData = s2Instance.dataSet.getDisplayDataSet();
-            if (displayData && primaryGroupKey && secondaryGroupKey) {
-                console.log('[汇总表导出] S2 getDisplayDataSet():', displayData.slice(0, 5));
-                displayData.forEach(row => {
-                    const shopValue = row[primaryGroupKey];
-                    const dateValue = row[secondaryGroupKey];
-                    if (shopValue && dateValue !== undefined && dateValue !== null) {
-                        if (!expectedDateOrderInShop[shopValue]) {
-                            expectedDateOrderInShop[shopValue] = [];
-                        }
-                        const shopDates = expectedDateOrderInShop[shopValue];
-                        if (shopDates.length === 0 || shopDates[shopDates.length - 1] !== dateValue) {
-                            if (!shopDates.includes(dateValue)) {
-                                shopDates.push(dateValue);
+
+            const actualDataFieldKeysForGroupingForSummary = tempActualGroupingKeysForSummary;
+            const actualGroupKeyToLeafIndexMapForSummary = {};
+            actualDataFieldKeysForGroupingForSummary.forEach(key => {
+                const index = leafKeysForSummary.indexOf(key);
+                if (index !== -1) {
+                    actualGroupKeyToLeafIndexMapForSummary[key] = index;
+                }
+            });
+
+            const expectedDateOrderInShopForSummary = {};
+            if (s2Instance && actualDataFieldKeysForGroupingForSummary.length >= 2) {
+                const primaryGroupKeyForSummary = actualDataFieldKeysForGroupingForSummary[0];
+                const secondaryGroupKeyForSummary = actualDataFieldKeysForGroupingForSummary[1];
+                const displayDataForSummary = s2Instance.dataSet.getDisplayDataSet();
+                if (displayDataForSummary && primaryGroupKeyForSummary && secondaryGroupKeyForSummary) {
+                    displayDataForSummary.forEach(row => {
+                        const shopValueForSummary = row[primaryGroupKeyForSummary];
+                        const dateValueForSummary = row[secondaryGroupKeyForSummary];
+                        if (shopValueForSummary && dateValueForSummary !== undefined && dateValueForSummary !== null) {
+                            if (!expectedDateOrderInShopForSummary[shopValueForSummary]) {
+                                expectedDateOrderInShopForSummary[shopValueForSummary] = [];
+                            }
+                            const shopDatesForSummary = expectedDateOrderInShopForSummary[shopValueForSummary];
+                            if (!shopDatesForSummary.includes(dateValueForSummary)) {
+                                shopDatesForSummary.push(dateValueForSummary);
                             }
                         }
-                    }
-                });
+                    });
+                }
             }
-        }
+            console.log('[Summary Table Export] expectedDateOrderInShopForSummary:', expectedDateOrderInShopForSummary);
+            console.log('[Summary Table Export] leafKeysForSummary:', leafKeysForSummary);
+            console.log('[Summary Table Export] actualDataFieldKeysForGroupingForSummary:', actualDataFieldKeysForGroupingForSummary);
+            console.log('[Summary Table Export] actualGroupKeyToLeafIndexMapForSummary:', actualGroupKeyToLeafIndexMapForSummary);
 
-        exportDetailExcelWithMultiHeader(
-            viewInfo,
-            viewDataInfoForExport,
-            rawViewInfo.title || '汇总表',
-            leafKeys,
-            actualDataFieldKeysForGrouping,
-            actualGroupKeyToLeafIndexMap,
-            expectedDateOrderInShop
-        );
+            exportDetailExcelWithMultiHeader(
+                rawViewInfoForSummary,
+                viewDataInfoForExportForSummary,
+                rawViewInfoForSummary.title || '汇总表',
+                leafKeysForSummary,
+                actualDataFieldKeysForGroupingForSummary,
+                actualGroupKeyToLeafIndexMapForSummary,
+                expectedDateOrderInShopForSummary
+            );
+
+        } catch (error) {
+            console.error('[导出汇总表带格式] getData 请求失败:', error);
+            ElMessage.error(t('chart.export_failed') + ': ' + (error.message || 'Request Error'));
+            exportLoading.value = false; // Ensure loading is reset on error
+        }
     }
 }
 
@@ -817,29 +753,18 @@ const exportData = () => {
 }
 
 const openMessageLoading = cb => {
-    const iconClass = `el-icon-loading`
     const customClass = `de-message-loading de-message-export`
     ElMessage({
-        message: h('p', null, [
-            t('data_fill.exporting'),
-            h(
-                ElButton,
-                {
-                    text: true,
-                    size: 'small',
-                    class: 'btn-text',
-                    onClick: () => {
-                        cb()
-                    }
-                },
-                t('data_export.export_center')
-            ),
-            t('data_fill.progress_to_download')
-        ]),
-        iconClass,
-        icon: h(RefreshLeft),
+        message: h('p', null, [h('span', { class: 'el-icon-loading', style: { marginRight: '5px' } }), h('span', null, t('dataVisualization.exporting'))]),
+        customClass,
+        type: 'info',
+        duration: 0, // 持续显示，直到手动关闭
         showClose: true,
-        customClass
+        onClose: () => {
+            if (typeof cb === 'function') {
+                cb()
+            }
+        }
     })
 }
 // 地图

@@ -839,164 +839,111 @@ function getValue(field, filedValueMap, rowData) {
     }
 }
 
-export async function fetchAllTableRows(view, pageSize = 5000) {
-    console.log(`[fetchAllTableRows] 开始获取所有数据，参数:`, { pageSize });
-    console.log(`[fetchAllTableRows] 原始view.chartExtRequest:`, JSON.stringify(view.chartExtRequest, null, 2));
-    
+export async function fetchAllTableRows(view, pageSize = 5000) { // pageSize has a default
+    console.log(`[fetchAllTableRows] 开始获取所有数据，请求的初始pageSize: ${pageSize}`);
+    // Ensure pageSize is at least 1 to avoid division by zero or infinite loops
+    const effectivePageSize = Math.max(1, pageSize);
+    console.log(`[fetchAllTableRows] 生效的pageSize: ${effectivePageSize}`);
+
     let allRows = [];
     let currentPage = 1;
     let firstResponse = null;
     let totalFromBackend = null;
-    
-    // 安全机制：最大允许获取30万条数据，防止无限循环
-    const MAX_ROWS = 300000;
-    // 最大页数限制：50页
-    const MAX_PAGES = 50;
-    
-    while (currentPage <= MAX_PAGES) {
-        console.log(`[fetchAllTableRows] 正在请求第 ${currentPage} 页，pageSize: ${pageSize}`);
-        
+
+    const MAX_EXPORT_ROWS = 300000; // 最终导出硬上限30万条
+    const MAX_PAGES = 15000;       // 最大页数限制15000页
+
+    // let softLimitReachedNotified = false; // Removed for 100k soft limit
+
+    while (currentPage <= MAX_PAGES) { // Will use MAX_PAGES = 15000
+        console.log(`[fetchAllTableRows] 正在请求第 ${currentPage} 页，pageSize: ${effectivePageSize}`);
+
         try {
-            // ====== 关键修复：确保创建完全独立的请求对象 ======
-            // 深度克隆原始view，避免引用问题
             const requestView = JSON.parse(JSON.stringify(view));
-            
-            // 确保chartExtRequest对象存在并重新设置分页参数
             if (!requestView.chartExtRequest) {
                 requestView.chartExtRequest = {};
             }
-            
-            // 强制设置分页参数，确保goPage正确递增
             requestView.chartExtRequest.goPage = currentPage;
-            requestView.chartExtRequest.pageSize = pageSize;
-            
-            // 删除可能影响分页的参数
+            requestView.chartExtRequest.pageSize = effectivePageSize; // 使用生效的pageSize
             delete requestView.chartExtRequest.resultMode;
             delete requestView.chartExtRequest.resultCount;
-
-            // ====== 关键修复：临时设置tablePageMode为'page'，避免后端重置goPage ======
             if (requestView.customAttr && requestView.customAttr.basicStyle) {
                 requestView.customAttr.basicStyle.tablePageMode = 'page';
             }
-
-            // ====== 关键修复：明确设置isExcelExport为false，避免后端强制设置resultMode为CUSTOM ======
             requestView.isExcelExport = false;
 
-            const allData = [];
-            
             console.log(`[fetchAllTableRows] 第 ${currentPage} 页请求参数:`, {
                 goPage: requestView.chartExtRequest.goPage,
                 pageSize: requestView.chartExtRequest.pageSize,
                 chartExtRequest: requestView.chartExtRequest
             });
-            
+
             const response = await getData(requestView);
             const currentPageRows = response?.data?.tableRow || [];
-            
             console.log(`[fetchAllTableRows] 第 ${currentPage} 页获取到 ${currentPageRows.length} 条数据`);
-            console.log(`[fetchAllTableRows] 后端返回的goPage确认:`, (response as any)?.chartExtRequest?.goPage);
-            
-            // 保存第一页响应用于返回结构
+
             if (currentPage === 1) {
                 firstResponse = response;
-                // 尝试从多个可能的字段获取后端返回的总数据量
-                totalFromBackend = (response as any).totalItems || 
-                                   (response as any).data?.totalItems || 
-                                   (response as any).data?.total ||
-                                   (response as any).total ||
-                                   (response as any).data?.count ||
-                                   (response as any).count;
-                                   
-                console.log('[fetchAllTableRows] 后端响应分析:', {
-                    totalItems: (response as any).totalItems,
-                    totalPage: (response as any).totalPage,
-                    currentPage: currentPage,
-                    returnedRows: currentPageRows.length,
-                    backendGoPage: (response as any)?.chartExtRequest?.goPage  // 确认后端收到的goPage
-                });
-                
+                totalFromBackend = (response as any).totalItems ||
+                    (response as any).data?.totalItems ||
+                    (response as any).data?.total ||
+                    (response as any).total ||
+                    (response as any).data?.count ||
+                    (response as any).count;
                 if (totalFromBackend) {
                     console.log(`[fetchAllTableRows] 后端报告总数据量: ${totalFromBackend}`);
                 } else {
                     console.warn(`[fetchAllTableRows] ⚠️ 后端未返回总数据量信息`);
                 }
             }
-            
-            // ====== 多重停止判断条件 ======
-            // 1. 如果当前页没有数据，表示已到末尾
+
             if (currentPageRows.length === 0) {
                 console.log(`[fetchAllTableRows] ✅ 第 ${currentPage} 页返回0条数据，停止获取`);
                 break;
             }
-            
-            // 2. 检查数据重复（如果连续两页返回相同数据，可能后端有问题）
-            if (allRows.length > 0 && currentPageRows.length > 0) {
-                const lastRowFromPrevious = allRows[allRows.length - 1];
-                const firstRowFromCurrent = currentPageRows[0];
-                // 简单检查：如果最后一行和第一行完全相同，可能有重复
-                if (JSON.stringify(lastRowFromPrevious) === JSON.stringify(firstRowFromCurrent)) {
-                    console.warn(`[fetchAllTableRows] ⚠️ 检测到可能的数据重复，停止获取`);
-                    break;
-                }
-            }
-            
-            // 3. 将当前页数据添加到总数据中
+
             allRows = allRows.concat(currentPageRows);
             console.log(`[fetchAllTableRows] 累计已获取 ${allRows.length} 条数据`);
-            
-            // 4. 如果累计数据量超过安全上限，强制停止
-            if (allRows.length >= MAX_ROWS) {
-                console.error(`[fetchAllTableRows] 🚨 数据量超过安全上限(${MAX_ROWS})，强制停止获取`);
+
+            if (allRows.length >= MAX_EXPORT_ROWS) {
+                console.warn(`[fetchAllTableRows] 🚨 数据量达到或超过硬性上限(${MAX_EXPORT_ROWS}条)，将停止获取更多数据。`);
+                if (allRows.length > MAX_EXPORT_ROWS) {
+                    allRows = allRows.slice(0, MAX_EXPORT_ROWS);
+                    console.log(`[fetchAllTableRows] 数据已截断至 ${MAX_EXPORT_ROWS} 条。`);
+                }
                 break;
             }
-            
-            // 5. 如果后端有总数据量信息，检查是否已获取完所有数据
+
             if (totalFromBackend && allRows.length >= totalFromBackend) {
-                console.log(`[fetchAllTableRows] ✅ 已获取所有数据: ${allRows.length}/${totalFromBackend}，停止获取`);
+                console.log(`[fetchAllTableRows] ✅ 已获取所有数据 (据后端报告): ${allRows.length}/${totalFromBackend}，停止获取`);
                 break;
             }
-            
-            // 6. 如果当前页返回的数据量少于请求的pageSize，表示到了最后一页
+
+            // 5. 如果当前页返回的数据量少于请求的pageSize，表示到了最后一页
             if (currentPageRows.length < pageSize) {
                 console.log(`[fetchAllTableRows] ✅ 第 ${currentPage} 页返回数据量(${currentPageRows.length}) < pageSize(${pageSize})，到达最后一页，停止获取`);
                 break;
             }
-            
-            // 7. 针对您的具体情况：如果是第5页还返回5000条，进行特殊检查
-            if (currentPage >= 5 && currentPageRows.length === pageSize) {
-                console.warn(`[fetchAllTableRows] ⚠️ 第 ${currentPage} 页仍返回满页数据(${pageSize}条)，这可能不正常`);
-                
-                // 如果后端说总共20480条，第5页不应该返回5000条
-                if (totalFromBackend && totalFromBackend <= 25000 && allRows.length >= totalFromBackend * 0.9) {
-                    console.warn(`[fetchAllTableRows] 🛑 数据量接近预期总数(${totalFromBackend})，但第${currentPage}页仍返回满页，强制停止防止无限循环`);
-                    break;
-                }
+
+            // 6. 针对特定情况的检查（例如小pageSize长时间满页返回）
+            if (currentPage >= 20 && currentPageRows.length === pageSize && pageSize <= 50) {
+                console.warn(`[fetchAllTableRows] ⚠️ 第 ${currentPage} 页(小pageSize:${pageSize})仍返回满页数据，可能存在问题。依赖MAX_PAGES或MAX_EXPORT_ROWS终止。`);
             }
-            
-            // 8. 如果已经获取了合理数量的数据（比如超过用户预期），进行确认
-            if (allRows.length > 25000) {
-                console.warn(`[fetchAllTableRows] ⚠️ 已获取超过25000条数据，继续获取第 ${currentPage + 1} 页`);
-                if (allRows.length > 50000) {
-                    console.error(`[fetchAllTableRows] 🚨 数据量异常庞大(${allRows.length}条)，可能后端有问题，强制停止`);
-                    break;
-                }
-            }
-            
+
             currentPage++;
-            
         } catch (error) {
             console.error(`[fetchAllTableRows] 第 ${currentPage} 页请求失败:`, error);
             break;
         }
     }
-    
+
     // 如果达到最大页数限制
     if (currentPage > MAX_PAGES) {
         console.error(`[fetchAllTableRows] 🚨 达到最大页数限制(${MAX_PAGES})，强制停止`);
     }
-    
+
     console.log(`[fetchAllTableRows] ✅ 数据获取完成，总计: ${allRows.length} 条数据，共请求了 ${currentPage - 1} 页`);
-    
+
     // 构建返回对象，保持与原始API相同的结构
     return {
         ...firstResponse,
@@ -2606,11 +2553,11 @@ export function fillColumnNames(columns, allFields) {
             if (node.children && node.children.length > 0) {
                 // 对于分组节点，只有在没有名称或名称明显是key值时才重置
                 // 更严格的判断条件：只有当名称完全是UUID格式或非常长的字符串时才重置
-                const shouldForceUpdate = !node.name || 
+                const shouldForceUpdate = !node.name ||
                     /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(node.name) || // UUID格式
                     (node.name.length > 30 && /^[a-f0-9]{20,}/.test(node.name)) || // 很长的十六进制字符串
                     node.name === node.key; // 名称和key完全相同
-                
+
                 if (shouldForceUpdate) {
                     node.name = `分组${groupLevel}`;
                     console.log(`[fillColumnNames] 重置分组名称: ${node.key} => ${node.name}`);
