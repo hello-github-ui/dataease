@@ -1622,7 +1622,7 @@ export async function exportDetailExcelWithMultiHeader(
 
     // 1. 获取分组结构 (用于多级表头判断)
     const headerGroupConfig = rawViewInfo.customAttr?.tableHeader?.headerGroupConfig;
-    const columns = headerGroupConfig?.columns;
+    const columnsFromConfig = headerGroupConfig?.columns; // Renamed for clarity
     const meta = headerGroupConfig?.meta || [];
 
     // 2. 获取字段名映射 (两个分支都需要)
@@ -1633,13 +1633,45 @@ export async function exportDetailExcelWithMultiHeader(
     });
 
     // 3. 判断是否有分组合并（一级表头）
-    if (meta && Array.isArray(meta) && meta.length > 0 && columns && columns.length > 0) {
+    // The condition for multi-header path
+    if (meta && Array.isArray(meta) && meta.length > 0 && columnsFromConfig && columnsFromConfig.length > 0) {
         // ====== 多级表头导出 ======
-        const maxLevel = getMaxLevel(columns);
+
+        // Get all leaf keys defined within the user's headerGroupConfig.columns
+        const keysDefinedInConfigStructure = new Set();
+        function collectKeysFromConfigStructure(nodes) {
+            if (!Array.isArray(nodes)) return;
+            nodes.forEach(node => {
+                if (!node.children || node.children.length === 0) {
+                    keysDefinedInConfigStructure.add(String(node.key));
+                } else {
+                    collectKeysFromConfigStructure(node.children);
+                }
+            });
+        }
+        collectKeysFromConfigStructure(columnsFromConfig);
+
+        // Prepare the final columns structure for writeMultiHeader
+        // It starts with user's config, then adds any missing leaf keys from actualLeafKeys
+        const finalColumnsForWrite = JSON.parse(JSON.stringify(columnsFromConfig)); // Deep copy
+
+        if (actualLeafKeys && Array.isArray(actualLeafKeys)) {
+            actualLeafKeys.forEach(leafKey => {
+                const sLeafKey = String(leafKey);
+                if (!keysDefinedInConfigStructure.has(sLeafKey)) {
+                    // If a key from actualLeafKeys is not in the user's config structure,
+                    // add it as a simple top-level column to ensure its header is written.
+                    finalColumnsForWrite.push({ key: sLeafKey }); // Name will be picked up by keyNameMap in writeMultiHeader
+                }
+            });
+        }
+
+        const maxLevel = getMaxLevel(finalColumnsForWrite); // Calculate maxLevel based on potentially augmented structure
         const workbook = new ExcelJS.Workbook();
         // 使用传入的 title，确保是字符串
         const worksheet = workbook.addWorksheet(String(title));
-        writeMultiHeader(worksheet, columns, meta, keyNameMap, 1, 1, maxLevel);
+        // Pass the augmented finalColumnsForWrite to writeMultiHeader
+        writeMultiHeader(worksheet, finalColumnsForWrite, meta, keyNameMap, 1, 1, maxLevel);
 
         // 1. 使用传入的 leafKeys (决定列顺序)
         const leafKeys = actualLeafKeys;
