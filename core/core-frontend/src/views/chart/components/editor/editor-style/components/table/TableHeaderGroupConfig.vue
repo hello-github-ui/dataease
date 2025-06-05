@@ -50,14 +50,46 @@ const onCancelConfig = () => {
 }
 
 const onConfigChange = () => {
-    // 1. 获取表头分组配置
-    const headerGroupConfig = props.chart?.customAttr?.tableHeader?.headerGroupConfig || {};
-    const columns = headerGroupConfig.columns || [];
+    if (!s2) {
+        console.warn("S2 instance not available in onConfigChange. Emitting config from props as a fallback.");
+        const headerGroupConfigFromProps = props.chart?.customAttr?.tableHeader?.headerGroupConfig;
+        const columnsFromProps = headerGroupConfigFromProps?.columns || [];
 
-    // 2. 获取所有字段定义
+        const allFieldsForProps = (props.chart.xAxis || []).concat(props.chart.yAxis || []);
+        const fieldNameMapForProps = {};
+        allFieldsForProps.forEach(field => {
+            if (field.dataeaseName && field.name) fieldNameMapForProps[field.dataeaseName] = field.name;
+        });
+
+        const finalColumns = cloneDeep(columnsFromProps);
+        let finalMeta = cloneDeep(headerGroupConfigFromProps?.meta || []);
+
+        if (finalColumns.length > 0 && finalMeta.length === 0) {
+            finalMeta = [];
+            finalColumns.forEach(col => {
+                let isLeaf = true;
+                if (col.children && col.children.length > 0) {
+                    isLeaf = false;
+                }
+                if (isLeaf) {
+                    finalMeta.push({
+                        field: col.key,
+                        name: col.name || (col.key && fieldNameMapForProps[col.key]) || col.key
+                    });
+                }
+            });
+        }
+
+        emits('onConfigChange', {
+            columns: finalColumns,
+            meta: finalMeta
+        });
+        return;
+    }
+
+    const currentS2Columns = cloneDeep(s2.options?.columns || []);
+
     const allFields = (props.chart.xAxis || []).concat(props.chart.yAxis || []);
-
-    // 创建字段映射
     const fieldNameMap = {};
     allFields.forEach(field => {
         if (field.dataeaseName && field.name) {
@@ -65,52 +97,60 @@ const onConfigChange = () => {
         }
     });
 
-    // 3. 递归确保 columns 的 name 字段正确
-    function ensureColumnNames(columns) {
-        if (!columns || !Array.isArray(columns)) return columns;
+    const chartData = props.chart.data;
+    const dataFields = chartData?.fields || (chartData as any)?.sourceFields || [];
+    dataFields.forEach((field: ChartViewField) => {
+        if (field.dataeaseName && field.name && !fieldNameMap[field.dataeaseName]) {
+            fieldNameMap[field.dataeaseName] = field.name;
+        }
+    });
 
-        return columns.map(col => {
+    function ensureColumnNamesRecursive(columnsToEnsure, currentFieldNameMap) {
+        if (!columnsToEnsure || !Array.isArray(columnsToEnsure)) return [];
+        return columnsToEnsure.map(col => {
             const result = { ...col };
 
-            // 如果是分组节点（有children），递归处理子节点
-            if (col.children && col.children.length > 0) {
-                result.children = ensureColumnNames(col.children);
-            }
-            // 如果是叶子节点，确保有正确的名称
-            else if (col.key && fieldNameMap[col.key] && !col.name) {
-                result.name = fieldNameMap[col.key];
+            if ((!result.children || result.children.length === 0) && result.key && !result.name) {
+                if (currentFieldNameMap[result.key]) {
+                    result.name = currentFieldNameMap[result.key];
+                } else {
+                    result.name = result.key;
+                }
             }
 
+            if (result.children && result.children.length > 0) {
+                if (!result.name && result.key) {
+                    // result.name = `分组 ${result.key}`; // Group names should come from S2 if set
+                }
+                result.children = ensureColumnNamesRecursive(result.children, currentFieldNameMap);
+            }
             return result;
         });
     }
+    const correctedColumns = ensureColumnNamesRecursive(currentS2Columns, fieldNameMap);
 
-    const correctedColumns = ensureColumnNames(columns);
-
-    // 4. 生成meta数据，只包含叶子节点
     const leafNodes = [];
-    function collectLeafNodes(columns) {
-        if (!columns) return;
-        columns.forEach(col => {
+    function collectLeafNodesRecursive(columnsToScan) {
+        if (!columnsToScan || !Array.isArray(columnsToScan)) return;
+        columnsToScan.forEach(col => {
             if (!col.children || col.children.length === 0) {
+                const fieldName = col.name || (col.key && fieldNameMap[col.key]) || col.key;
                 leafNodes.push({
                     field: col.key,
-                    name: col.name || fieldNameMap[col.key] || col.key
+                    name: fieldName
                 });
             } else {
-                collectLeafNodes(col.children);
+                collectLeafNodesRecursive(col.children);
             }
         });
     }
-    collectLeafNodes(correctedColumns);
+    collectLeafNodesRecursive(correctedColumns);
 
-    // 5. 日志
-    console.log('[表头配置确认] columns:', JSON.stringify(correctedColumns, null, 2));
-    console.log('[表头配置确认] meta:', JSON.stringify(leafNodes, null, 2));
+    console.log('[表头配置确认 S2] 发送的 columns:', JSON.stringify(correctedColumns, null, 2));
+    console.log('[表头配置确认 S2] 发送的 meta:', JSON.stringify(leafNodes, null, 2));
 
-    // 6. 触发事件
     emits('onConfigChange', {
-        columns: cloneDeep(correctedColumns),
+        columns: correctedColumns,
         meta: cloneDeep(leafNodes)
     });
 };
@@ -127,14 +167,12 @@ const init = () => {
         return
     }
 
-    // 添加调试日志：打印所有字段和ID
     console.log('[表头分组弹窗-init] allFields:', chart.xAxis);
 
-    // 为补丁收集映射
-    if (window.fixS2TableHeaders) {
+    if ((window as any).fixS2TableHeaders) {
         chart.xAxis?.forEach(axis => {
             if (axis.dataeaseName && axis.name) {
-                window.fixS2TableHeaders.addMapping(axis.dataeaseName, axis.name);
+                (window as any).fixS2TableHeaders.addMapping(axis.dataeaseName, axis.name);
                 console.log(`[表头分组弹窗-init] 添加字段映射: ${axis.dataeaseName} => ${axis.name}`);
             }
         });
@@ -146,14 +184,15 @@ const init = () => {
             meta: []
         }
     }
-    // 优先用数据里的fields补全中文名，如果没有name则用xAxis/yAxis的name补全
-    let allFields = [];
-    if (chart.data && (chart.data.fields || chart.data.sourceFields)) {
-        allFields = chart.data.fields || chart.data.sourceFields;
+
+    let allLocalFields: ChartViewField[] = [];
+    const chartDataInit = chart.data;
+    if (chartDataInit && (chartDataInit.fields || (chartDataInit as any).sourceFields)) {
+        allLocalFields = chartDataInit.fields || (chartDataInit as any).sourceFields;
         const axisFields = (chart.xAxis || []).concat(chart.yAxis || []);
-        allFields = allFields.map(f => {
+        allLocalFields = allLocalFields.map((f: ChartViewField) => {
             if (!f.name) {
-                const axis = axisFields.find(a => a.dataeaseName === f.key || a.dataeaseName === f.dataeaseName);
+                const axis = axisFields.find(a => a.dataeaseName === f.dataeaseName);
                 if (axis && axis.name) {
                     return { ...f, name: axis.name };
                 }
@@ -161,14 +200,14 @@ const init = () => {
             return f;
         });
     } else {
-        allFields = (chart.xAxis || []).concat(chart.yAxis || []);
+        allLocalFields = (chart.xAxis || []).concat(chart.yAxis || []) as ChartViewField[];
     }
-    // 日志打印
-    console.log('[表头分组弹窗-init] allFields:', JSON.stringify(allFields, null, 2));
+
+    console.log('[表头分组弹窗-init] allFields mapped:', JSON.stringify(allLocalFields, null, 2));
     console.log('[表头分组弹窗-init] columns:', JSON.stringify(chart.customAttr.tableHeader.headerGroupConfig.columns, null, 2));
     console.log('[表头分组弹窗-init] xAxis:', JSON.stringify(chart.xAxis, null, 2));
     console.log('[表头分组弹窗-init] yAxis:', JSON.stringify(chart.yAxis, null, 2));
-    chart.customAttr.tableHeader.headerGroupConfig.columns = fillColumnNames(chart.customAttr.tableHeader.headerGroupConfig.columns, allFields);
+    chart.customAttr.tableHeader.headerGroupConfig.columns = fillColumnNames(chart.customAttr.tableHeader.headerGroupConfig.columns, allLocalFields);
     console.log('[表头分组弹窗-init] columnsWithName:', JSON.stringify(chart.customAttr.tableHeader.headerGroupConfig.columns, null, 2));
     nextTick(() => {
         renderTable(chart)

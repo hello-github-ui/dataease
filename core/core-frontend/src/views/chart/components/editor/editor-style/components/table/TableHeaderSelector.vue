@@ -5,7 +5,7 @@ import icon_leftAlignment_outlined from '@/assets/svg/icon_left-alignment_outlin
 import icon_centerAlignment_outlined from '@/assets/svg/icon_center-alignment_outlined.svg'
 import icon_rightAlignment_outlined from '@/assets/svg/icon_right-alignment_outlined.svg'
 import icon_edit_outlined from '@/assets/svg/icon_edit_outlined.svg'
-import { computed, onMounted, PropType, reactive, watch } from 'vue'
+import { computed, onMounted, PropType, reactive, watch, nextTick } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
 import { COLOR_PANEL, DEFAULT_TABLE_HEADER } from '@/views/chart/components/editor/util/chart'
 import { ElDivider, ElSpace } from 'element-plus-secondary'
@@ -32,6 +32,15 @@ const props = defineProps({
     propertyInner: {
         type: Array<string>
     }
+})
+
+const state = reactive({
+    tableHeaderForm: {
+        ...cloneDeep(DEFAULT_TABLE_HEADER),
+        headerGroup: DEFAULT_TABLE_HEADER.headerGroup,
+        headerGroupConfig: cloneDeep(DEFAULT_TABLE_HEADER.headerGroupConfig),
+    } as ChartTableHeaderAttr,
+    showTableHeaderGroupConfig: false
 })
 
 watch(
@@ -61,11 +70,6 @@ const fontSizeList = computed(() => {
     return arr
 })
 
-const state = reactive({
-    tableHeaderForm: {} as ChartTableHeaderAttr,
-    showTableHeaderGroupConfig: false
-})
-
 const emit = defineEmits(['onTableHeaderChange'])
 
 const changeTableHeader = prop => {
@@ -73,11 +77,9 @@ const changeTableHeader = prop => {
 }
 
 const changeHeaderGroupConfig = (headerGroupConfig) => {
-    // 这里要完整保存 columns（树结构）
     state.tableHeaderForm.headerGroupConfig = headerGroupConfig
     state.showTableHeaderGroupConfig = false
     changeTableHeader('headerGroupConfig')
-    // 建议加日志
     console.log('[主界面接收到分组] columns:', JSON.stringify(headerGroupConfig.columns, null, 2))
     console.log('[主界面接收到分组] meta:', JSON.stringify(headerGroupConfig.meta, null, 2))
 }
@@ -113,37 +115,67 @@ const groupConfigValid = computed(() => {
     const leafKeys = leafNodes.map(item => item.key)
     return isEqual(allAxis, leafKeys)
 })
-const init = () => {
-    const tableHeader = props.chart?.customAttr?.tableHeader
-    if (tableHeader) {
-        // 存量透视表处理
-        if (!tableHeader.tableHeaderColBgColor) {
-            tableHeader.tableHeaderColBgColor = tableHeader.tableHeaderBgColor
-            tableHeader.tableHeaderColFontColor = tableHeader.tableHeaderFontColor
-            tableHeader.tableTitleColFontSize = tableHeader.tableTitleFontSize
-            tableHeader.tableHeaderColAlign = tableHeader.tableHeaderAlign
-            tableHeader.isColBolder = tableHeader.isBolder
-            tableHeader.isColItalic = tableHeader.isItalic
 
-            tableHeader.tableHeaderCornerBgColor = tableHeader.tableHeaderBgColor
-            tableHeader.tableHeaderCornerFontColor = tableHeader.tableHeaderFontColor
-            tableHeader.tableTitleCornerFontSize = tableHeader.tableTitleFontSize
-            tableHeader.tableHeaderCornerAlign = tableHeader.tableHeaderAlign
-            tableHeader.isCornerBolder = tableHeader.isBolder
-            tableHeader.isCornerItalic = tableHeader.isItalic
+const init = () => {
+    const tableHeaderFromProps = props.chart?.customAttr?.tableHeader;
+
+    let newConfigData = cloneDeep(DEFAULT_TABLE_HEADER);
+
+    if (tableHeaderFromProps) {
+        newConfigData = defaultsDeep(cloneDeep(tableHeaderFromProps), newConfigData);
+    }
+
+    let headerGroupBeforeInit = state.tableHeaderForm.headerGroup;
+
+    for (const key in newConfigData) {
+        if (Object.prototype.hasOwnProperty.call(newConfigData, key)) {
+            if (!isEqual(state.tableHeaderForm[key], newConfigData[key])) {
+                state.tableHeaderForm[key] = newConfigData[key];
+            }
         }
-        state.tableHeaderForm = defaultsDeep(cloneDeep(tableHeader), cloneDeep(DEFAULT_TABLE_HEADER))
-        if (!isAlphaColor(state.tableHeaderForm.tableHeaderBgColor)) {
-            const alpha = props.chart.customAttr.basicStyle.alpha
+    }
+    if (!state.tableHeaderForm.hasOwnProperty('headerGroup')) {
+        state.tableHeaderForm.headerGroup = DEFAULT_TABLE_HEADER.headerGroup;
+    }
+    if (!state.tableHeaderForm.hasOwnProperty('headerGroupConfig')) {
+        state.tableHeaderForm.headerGroupConfig = cloneDeep(DEFAULT_TABLE_HEADER.headerGroupConfig);
+    }
+
+    if (props.chart.type === 'table-pivot') {
+        if (!state.tableHeaderForm.tableHeaderColBgColor) {
+            state.tableHeaderForm.tableHeaderColBgColor = state.tableHeaderForm.tableHeaderBgColor;
+            state.tableHeaderForm.tableHeaderColFontColor = state.tableHeaderForm.tableHeaderFontColor;
+            state.tableHeaderForm.tableTitleColFontSize = state.tableHeaderForm.tableTitleFontSize;
+            state.tableHeaderForm.tableHeaderColAlign = state.tableHeaderForm.tableHeaderAlign;
+            state.tableHeaderForm.isColBolder = state.tableHeaderForm.isBolder;
+            state.tableHeaderForm.isColItalic = state.tableHeaderForm.isItalic;
+
+            state.tableHeaderForm.tableHeaderCornerBgColor = state.tableHeaderForm.tableHeaderBgColor;
+            state.tableHeaderForm.tableHeaderCornerFontColor = state.tableHeaderForm.tableHeaderFontColor;
+            state.tableHeaderForm.tableTitleCornerFontSize = state.tableHeaderForm.tableTitleFontSize;
+            state.tableHeaderForm.tableHeaderCornerAlign = state.tableHeaderForm.tableHeaderAlign;
+            state.tableHeaderForm.isCornerBolder = state.tableHeaderForm.isBolder;
+            state.tableHeaderForm.isCornerItalic = state.tableHeaderForm.isItalic;
+        }
+    }
+
+    if (state.tableHeaderForm.tableHeaderBgColor && !isAlphaColor(state.tableHeaderForm.tableHeaderBgColor)) {
+        const alpha = props.chart.customAttr?.basicStyle?.alpha;
+        if (alpha !== undefined) {
             state.tableHeaderForm.tableHeaderBgColor = convertToAlphaColor(
                 state.tableHeaderForm.tableHeaderBgColor,
                 alpha
-            )
+            );
         }
     }
+    if (headerGroupBeforeInit !== state.tableHeaderForm.headerGroup) {
+        console.log(`init changed headerGroup from ${headerGroupBeforeInit} to: ${state.tableHeaderForm.headerGroup}`);
+    } else {
+        // console.log('init executed, headerGroup unchanged or props were same as state.');
+    }
 }
+
 const showProperty = prop => {
-    // 明细表和汇总表都支持表头分组
     if (prop === 'headerGroup') {
         return (
             (['table-info', 'table-normal', 'table-summary', 'table-total'].includes(props.chart.type)) &&
@@ -154,8 +186,61 @@ const showProperty = prop => {
 }
 
 onMounted(() => {
-    init()
-})
+    init();
+
+    watch(
+        () => state.tableHeaderForm.headerGroup,
+        (newValue, oldValue) => {
+            if (typeof state.tableHeaderForm !== 'object' || state.tableHeaderForm === null || !state.tableHeaderForm.hasOwnProperty('headerGroup')) {
+                console.warn('state.tableHeaderForm or headerGroup not ready in onMounted watcher');
+                return;
+            }
+
+            if (newValue === oldValue) {
+                return;
+            }
+
+            console.log(`headerGroup watch triggered. newValue: ${newValue}, oldValue: ${oldValue}`);
+
+            const propHeaderGroupValue = props.chart?.customAttr?.tableHeader?.headerGroup;
+            let shouldEmitChange = true;
+
+            if (newValue === propHeaderGroupValue) {
+                console.log('headerGroup watch: newValue matches propHeaderGroupValue. Change likely due to init() sync. Suppressing emit.');
+                shouldEmitChange = false;
+            }
+
+            if (newValue === false) {
+                if (state.tableHeaderForm.headerGroupConfig !== null) {
+                    state.tableHeaderForm.headerGroupConfig = null;
+                    console.log(`headerGroup watch: Set headerGroupConfig to null (headerGroup is false). shouldEmit: ${shouldEmitChange}`);
+                }
+            } else {
+                if (state.tableHeaderForm.headerGroupConfig === null || !state.tableHeaderForm.hasOwnProperty('headerGroupConfig')) {
+                    const initialColumns = [];
+                    if (props.chart && props.chart.xAxis) {
+                        props.chart.xAxis.forEach(axis => {
+                            if (axis.hide !== true) {
+                                initialColumns.push({ key: axis.dataeaseName, name: axis.name || axis.dataeaseName });
+                            }
+                        });
+                    }
+                    state.tableHeaderForm.headerGroupConfig = {
+                        columns: initialColumns,
+                        meta: initialColumns.map(col => ({ field: col.key, name: col.name }))
+                    };
+                    console.log(`headerGroup watch: Initialized headerGroupConfig (headerGroup is true). shouldEmit: ${shouldEmitChange}`);
+                }
+            }
+
+            if (shouldEmitChange) {
+                console.log('headerGroup watch: Emitting changeTableHeader for headerGroup.');
+                changeTableHeader('headerGroup');
+            }
+        },
+        { flush: 'post' }
+    );
+});
 </script>
 
 <template>

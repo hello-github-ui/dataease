@@ -26,6 +26,7 @@ export default {
         }
       }
     },
+    //  TODO  临时开启，记得关闭掉
     sourcemap: false
   }
 }
