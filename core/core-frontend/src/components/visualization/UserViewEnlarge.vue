@@ -688,13 +688,20 @@ const exportAsFormattedExcel = async () => {
         const rawViewInfoForSummary = viewInfo.value as ExtendedChartObj;
         exportLoading.value = true;
 
-        // 1. 从 S2 实例获取页面显示的叶子列顺序
+        // 1. 从 S2 实例获取页面显示的叶子列顺序 和 排序后的数据行
         let s2LeafKeysInOrder = [];
+        let s2DisplayDataInOrder = [];
         if (s2Instance && s2Instance.facet && s2Instance.facet.layoutResult && s2Instance.facet.layoutResult.colLeafNodes) {
             s2LeafKeysInOrder = s2Instance.facet.layoutResult.colLeafNodes.map(node => String(node.key || node.field));
             console.log('[导出汇总表带格式] 从S2实例获取到的页面列顺序 (s2LeafKeysInOrder):', s2LeafKeysInOrder);
+            if (s2Instance.dataSet && typeof s2Instance.dataSet.getDisplayDataSet === 'function') {
+                s2DisplayDataInOrder = s2Instance.dataSet.getDisplayDataSet();
+                console.log('[导出汇总表带格式] 从S2实例获取到的排序后数据行 (s2DisplayDataInOrder):', s2DisplayDataInOrder.length > 0 ? s2DisplayDataInOrder[0] : '空数据');
+            } else {
+                console.warn('[导出汇总表带格式] S2实例没有dataSet或getDisplayDataSet方法，无法获取排序后的行数据。');
+            }
         } else {
-            console.warn('[导出汇总表带格式] 未能从S2实例获取 colLeafNodes，将回退基于xAxis/yAxis的顺序。');
+            console.warn('[导出汇总表带格式] 未能从S2实例获取 colLeafNodes，将回退基于xAxis/yAxis的列顺序，并且无法保证行顺序。');
         }
 
         // Pre-process headerGroupConfig for table-normal to ensure simple export if no valid columns config
@@ -719,15 +726,17 @@ const exportAsFormattedExcel = async () => {
         }
         requestDataForSummary.isExcelExport = true;
 
-        console.log('[导出汇总表带格式] 开始使用 getData 直接获取全部数据，请求参数:', requestDataForSummary);
+        console.log('[导出汇总表带格式] 开始使用 getData 直接获取全部数据（主要用于获取字段元数据和作为行数据回退），请求参数:', requestDataForSummary);
         try {
             const allDataFetchedForSummary = await getData(requestDataForSummary);
-            let allRowsForSummary = allDataFetchedForSummary?.data?.tableRow || [];
-            console.log(`[导出汇总表带格式] getData 获取到数据: ${allRowsForSummary.length} 条`);
+            // 优先使用S2的显示数据行，如果获取失败，则回退到从后端获取的数据行
+            let finalRowsForSummary = (s2DisplayDataInOrder.length > 0) ? s2DisplayDataInOrder : (allDataFetchedForSummary?.data?.tableRow || []);
 
-            if (allRowsForSummary.length > 300000) {
-                console.warn(`[导出汇总表带格式] getData 返回数据超过30万条 (${allRowsForSummary.length} 条)，将截断至30万条。`);
-                allRowsForSummary = allRowsForSummary.slice(0, 300000);
+            console.log(`[导出汇总表带格式] 使用的最终数据行来源: ${s2DisplayDataInOrder.length > 0 ? 'S2实例' : '后端getData'}, 条数: ${finalRowsForSummary.length}`);
+
+            if (finalRowsForSummary.length > 300000) {
+                console.warn(`[导出汇总表带格式] 最终数据行超过30万条 (${finalRowsForSummary.length} 条)，将截断至30万条。`);
+                finalRowsForSummary = finalRowsForSummary.slice(0, 300000);
             }
 
             const sourceFieldsFromBackend = allDataFetchedForSummary?.data?.fields || allDataFetchedForSummary?.data?.sourceFields || [];
@@ -805,12 +814,12 @@ const exportAsFormattedExcel = async () => {
             console.log('[导出汇总表带格式] 最终用于Excel的列键顺序 (finalFieldKeysForSheet):', finalFieldKeysForSheet);
 
             const viewDataInfoForExportForSummary = {
-                ...(allDataFetchedForSummary?.data || {}),
-                tableRow: allRowsForSummary,
-                fields: definitiveFieldsForExport,
+                ...(allDataFetchedForSummary?.data || {}), // 保留其他元数据，如totalItems等，但tableRow会被覆盖
+                tableRow: finalRowsForSummary, // 使用S2的行数据或回退数据
+                fields: definitiveFieldsForExport, // This is for name/meta lookup
                 sourceFields: sourceFieldsFromBackend,
-                totalItems: allRowsForSummary.length,
-                total: allRowsForSummary.length
+                totalItems: finalRowsForSummary.length, // 更新totalItems以匹配实际导出的行数
+                total: finalRowsForSummary.length
             };
 
             const headerGroupConfigSummary = rawViewInfoForSummary.customAttr?.tableHeader?.headerGroupConfig;

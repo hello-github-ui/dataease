@@ -1731,19 +1731,29 @@ export async function exportDetailExcelWithMultiHeader(
         }
 
         const tableRow = viewDataInfo.tableRow || [];
-        let sortedTableRow = tableRow;
+        let sortedTableRow = tableRow; // Initialize with the (presumably correct) input order
 
-        if (actualGroupingKeys?.length > 0) {
-            const shopFieldKey = actualGroupingKeys[0]; // 店铺的 key
-            const dateFieldKey = actualGroupingKeys.length > 1 ? actualGroupingKeys[1] : null; // 日期的 key
+        // Only resort if it's NOT table-normal OR if it IS table-normal AND a specific secondary order is given
+        // (which is rare for table-normal, but handles edge cases)
+        // Also, ensure actualGroupingKeys are present for any sort.
+        const shouldResortInternally = (rawViewInfo.type !== 'table-normal' && actualGroupingKeys?.length > 0) ||
+            (rawViewInfo.type === 'table-normal' && actualGroupingKeys?.length > 0 && Object.keys(expectedSecondaryKeyOrderMap).length > 0);
 
-            // 只有当店铺和日期键都存在，并且有期望顺序图时，才使用自定义排序
-            if (shopFieldKey && dateFieldKey && Object.keys(expectedSecondaryKeyOrderMap).length > 0) {
-                sortedTableRow = sortTableRowByKeys(tableRow, [shopFieldKey], dateFieldKey, expectedSecondaryKeyOrderMap);
-            } else {
-                // 否则，回退到基于 actualGroupingKeys 的默认排序
-                sortedTableRow = sortTableRowByKeys(tableRow, actualGroupingKeys, null, null); // 或者调用一个只接受 keys 的旧版排序函数
+        if (shouldResortInternally) {
+            const primaryGroupingKey = actualGroupingKeys[0];
+            const secondaryGroupingKey = actualGroupingKeys.length > 1 ? actualGroupingKeys[1] : null;
+
+            if (primaryGroupingKey && secondaryGroupingKey && Object.keys(expectedSecondaryKeyOrderMap).length > 0) {
+                // This sort is for specific primary-secondary key ordering (e.g., shop then date with custom date order)
+                sortedTableRow = sortTableRowByKeys(tableRow, [primaryGroupingKey], secondaryGroupingKey, expectedSecondaryKeyOrderMap);
+            } else if (rawViewInfo.type !== 'table-normal' && actualGroupingKeys?.length > 0) {
+                // For non-table-normal (i.e., table-info), if expectedSecondaryKeyOrderMap is not applicable or empty,
+                // a fallback sort by all actualGroupingKeys might still be desired.
+                sortedTableRow = sortTableRowByKeys(tableRow, actualGroupingKeys, null, null);
             }
+            // For table-normal: if expectedSecondaryKeyOrderMap is empty, we TRUST the incoming s2DisplayDataInOrder
+            // and DO NOT perform the fallback sort based only on actualGroupingKeys.
+            // The conditions above ensure this: `shouldResortInternally` for table-normal requires expectedSecondaryKeyOrderMap.
         }
         console.log('sortedTableRow (after applying expected order if available): ', sortedTableRow);
 
