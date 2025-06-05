@@ -319,17 +319,121 @@ const exportAsFormattedExcel = async () => {
     } else if (viewInfo.value.type === 'table-info') {
         const rawViewInfo = viewInfo.value;
 
-        // 1. 获取S2首页顺序
+        // 1. 获取S2首页显示的数据（保持页面排序）
         const s2FirstPageRows = s2Instance.dataSet.getDisplayDataSet() || [];
-        // 2. 获取全量API顺序
-        const allDataFetched = await fetchAllTableRows(rawViewInfo, 100);
-        const allRows = allDataFetched.data?.tableRow || [];
-        // 3. 获取每页条数
-        const pageSize = rawViewInfo.customAttr?.basicStyle?.tablePageSize || 20;
-        // 4. 拆分后续页
-        const restRows = allRows.slice(pageSize);
-        // 5. 拼接
+        console.log(`[导出明细表带格式] S2首页显示数据: ${s2FirstPageRows.length} 条`);
+        
+        // 2. 动态获取用户设置的每页条数（仅用于确定首页数据量）
+        const userPageSize = rawViewInfo.customAttr?.basicStyle?.tablePageSize || 20;
+        console.log(`[导出明细表带格式] 用户设置每页条数: ${userPageSize}`);
+        
+        // 3. 验证S2首页数据量是否与设置一致
+        if (s2FirstPageRows.length > 0 && s2FirstPageRows.length !== userPageSize) {
+            console.warn(`[导出明细表带格式] 注意：S2首页实际数据${s2FirstPageRows.length}条，与设置的${userPageSize}条不一致`);
+        }
+        
+        // 4. 获取后续页面的数据（从第2页开始，使用大pageSize加快速度）
+        console.log('[导出明细表带格式] 开始获取后续页面数据...');
+        const fastPageSize = 5000; // 后续页使用固定的大pageSize
+        let restRows = [];
+        let skipCount = userPageSize; // 跳过第一页的数据量
+        let currentRequestPage = 1; // API请求的页码
+        
+        while (true) {
+            const pageReq = JSON.parse(JSON.stringify(rawViewInfo));
+            pageReq.chartExtRequest = pageReq.chartExtRequest || {};
+            pageReq.chartExtRequest.goPage = currentRequestPage;
+            pageReq.chartExtRequest.pageSize = fastPageSize; // 使用固定的大pageSize
+            delete pageReq.chartExtRequest.resultMode;
+            delete pageReq.chartExtRequest.resultCount;
+
+            // ====== 关键修复：临时设置tablePageMode为'page'，避免后端重置goPage ======
+            if (pageReq.customAttr && pageReq.customAttr.basicStyle) {
+                pageReq.customAttr.basicStyle.tablePageMode = 'page';
+            }
+
+            // ====== 关键修复：明确设置isExcelExport为false，避免后端强制设置resultMode为CUSTOM ======
+            pageReq.isExcelExport = false;
+
+            console.log(`[导出明细表带格式] 请求第 ${currentRequestPage} 页数据 (每页${fastPageSize}条, goPage=${currentRequestPage})`);
+            console.log(`[导出明细表带格式] 发送的请求对象:`, {
+                goPage: pageReq.chartExtRequest.goPage,
+                pageSize: pageReq.chartExtRequest.pageSize,
+                tablePageMode: pageReq.customAttr?.basicStyle?.tablePageMode,
+                isExcelExport: pageReq.isExcelExport,
+                resultMode: pageReq.chartExtRequest.resultMode,
+                resultCount: pageReq.chartExtRequest.resultCount
+            });
+            
+            // ====== 详细调试：完整的chartExtRequest对象 ======
+            console.log(`[导出明细表带格式] 完整的chartExtRequest对象:`, JSON.stringify(pageReq.chartExtRequest, null, 2));
+            console.log(`[导出明细表带格式] 完整的pageReq对象:`, JSON.stringify(pageReq, null, 2));
+            
+            try {
+                const response = await getData(pageReq);
+                const currentPageRows = response.data?.tableRow || [];
+                console.log(`[导出明细表带格式] 第 ${currentRequestPage} 页获取到 ${currentPageRows.length} 条数据`);
+                console.log(`[导出明细表带格式] 后端响应详情:`, {
+                    totalItems: response.totalItems,
+                    totalPage: response.totalPage,
+                    currentPage: currentRequestPage,
+                    backendGoPage: response.chartExtRequest?.goPage,
+                    requestGoPage: pageReq.chartExtRequest.goPage,
+                    responseDataLength: currentPageRows.length
+                });
+                
+                if (currentPageRows.length === 0) {
+                    console.log(`[导出明细表带格式] 第 ${currentRequestPage} 页无数据，停止获取`);
+                    break;
+                }
+                
+                // 跳过已在S2首页显示的数据
+                let dataToAdd = currentPageRows;
+                if (skipCount > 0) {
+                    if (skipCount >= currentPageRows.length) {
+                        // 当前页数据全部需要跳过
+                        skipCount -= currentPageRows.length;
+                        console.log(`[导出明细表带格式] 跳过第 ${currentRequestPage} 页全部数据，剩余需跳过 ${skipCount} 条`);
+                        dataToAdd = [];
+                    } else {
+                        // 当前页部分数据需要跳过
+                        dataToAdd = currentPageRows.slice(skipCount);
+                        console.log(`[导出明细表带格式] 跳过第 ${currentRequestPage} 页前 ${skipCount} 条数据，取后 ${dataToAdd.length} 条`);
+                        skipCount = 0;
+                    }
+                }
+                
+                if (dataToAdd.length > 0) {
+                    restRows = restRows.concat(dataToAdd);
+                }
+                
+                currentRequestPage++;
+                
+                // 安全机制：防止无限循环
+                if (currentRequestPage > 50) { // 减少最大页数限制，因为使用大pageSize
+                    console.warn(`[导出明细表带格式] 已请求${currentRequestPage}页，达到最大页数限制`);
+                    break;
+                }
+                
+            } catch (error) {
+                console.error(`[导出明细表带格式] 获取第 ${currentRequestPage} 页数据时出错:`, error);
+                break;
+            }
+        }
+        
+        // 5. 拼接第一页显示数据和后续页API数据
         const finalRows = [...s2FirstPageRows, ...restRows];
+        console.log(`[导出明细表带格式] 最终数据: S2首页 ${s2FirstPageRows.length} 条 + 后续页 ${restRows.length} 条 = 总计 ${finalRows.length} 条`);
+        
+        // 6. 构建导出用的数据结构
+        const allDataFetched = {
+            data: {
+                tableRow: finalRows,
+                fields: s2Instance.dataSet.fields || [],
+                totalItems: finalRows.length,
+                total: finalRows.length
+            }
+        };
 
         let s2MetaFields = null;
         if (s2Instance && s2Instance.options?.dataCfg?.fields) {
@@ -480,10 +584,56 @@ const exportAsFormattedExcel = async () => {
         // 汇总表类型
         console.log('[汇总表导出] 开始导出，viewInfo:', viewInfo.value)
         const rawViewInfo = viewInfo.value;
-        // 只用API返回的全量数据，不拼接首页顺序
-        const allDataFetched = await fetchAllTableRows(rawViewInfo, 100);
+        
+        // 汇总表直接获取全量数据，不需要分页
+        console.log('[导出汇总表带格式] 开始获取数据...');
+        
+        const pageReq = JSON.parse(JSON.stringify(rawViewInfo));
+        pageReq.chartExtRequest = pageReq.chartExtRequest || {};
+        // 移除分页参数，让后端返回全量数据
+        delete pageReq.chartExtRequest.pageNo;
+        delete pageReq.chartExtRequest.pageSize;
+        delete pageReq.chartExtRequest.resultMode;
+        delete pageReq.chartExtRequest.resultCount;
+
+        console.log('[导出汇总表带格式] 请求全量数据');
+        
+        let allDataFetched;
+        try {
+            const response = await getData(pageReq);
+            const allRows = response.data?.tableRow || [];
+            console.log(`[导出汇总表带格式] 获取到数据条数: ${allRows.length}`);
+            
+            // 构建完整的数据结构
+            allDataFetched = {
+                data: {
+                    tableRow: allRows,
+                    fields: response.data?.fields || response.data?.sourceFields || [],
+                    totalItems: allRows.length,
+                    total: allRows.length
+                }
+            };
+            
+        } catch (error) {
+            console.error('[导出汇总表带格式] 获取数据时出错:', error);
+            return;
+        }
+
+        // 构建完整的数据结构
+        if (!allDataFetched) {
+            allDataFetched = {
+                data: {
+                    fields: [],
+                    totalItems: allRows.length,
+                    total: allRows.length
+                }
+            };
+        }
+        allDataFetched.data.tableRow = allRows;
+        allDataFetched.data.totalItems = allRows.length;
+        const allDataFetched = await fetchAllTableRows(rawViewInfo);
         const allRows = allDataFetched.data?.tableRow || [];
-        console.log('[汇总表导出] 全量API数据:', allRows.slice(0, 5), '... 共', allRows.length, '条')
+        console.log(`[导出汇总表带格式] 实际获取数据条数: ${allRows.length}`);
         // 字段定义
         let s2MetaFields = null;
         if (s2Instance && s2Instance.options?.dataCfg?.fields) {

@@ -354,60 +354,96 @@ const renderChart = (viewInfo: Chart, resetPageInfo: boolean) => {
     // ====== 页面渲染前排序 END ======
 
     // ====== 多级表头特殊处理，确保传递给S2的配置正确 ======
-    if (actualChart.type === 'table-normal' && actualChart.customAttr?.tableHeader?.headerGroup) {
-        const headerGroupConfig = actualChart.customAttr?.tableHeader?.headerGroupConfig;
-        if (headerGroupConfig?.columns?.length) {
-            // 递归补全 columns 的 name 字段
-            const allFields = (actualChart.xAxis || []).concat(actualChart.yAxis || []);
-            
-            // ====== 新增：自动补全遗漏的指标字段 ======
-            // 1. 收集当前分组树中已存在的字段key
-            const existingKeys = new Set();
-            function collectExistingKeys(nodes) {
-                nodes.forEach(node => {
-                    if (node.key) {
-                        existingKeys.add(node.key);
+    if (actualChart.type === 'table-normal' &&
+        actualChart.customAttr?.tableHeader?.headerGroup &&
+        actualChart.customAttr?.tableHeader?.headerGroupConfig) {
+
+        const headerConfig = actualChart.customAttr.tableHeader.headerGroupConfig;
+        // 创建字段ID到中文名的映射
+        const fieldNameMap = {};
+        const allFields = (actualChart.xAxis || []).concat(actualChart.yAxis || []);
+
+        // 收集所有字段ID和名称的映射关系
+        allFields.forEach(field => {
+            if (field.dataeaseName && field.name) {
+                fieldNameMap[field.dataeaseName] = field.name;
+            }
+        });
+
+        // 数据字段也可能包含映射关系
+        if (actualChart.data && actualChart.data.fields) {
+            actualChart.data.fields.forEach(field => {
+                if ((field.dataeaseName || field.key) && field.name) {
+                    fieldNameMap[field.dataeaseName || field.key] = field.name;
+                }
+            });
+        }
+
+        // 递归修复 columns 结构中的名称
+        function fixColumnNames(columns) {
+            if (!columns || !Array.isArray(columns)) return;
+
+            columns.forEach(col => {
+                // 如果是分组节点（有children），保留自定义名称
+                if (col.children && col.children.length > 0) {
+                    // 如果没有名称，使用默认分组名称
+                    col.name = col.name || col.title || `分组${col.key.substring(0, 4)}`;
+                    // 递归处理子节点
+                    fixColumnNames(col.children);
+                }
+                // 如果是叶子节点，尝试从映射获取中文名
+                else if (col.key) {
+                    // 查找字段的中文名称
+                    if (fieldNameMap[col.key]) {
+                        col.name = fieldNameMap[col.key];
+                        console.log(`设置字段 ${col.key} 名称为: ${col.name}`);
                     }
-                    if (node.children && node.children.length > 0) {
-                        collectExistingKeys(node.children);
+                }
+            });
+        }
+
+        // 修复表头配置
+        if (headerConfig.columns && Array.isArray(headerConfig.columns)) {
+            fixColumnNames(headerConfig.columns);
+            console.log('[S2初始化前] 修复后的columns:', JSON.stringify(headerConfig.columns, null, 2));
+
+            // 确保表头配置被正确应用
+            actualChart._processedTableHeaderColumns = headerConfig.columns;
+        }
+
+        // 同时修复meta配置
+        if (headerConfig.meta && Array.isArray(headerConfig.meta)) {
+            headerConfig.meta.forEach(meta => {
+                if (meta.field && fieldNameMap[meta.field]) {
+                    meta.name = fieldNameMap[meta.field];
+                }
+            });
+            console.log('[S2初始化前] 修复后的meta:', JSON.stringify(headerConfig.meta, null, 2));
+        }
+        // 如果meta为空，则从叶子节点创建meta
+        else if (!headerConfig.meta || !headerConfig.meta.length) {
+            const leafNodes = [];
+
+            // 收集所有叶子节点
+            function collectLeafNodes(columns) {
+                if (!columns) return;
+                columns.forEach(col => {
+                    if (!col.children || col.children.length === 0) {
+                        leafNodes.push({
+                            field: col.key,
+                            name: col.name || fieldNameMap[col.key] || col.key
+                        });
+                    } else {
+                        collectLeafNodes(col.children);
                     }
                 });
             }
-            collectExistingKeys(headerGroupConfig.columns);
-            
-            // 2. 找出未包含的指标字段（yAxis中groupType为'q'的字段）
-            const missingIndicators = allFields.filter(field => 
-                field.groupType === 'q' && // 指标字段
-                !field.hide && // 未隐藏
-                !existingKeys.has(field.dataeaseName) // 未在分组树中
-            );
-            
-            // 3. 将遗漏的指标字段追加到分组树的根节点
-            const columnsWithIndicators = [...headerGroupConfig.columns];
-            missingIndicators.forEach(indicator => {
-                columnsWithIndicators.push({
-                    key: indicator.dataeaseName,
-                    name: indicator.name,
-                    title: indicator.name
-                });
-            });
-            
-            console.log('[自动补全指标] 原分组配置:', JSON.stringify(headerGroupConfig.columns, null, 2));
-            console.log('[自动补全指标] 遗漏的指标:', missingIndicators.map(i => ({key: i.dataeaseName, name: i.name})));
-            console.log('[自动补全指标] 补全后配置:', JSON.stringify(columnsWithIndicators, null, 2));
-            // ====== 自动补全指标字段 END ======
-            
-            const columnsWithName = fillColumnNames(columnsWithIndicators, allFields);
 
-            // 这里不要直接修改 actualChart.customAttr.tableHeader.headerGroupConfig.columns
-            // 而是在后续的 S2 实例创建时，传入正确的配置
-            console.log('[汇总表多级表头特殊处理] columnsWithName:', JSON.stringify(columnsWithName, null, 2));
-
-            // 保存处理后的列结构，在创建 S2 实例时使用
-            actualChart._processedTableHeaderColumns = columnsWithName;
+            collectLeafNodes(headerConfig.columns);
+            headerConfig.meta = leafNodes;
+            console.log('[S2初始化前] 创建的meta:', JSON.stringify(headerConfig.meta, null, 2));
         }
     }
-    // ====== 多级表头特殊处理 END ======
 
     recursionTransObj(customAttrTrans, actualChart.customAttr, scale.value, terminal.value)
     recursionTransObj(customStyleTrans, actualChart.customStyle, scale.value, terminal.value)
@@ -426,7 +462,7 @@ const debounceRender = debounce(resetPageInfo => {
         actualChart.type
     ) as S2ChartView<any>
 
-    // ====== 修改：使用特殊处理后的 columns 结构 ======
+    // ====== 构建chartParams对象 ======
     const chartParams = {
         container: containerId,
         chart: toRaw(actualChart),
@@ -437,7 +473,7 @@ const debounceRender = debounce(resetPageInfo => {
         touchAction
     };
 
-    // 如果是汇总表并且是多级表头，对表头配置进行处理
+    // ====== 汇总表多级表头处理 ======
     if (actualChart.type === 'table-normal' &&
         actualChart.customAttr?.tableHeader?.headerGroup &&
         actualChart.customAttr?.tableHeader?.headerGroupConfig) {
@@ -544,8 +580,114 @@ const debounceRender = debounce(resetPageInfo => {
         }
     }
 
+    // ====== 明细表多级表头处理 ======
+    if (actualChart.type === 'table-info' &&
+        actualChart.customAttr?.tableHeader?.headerGroup &&
+        actualChart.customAttr?.tableHeader?.headerGroupConfig) {
+
+        const headerConfig = actualChart.customAttr.tableHeader.headerGroupConfig;
+        console.log('[明细表多级表头] 开始处理，原始配置:', JSON.stringify(headerConfig, null, 2));
+        
+        // 创建字段ID到中文名的映射
+        const fieldNameMap = {};
+        const allFields = (actualChart.xAxis || []);
+
+        // 收集所有字段ID和名称的映射关系
+        allFields.forEach(field => {
+            if (field.dataeaseName && field.name) {
+                fieldNameMap[field.dataeaseName] = field.name;
+            }
+        });
+
+        // 数据字段也可能包含映射关系
+        if (actualChart.data && actualChart.data.fields) {
+            actualChart.data.fields.forEach(field => {
+                if ((field.dataeaseName || field.key) && field.name) {
+                    fieldNameMap[field.dataeaseName || field.key] = field.name;
+                }
+            });
+        }
+
+        console.log('[明细表多级表头] 字段映射:', fieldNameMap);
+
+        // 递归修复 columns 结构中的名称
+        function fixColumnNames(columns) {
+            if (!columns || !Array.isArray(columns)) return;
+
+            columns.forEach(col => {
+                // 如果是分组节点（有children），保留自定义名称
+                if (col.children && col.children.length > 0) {
+                    // 如果没有名称，使用默认分组名称
+                    col.name = col.name || col.title || `分组${col.key.substring(0, 4)}`;
+                    console.log(`[明细表多级表头] 分组节点 ${col.key} 名称: ${col.name}`);
+                    // 递归处理子节点
+                    fixColumnNames(col.children);
+                }
+                // 如果是叶子节点，尝试从映射获取中文名
+                else if (col.key) {
+                    // 查找字段的中文名称
+                    if (fieldNameMap[col.key]) {
+                        col.name = fieldNameMap[col.key];
+                        console.log(`[明细表多级表头] 叶子节点 ${col.key} 设置名称为: ${col.name}`);
+                    } else {
+                        console.log(`[明细表多级表头] 叶子节点 ${col.key} 未找到对应名称，保持原值: ${col.name || col.key}`);
+                        col.name = col.name || col.key;
+                    }
+                }
+            });
+        }
+
+        // 修复表头配置
+        if (headerConfig.columns && Array.isArray(headerConfig.columns)) {
+            fixColumnNames(headerConfig.columns);
+            console.log('[明细表多级表头] 修复后的columns:', JSON.stringify(headerConfig.columns, null, 2));
+        }
+
+        // ====== 关键：强制重新生成正确的meta配置 ======
+        const leafNodes = [];
+        // 收集所有叶子节点
+        function collectLeafNodes(columns) {
+            if (!columns) return;
+            columns.forEach(col => {
+                if (!col.children || col.children.length === 0) {
+                    leafNodes.push({
+                        field: col.key,
+                        name: col.name || fieldNameMap[col.key] || col.key
+                    });
+                } else {
+                    collectLeafNodes(col.children);
+                }
+            });
+        }
+
+        if (headerConfig.columns) {
+            collectLeafNodes(headerConfig.columns);
+            headerConfig.meta = leafNodes;
+            console.log('[明细表多级表头] 强制重新生成的meta:', JSON.stringify(headerConfig.meta, null, 2));
+        }
+
+        // 修正 chartParams 里的 chart 字段
+        chartParams.chart = {
+            ...chartParams.chart,
+            // 直接覆盖 S2 需要的结构
+            data: {
+                ...chartParams.chart.data,
+                // 这里不动，data.tableRow 还是原始数据
+            },
+            // 关键：fields.columns 用分组树结构，meta 用叶子节点
+            fields: {
+                columns: headerConfig.columns,
+            },
+            meta: headerConfig.meta
+        }
+        
+        console.log('[明细表多级表头] 最终传给S2的配置:', {
+            columns: chartParams.chart.fields.columns,
+            meta: chartParams.chart.meta
+        });
+    }
+
     myChart = chartView.drawChart(chartParams)
-    // ====== 修改结束 ======
 
     // 在 render 前，打印最终实际渲染的配置，确保没有被其他过程覆盖
     if (actualChart.type === 'table-normal' && actualChart.customAttr?.tableHeader?.headerGroup && myChart) {
@@ -778,7 +920,7 @@ const handlePageSizeChange = pageSize => {
     if (chartExtRequest.value) {
         extReq = { ...extReq, ...chartExtRequest.value }
     }
-    const chart = { ...view.value, chartExtRequest: extReq }
+    const chart = { ...view.value, chartExtReq: extReq }
     calcData(chart, null, false)
 }
 
