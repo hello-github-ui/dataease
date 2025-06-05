@@ -839,6 +839,177 @@ function getValue(field, filedValueMap, rowData) {
     }
 }
 
+export async function fetchAllTableRows(view, pageSize = 5000) {
+    console.log(`[fetchAllTableRows] 开始获取所有数据，参数:`, { pageSize });
+    console.log(`[fetchAllTableRows] 原始view.chartExtRequest:`, JSON.stringify(view.chartExtRequest, null, 2));
+    
+    let allRows = [];
+    let currentPage = 1;
+    let firstResponse = null;
+    let totalFromBackend = null;
+    
+    // 安全机制：最大允许获取30万条数据，防止无限循环
+    const MAX_ROWS = 300000;
+    // 最大页数限制：50页
+    const MAX_PAGES = 50;
+    
+    while (currentPage <= MAX_PAGES) {
+        console.log(`[fetchAllTableRows] 正在请求第 ${currentPage} 页，pageSize: ${pageSize}`);
+        
+        try {
+            // ====== 关键修复：确保创建完全独立的请求对象 ======
+            // 深度克隆原始view，避免引用问题
+            const requestView = JSON.parse(JSON.stringify(view));
+            
+            // 确保chartExtRequest对象存在并重新设置分页参数
+            if (!requestView.chartExtRequest) {
+                requestView.chartExtRequest = {};
+            }
+            
+            // 强制设置分页参数，确保goPage正确递增
+            requestView.chartExtRequest.goPage = currentPage;
+            requestView.chartExtRequest.pageSize = pageSize;
+            
+            // 删除可能影响分页的参数
+            delete requestView.chartExtRequest.resultMode;
+            delete requestView.chartExtRequest.resultCount;
+
+            // ====== 关键修复：临时设置tablePageMode为'page'，避免后端重置goPage ======
+            if (requestView.customAttr && requestView.customAttr.basicStyle) {
+                requestView.customAttr.basicStyle.tablePageMode = 'page';
+            }
+
+            // ====== 关键修复：明确设置isExcelExport为false，避免后端强制设置resultMode为CUSTOM ======
+            requestView.isExcelExport = false;
+
+            const allData = [];
+            
+            console.log(`[fetchAllTableRows] 第 ${currentPage} 页请求参数:`, {
+                goPage: requestView.chartExtRequest.goPage,
+                pageSize: requestView.chartExtRequest.pageSize,
+                chartExtRequest: requestView.chartExtRequest
+            });
+            
+            const response = await getData(requestView);
+            const currentPageRows = response?.data?.tableRow || [];
+            
+            console.log(`[fetchAllTableRows] 第 ${currentPage} 页获取到 ${currentPageRows.length} 条数据`);
+            console.log(`[fetchAllTableRows] 后端返回的goPage确认:`, (response as any)?.chartExtRequest?.goPage);
+            
+            // 保存第一页响应用于返回结构
+            if (currentPage === 1) {
+                firstResponse = response;
+                // 尝试从多个可能的字段获取后端返回的总数据量
+                totalFromBackend = (response as any).totalItems || 
+                                   (response as any).data?.totalItems || 
+                                   (response as any).data?.total ||
+                                   (response as any).total ||
+                                   (response as any).data?.count ||
+                                   (response as any).count;
+                                   
+                console.log('[fetchAllTableRows] 后端响应分析:', {
+                    totalItems: (response as any).totalItems,
+                    totalPage: (response as any).totalPage,
+                    currentPage: currentPage,
+                    returnedRows: currentPageRows.length,
+                    backendGoPage: (response as any)?.chartExtRequest?.goPage  // 确认后端收到的goPage
+                });
+                
+                if (totalFromBackend) {
+                    console.log(`[fetchAllTableRows] 后端报告总数据量: ${totalFromBackend}`);
+                } else {
+                    console.warn(`[fetchAllTableRows] ⚠️ 后端未返回总数据量信息`);
+                }
+            }
+            
+            // ====== 多重停止判断条件 ======
+            // 1. 如果当前页没有数据，表示已到末尾
+            if (currentPageRows.length === 0) {
+                console.log(`[fetchAllTableRows] ✅ 第 ${currentPage} 页返回0条数据，停止获取`);
+                break;
+            }
+            
+            // 2. 检查数据重复（如果连续两页返回相同数据，可能后端有问题）
+            if (allRows.length > 0 && currentPageRows.length > 0) {
+                const lastRowFromPrevious = allRows[allRows.length - 1];
+                const firstRowFromCurrent = currentPageRows[0];
+                // 简单检查：如果最后一行和第一行完全相同，可能有重复
+                if (JSON.stringify(lastRowFromPrevious) === JSON.stringify(firstRowFromCurrent)) {
+                    console.warn(`[fetchAllTableRows] ⚠️ 检测到可能的数据重复，停止获取`);
+                    break;
+                }
+            }
+            
+            // 3. 将当前页数据添加到总数据中
+            allRows = allRows.concat(currentPageRows);
+            console.log(`[fetchAllTableRows] 累计已获取 ${allRows.length} 条数据`);
+            
+            // 4. 如果累计数据量超过安全上限，强制停止
+            if (allRows.length >= MAX_ROWS) {
+                console.error(`[fetchAllTableRows] 🚨 数据量超过安全上限(${MAX_ROWS})，强制停止获取`);
+                break;
+            }
+            
+            // 5. 如果后端有总数据量信息，检查是否已获取完所有数据
+            if (totalFromBackend && allRows.length >= totalFromBackend) {
+                console.log(`[fetchAllTableRows] ✅ 已获取所有数据: ${allRows.length}/${totalFromBackend}，停止获取`);
+                break;
+            }
+            
+            // 6. 如果当前页返回的数据量少于请求的pageSize，表示到了最后一页
+            if (currentPageRows.length < pageSize) {
+                console.log(`[fetchAllTableRows] ✅ 第 ${currentPage} 页返回数据量(${currentPageRows.length}) < pageSize(${pageSize})，到达最后一页，停止获取`);
+                break;
+            }
+            
+            // 7. 针对您的具体情况：如果是第5页还返回5000条，进行特殊检查
+            if (currentPage >= 5 && currentPageRows.length === pageSize) {
+                console.warn(`[fetchAllTableRows] ⚠️ 第 ${currentPage} 页仍返回满页数据(${pageSize}条)，这可能不正常`);
+                
+                // 如果后端说总共20480条，第5页不应该返回5000条
+                if (totalFromBackend && totalFromBackend <= 25000 && allRows.length >= totalFromBackend * 0.9) {
+                    console.warn(`[fetchAllTableRows] 🛑 数据量接近预期总数(${totalFromBackend})，但第${currentPage}页仍返回满页，强制停止防止无限循环`);
+                    break;
+                }
+            }
+            
+            // 8. 如果已经获取了合理数量的数据（比如超过用户预期），进行确认
+            if (allRows.length > 25000) {
+                console.warn(`[fetchAllTableRows] ⚠️ 已获取超过25000条数据，继续获取第 ${currentPage + 1} 页`);
+                if (allRows.length > 50000) {
+                    console.error(`[fetchAllTableRows] 🚨 数据量异常庞大(${allRows.length}条)，可能后端有问题，强制停止`);
+                    break;
+                }
+            }
+            
+            currentPage++;
+            
+        } catch (error) {
+            console.error(`[fetchAllTableRows] 第 ${currentPage} 页请求失败:`, error);
+            break;
+        }
+    }
+    
+    // 如果达到最大页数限制
+    if (currentPage > MAX_PAGES) {
+        console.error(`[fetchAllTableRows] 🚨 达到最大页数限制(${MAX_PAGES})，强制停止`);
+    }
+    
+    console.log(`[fetchAllTableRows] ✅ 数据获取完成，总计: ${allRows.length} 条数据，共请求了 ${currentPage - 1} 页`);
+    
+    // 构建返回对象，保持与原始API相同的结构
+    return {
+        ...firstResponse,
+        data: {
+            ...firstResponse?.data,
+            tableRow: allRows
+        },
+        // 确保返回正确的统计信息
+        totalItems: Math.max(allRows.length, totalFromBackend || 0),
+        resultCount: allRows.length
+    };
+}
+
 export function handleTableEmptyStrategy(chart: Chart) {
     let newData = (chart.data?.tableRow || []) as Record<string, any>[]
     let intersectionArr = []
@@ -1490,56 +1661,6 @@ export async function exportPivotExcel(instance: PivotSheet, chart: ChartObj) {
     }
 }
 
-export async function fetchAllTableRows(view, pageSize = 100) {
-    // Directly use standard pagination logic
-    console.log('[fetchAllTableRows] Using standard pagination logic from the start.');
-    console.log('[fetchAllTableRows] Initial view object for pagination:', JSON.parse(JSON.stringify(view)));
-
-    let allRows = [];
-    const standardFirstPageReq = JSON.parse(JSON.stringify(view));
-    standardFirstPageReq.chartExtRequest = standardFirstPageReq.chartExtRequest || {};
-    standardFirstPageReq.chartExtRequest.pageNo = 1;
-    standardFirstPageReq.chartExtRequest.pageSize = pageSize;
-    delete standardFirstPageReq.chartExtRequest.resultMode;
-    delete standardFirstPageReq.chartExtRequest.resultCount;
-
-    console.log('[fetchAllTableRows] Standard pagination - First page request object being sent:', JSON.parse(JSON.stringify(standardFirstPageReq)));
-    const standardFirstResp = await getData(standardFirstPageReq);
-    console.log('[fetchAllTableRows] Standard pagination - First page response:', standardFirstResp);
-
-    allRows = (standardFirstResp.data?.tableRow || []).slice();
-    const totalForPagination = standardFirstResp.data?.totalItems || standardFirstResp.data?.total || allRows.length;
-    const totalPages = Math.ceil(totalForPagination / pageSize);
-
-    const promises = [];
-    for (let page = 2; page <= totalPages; page++) {
-        const nextPageReq = JSON.parse(JSON.stringify(view));
-        nextPageReq.chartExtRequest = nextPageReq.chartExtRequest || {};
-        nextPageReq.chartExtRequest.pageNo = page;
-        nextPageReq.chartExtRequest.pageSize = pageSize;
-        delete nextPageReq.chartExtRequest.resultMode;
-        delete nextPageReq.chartExtRequest.resultCount;
-        // console.log(`[fetchAllTableRows] Standard pagination - Next page (${page}) request object:`, JSON.parse(JSON.stringify(nextPageReq)));
-        promises.push(getData(nextPageReq));
-    }
-    const results = await Promise.all(promises);
-    results.forEach(resp => {
-        const rows = resp.data?.tableRow || [];
-        allRows = allRows.concat(rows);
-    });
-
-    return {
-        ...standardFirstResp,
-        data: {
-            ...(standardFirstResp.data || {}),
-            tableRow: allRows,
-            totalItems: totalForPagination,
-            total: totalForPagination
-        }
-    };
-}
-
-// 下载带格式的 Excel（明细表），包括多级表头
 export async function exportDetailExcelWithMultiHeader(
     viewInfo,
     viewDataInfo,

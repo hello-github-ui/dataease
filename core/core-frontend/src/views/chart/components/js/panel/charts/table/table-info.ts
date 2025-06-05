@@ -7,7 +7,8 @@ import {
   ScrollbarPositionType,
   TableColCell,
   TableSheet,
-  ViewMeta
+  ViewMeta,
+  type TooltipShowOptions
 } from '@antv/s2'
 import { formatterItem, valueFormatter } from '../../../formatter'
 import { hexColorToRGBA, isAlphaColor, parseJson } from '../../../util'
@@ -26,7 +27,16 @@ import {
   summaryRowStyle,
   configEmptyDataStyle,
   getLeafNodes,
-  getColumns
+  getColumns,
+  fillColumnNames,
+  getMeta,
+  getCurrentField,
+  getConditions,
+  getStyle,
+  getCustomTheme,
+  configHeaderInteraction,
+  configMergeCells,
+  configTooltip
 } from '@/views/chart/components/js/panel/common/common_table'
 
 const { t } = useI18n()
@@ -158,18 +168,60 @@ export class TableInfo extends S2ChartView<TableSheet> {
       const { headerGroupConfig } = tableHeader
       if (headerGroupConfig?.columns?.length) {
         const allKeys = columns.map(c => drillFieldMap[c] || c)
-        const leafNodes = getLeafNodes(headerGroupConfig.columns as ColumnNode[])
+        
+        // ====== 修复：使用fillColumnNames确保名称正确设置 ======
+        const allFields = chart.xAxis || [];
+        const columnsWithName = fillColumnNames(headerGroupConfig.columns, allFields);
+        
+        const leafNodes = getLeafNodes(columnsWithName as ColumnNode[])
         const leafKeys = leafNodes.map(c => c.key)
+        
+        console.log('[明细表表头分组] 原始columns:', JSON.stringify(headerGroupConfig.columns, null, 2));
+        console.log('[明细表表头分组] fillColumnNames处理后:', JSON.stringify(columnsWithName, null, 2));
+        console.log('[明细表表头分组] leafKeys:', leafKeys);
+        console.log('[明细表表头分组] allKeys:', allKeys);
+        
         if (isEqual(leafKeys, allKeys)) {
           if (Object.keys(drillFieldMap).length) {
             const originField = Object.values(drillFieldMap)[0]
             const drillField = Object.keys(drillFieldMap)[0]
-            const [drillCol] = getColumns([originField], headerGroupConfig.columns as ColumnNode[])
+            const [drillCol] = getColumns([originField], columnsWithName as ColumnNode[])
             drillCol.key = drillField
           }
-          columns.splice(0, columns.length, ...headerGroupConfig.columns)
-          meta.push(...headerGroupConfig.meta)
+          columns.splice(0, columns.length, ...columnsWithName)
+          
+          // 生成对应的meta，确保与叶子节点一致
+          const newMeta = [];
+          leafKeys.forEach(key => {
+            const fieldDef = fields.find(f => f.dataeaseName === key);
+            if (fieldDef) {
+              const f = axisMap[fieldDef.dataeaseName];
+              newMeta.push({
+                field: fieldDef.dataeaseName,
+                name: fieldDef.chartShowName ?? fieldDef.name,
+                formatter: function (value) {
+                  if (!f) {
+                    return value
+                  }
+                  if (value === null || value === undefined) {
+                    return value
+                  }
+                  if (![2, 3, 4].includes(f.deType) || !isNumber(value)) {
+                    return value
+                  }
+                  let formatCfg = f.formatterCfg
+                  if (!formatCfg) {
+                    formatCfg = formatterItem
+                  }
+                  return valueFormatter(value, formatCfg)
+                }
+              });
+            }
+          });
+          meta.splice(0, meta.length, ...newMeta);
+          console.log('[明细表表头分组] 应用了修复后的配置');
         }
+        // ====== 修复结束 ======
       }
     }
     // 空值处理
@@ -184,7 +236,7 @@ export class TableInfo extends S2ChartView<TableSheet> {
     }
 
     // options
-    const s2Options: S2Options = {
+    const s2Options: S2Options<TooltipShowOptions> = {
       width: containerDom.getBoundingClientRect().width,
       height: containerDom.offsetHeight,
       showSeriesNumber: tableHeader.showIndex,
@@ -198,6 +250,45 @@ export class TableInfo extends S2ChartView<TableSheet> {
         scrollbarPosition: newData.length
           ? ScrollbarPositionType.CONTENT
           : ScrollbarPositionType.CANVAS
+      },
+      frozen: {
+        rowHeader: false,
+        colHeader: false,
+        trailingRowHeader: false,
+        trailingColHeader: false
+      },
+      colCell: (node, spreadsheet, headerConfig) => {
+        const { value, field } = node
+        const meta = this.chart.data.fields
+        
+        // 如果是分组节点，使用fillColumnNames确保显示正确的名称
+        if (node.children && node.children.length > 0) {
+          // 这是一个分组节点
+          const headerGroupConfig = this.chart.customAttr?.tableHeader?.headerGroupConfig
+          if (headerGroupConfig?.columns) {
+            const filledColumns = fillColumnNames(headerGroupConfig.columns, meta)
+            // 递归查找对应的节点以获取正确的名称
+            const findNodeName = (columns, key) => {
+              for (const col of columns) {
+                if (col.key === key) {
+                  return col.name || key
+                }
+                if (col.children) {
+                  const childName = findNodeName(col.children, key)
+                  if (childName) return childName
+                }
+              }
+              return key
+            }
+            const displayName = findNodeName(filledColumns, node.key)
+            console.log(`[明细表 colCell] 分组节点 ${node.key} 显示名称: ${displayName}`)
+            return displayName
+          }
+        }
+        
+        // 对于叶子节点，使用原有逻辑
+        const fieldMeta = getCurrentField(meta, field)
+        return fieldMeta?.name || value
       }
     }
     s2Options.style = this.configStyle(chart, s2DataConfig)
@@ -267,12 +358,48 @@ export class TableInfo extends S2ChartView<TableSheet> {
       // header interaction
       chart.container = container
       this.configHeaderInteraction(chart, s2Options)
-      s2Options.colCell = (node, sheet, config) => {
-        // 配置文本自动换行参数
-        node.autoWrap = tableCell.mergeCells ? false : basicStyle.autoWrap
-        node.maxLines = basicStyle.maxLines
-        return new CustomTableColCell(node, sheet, config)
+      
+      // ====== 新增：为明细表多级表头配置colCell，确保显示正确的名称 ======
+      if (tableHeader.headerGroup && tableHeader.headerGroupConfig?.columns?.length) {
+        s2Options.colCell = (node, sheet, config) => {
+          // 对于分组节点，使用配置中的name字段作为显示文本
+          if (node.field && tableHeader.headerGroupConfig?.columns) {
+            // 递归查找匹配的配置节点
+            function findNodeConfig(configs, targetKey) {
+              for (const configNode of configs) {
+                if (configNode.key === targetKey) {
+                  return configNode;
+                }
+                if (configNode.children && configNode.children.length > 0) {
+                  const found = findNodeConfig(configNode.children, targetKey);
+                  if (found) return found;
+                }
+              }
+              return null;
+            }
+            
+            const configNode = findNodeConfig(tableHeader.headerGroupConfig.columns, node.field);
+            if (configNode && configNode.name) {
+              // 设置显示名称
+              node.label = configNode.name;
+              console.log(`[明细表colCell配置] 设置节点 ${node.field} 显示名称为: ${configNode.name}`);
+            }
+          }
+          // 配置文本自动换行参数
+          node.autoWrap = tableCell.mergeCells ? false : basicStyle.autoWrap
+          node.maxLines = basicStyle.maxLines
+          return new CustomTableColCell(node, sheet, config)
+        }
+        console.log('[明细表多级表头colCell] 已配置表头分组显示名称');
+      } else {
+        s2Options.colCell = (node, sheet, config) => {
+          // 配置文本自动换行参数
+          node.autoWrap = tableCell.mergeCells ? false : basicStyle.autoWrap
+          node.maxLines = basicStyle.maxLines
+          return new CustomTableColCell(node, sheet, config)
+        }
       }
+      // ====== 明细表多级表头colCell配置 END ======
     }
     // 总计
     configSummaryRow(chart, s2Options, newData, tableHeader, basicStyle, basicStyle.showSummary)
