@@ -102,9 +102,11 @@ const groupConfigValid = computed(() => {
     if (noGroup) {
         return false
     }
-    const xAxis = props.chart.xAxis
+    const xAxis = props.chart.xAxis || []
+    const yAxis = props.chart.yAxis || []
+    const allAxes = [...xAxis, ...yAxis]
     const showColumns = []
-    xAxis?.forEach(axis => {
+    allAxes?.forEach(axis => {
         axis.hide !== true && showColumns.push({ key: axis.dataeaseName })
     })
     if (!showColumns.length) {
@@ -113,7 +115,7 @@ const groupConfigValid = computed(() => {
     const allAxis = showColumns.map(item => item.key)
     const leafNodes = getLeafNodes(columns as Array<ColumnNode>)
     const leafKeys = leafNodes.map(item => item.key)
-    return isEqual(allAxis, leafKeys)
+    return isEqual(allAxis.sort(), leafKeys.sort())
 })
 
 const init = () => {
@@ -217,19 +219,20 @@ onMounted(() => {
                 }
             } else {
                 if (state.tableHeaderForm.headerGroupConfig === null || !state.tableHeaderForm.hasOwnProperty('headerGroupConfig')) {
-                    const initialColumns = [];
-                    if (props.chart && props.chart.xAxis) {
-                        props.chart.xAxis.forEach(axis => {
+                    const initialColumns = []
+                    if (props.chart) {
+                        const allAxes = [...(props.chart.xAxis || []), ...(props.chart.yAxis || [])]
+                        allAxes.forEach(axis => {
                             if (axis.hide !== true) {
-                                initialColumns.push({ key: axis.dataeaseName, name: axis.name || axis.dataeaseName });
+                                initialColumns.push({ key: axis.dataeaseName, name: axis.name || axis.dataeaseName })
                             }
-                        });
+                        })
                     }
                     state.tableHeaderForm.headerGroupConfig = {
                         columns: initialColumns,
                         meta: initialColumns.map(col => ({ field: col.key, name: col.name }))
-                    };
-                    console.log(`headerGroup watch: Initialized headerGroupConfig (headerGroup is true). shouldEmit: ${shouldEmitChange}`);
+                    }
+                    console.log(`headerGroup watch: Initialized headerGroupConfig (headerGroup is true). shouldEmit: ${shouldEmitChange}`)
                 }
             }
 

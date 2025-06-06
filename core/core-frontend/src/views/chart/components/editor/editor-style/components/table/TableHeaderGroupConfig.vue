@@ -7,9 +7,8 @@
     <div :id="menuGroupId" class="group-menu"></div>
 </template>
 
-<script setup lang="ts">
+<script lang="ts" setup>
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
-import { formatterItem, valueFormatter } from '@/views/chart/components/js/formatter'
 import {
     BaseTooltip,
     ColCell,
@@ -22,12 +21,17 @@ import {
     TooltipShowOptions
 } from '@antv/s2'
 import { ElMessageBox } from 'element-plus-secondary'
-import { cloneDeep, debounce, isEqual, isNumber } from 'lodash-es'
+import { cloneDeep, debounce } from 'lodash-es'
 import { computed, nextTick, onMounted, onUnmounted, PropType } from 'vue'
 import { uuid } from 'vue-uuid'
 import { useI18n } from '@/hooks/web/useI18n'
 import { getColumns, getCustomTheme } from '@/views/chart/components/js/panel/common/common_table'
 import { fillColumnNames, getLeafNodes } from '@/views/chart/components/js/panel/common/common_table'
+
+interface CustomColumnNode extends ColumnNode {
+    name?: string
+    children?: CustomColumnNode[]
+}
 
 const { t } = useI18n()
 const dvMainStore = dvMainStoreWithOut()
@@ -87,7 +91,7 @@ const onConfigChange = () => {
         return;
     }
 
-    const currentS2Columns = cloneDeep(s2.options?.columns || []);
+    const currentS2Columns = cloneDeep(s2.dataCfg.fields.columns || []) as CustomColumnNode[];
 
     const allFields = (props.chart.xAxis || []).concat(props.chart.yAxis || []);
     const fieldNameMap = {};
@@ -100,15 +104,15 @@ const onConfigChange = () => {
     const chartData = props.chart.data;
     const dataFields = chartData?.fields || (chartData as any)?.sourceFields || [];
     dataFields.forEach((field: ChartViewField) => {
-        if (field.dataeaseName && field.name && !fieldNameMap[field.dataeaseName]) {
-            fieldNameMap[field.dataeaseName] = field.name;
+        if ((field as any).dataeaseName && (field as any).name && !fieldNameMap[(field as any).dataeaseName]) {
+            fieldNameMap[(field as any).dataeaseName] = (field as any).name;
         }
     });
 
-    function ensureColumnNamesRecursive(columnsToEnsure, currentFieldNameMap) {
+    function ensureColumnNamesRecursive(columnsToEnsure: CustomColumnNode[], currentFieldNameMap): CustomColumnNode[] {
         if (!columnsToEnsure || !Array.isArray(columnsToEnsure)) return [];
         return columnsToEnsure.map(col => {
-            const result = { ...col };
+            const result: CustomColumnNode = { ...col };
 
             if ((!result.children || result.children.length === 0) && result.key && !result.name) {
                 if (currentFieldNameMap[result.key]) {
@@ -130,7 +134,7 @@ const onConfigChange = () => {
     const correctedColumns = ensureColumnNamesRecursive(currentS2Columns, fieldNameMap);
 
     const leafNodes = [];
-    function collectLeafNodesRecursive(columnsToScan) {
+    function collectLeafNodesRecursive(columnsToScan: CustomColumnNode[]) {
         if (!columnsToScan || !Array.isArray(columnsToScan)) return;
         columnsToScan.forEach(col => {
             if (!col.children || col.children.length === 0) {
@@ -157,22 +161,24 @@ const onConfigChange = () => {
 
 const init = () => {
     const chart = cloneDeep(props.chart)
-    const xAxis = chart.xAxis
+    const xAxis = chart.xAxis || []
+    const yAxis = chart.yAxis || []
+    const allAxes = [...xAxis, ...yAxis]
     const { headerGroupConfig } = chart.customAttr.tableHeader
     const showColumns = []
-    xAxis?.forEach(axis => {
+    allAxes?.forEach(axis => {
         axis.hide !== true && showColumns.push({ key: axis.dataeaseName })
     })
     if (!showColumns.length) {
         return
     }
 
-    console.log('[表头分组弹窗-init] allFields:', chart.xAxis);
+    console.log('[表头分组弹窗-init] allFields:', allAxes);
 
-    if ((window as any).fixS2TableHeaders) {
-        chart.xAxis?.forEach(axis => {
+    if (window['fixS2TableHeaders']) {
+        allAxes?.forEach(axis => {
             if (axis.dataeaseName && axis.name) {
-                (window as any).fixS2TableHeaders.addMapping(axis.dataeaseName, axis.name);
+                window['fixS2TableHeaders'].addMapping(axis.dataeaseName, axis.name);
                 console.log(`[表头分组弹窗-init] 添加字段映射: ${axis.dataeaseName} => ${axis.name}`);
             }
         });
@@ -192,7 +198,7 @@ const init = () => {
         const axisFields = (chart.xAxis || []).concat(chart.yAxis || []);
         allLocalFields = allLocalFields.map((f: ChartViewField) => {
             if (!f.name) {
-                const axis = axisFields.find(a => a.dataeaseName === f.dataeaseName);
+                const axis = axisFields.find(a => (a as any).dataeaseName === (f as any).dataeaseName);
                 if (axis && axis.name) {
                     return { ...f, name: axis.name };
                 }
@@ -235,17 +241,17 @@ const renderTable = (chart: ChartObj) => {
 
     // 从字段定义收集映射
     allFields.forEach(field => {
-        if (field.dataeaseName && field.name) {
-            fieldNameMap[field.dataeaseName] = field.name;
-            console.log(`[表头分组设置] 字段映射: ${field.dataeaseName} => ${field.name}`);
+        if ((field as any).dataeaseName && (field as any).name) {
+            fieldNameMap[(field as any).dataeaseName] = (field as any).name;
+            console.log(`[表头分组设置] 字段映射: ${(field as any).dataeaseName} => ${(field as any).name}`);
         }
     });
 
     // 从数据字段收集映射
     if (chart.data && chart.data.fields) {
         chart.data.fields.forEach(field => {
-            if ((field.dataeaseName || field.key) && field.name) {
-                fieldNameMap[field.dataeaseName || field.key] = field.name;
+            if (((field as any).dataeaseName || (field as any).key) && (field as any).name) {
+                fieldNameMap[(field as any).dataeaseName || (field as any).key] = (field as any).name;
             }
         });
     }
@@ -340,7 +346,7 @@ const renderTable = (chart: ChartObj) => {
     const groupMenuContainer = document.getElementById(menuGroupId.value)
     s2.on(S2Event.COL_CELL_CONTEXT_MENU, e => {
         e.preventDefault()
-        const curColumns = s2.dataCfg.fields.columns as Array<ColumnNode>
+        const curColumns = s2.dataCfg.fields.columns as Array<CustomColumnNode>
         console.log('curColumns: ', curColumns)
         const curMeta = s2.dataCfg.meta
         const activeCells = s2.interaction.getActiveCells()
@@ -366,7 +372,7 @@ const renderTable = (chart: ChartObj) => {
             cancelBtn.innerText = t('chart.cancel_group')
             cancelBtn.onclick = () => {
                 s2.hideTooltip()
-                const parent = curCell.getMeta().parent
+                const parent = curCell.getMeta().parent as Node
                 if (parent?.id === 'root') {
                     const startIndex = curColumns.findIndex(cell => cell.key === curCell.getMeta().field)
                     const [curCol] = getColumns([curCell.getMeta().field], curColumns)
@@ -412,7 +418,7 @@ const renderTable = (chart: ChartObj) => {
             cancelAllBtn.innerText = t('chart.cancel_all_group')
             cancelAllBtn.onclick = () => {
                 s2.hideTooltip()
-                const parent = curCell.getMeta().parent
+                const parent = curCell.getMeta().parent as Node
                 if (parent?.id === 'root') {
                     const [curCol] = getColumns([curCell.getMeta().field], curColumns)
                     const leafNodes = getLeafNodes(curCol.children)
@@ -527,18 +533,18 @@ const renderTable = (chart: ChartObj) => {
                 return
             }
             let upDepth = -1
-            let tmpCell = curCell
+            let tmpCell: any = curCell
             while (tmpCell?.getMeta?.()?.parent || tmpCell?.parent) {
                 upDepth++
                 tmpCell = tmpCell?.getMeta?.()?.parent || tmpCell?.parent
             }
             let startIndex = -1
             let endIndex = -1
-            const parent = curCell.getMeta().parent
+            const parent = curCell.getMeta().parent as Node
             // 分组的节点
             if (parent.colIndex !== -1) {
                 activeColumns.forEach(cell => {
-                    const index = parent.children.findIndex(item => item.getMeta().field === cell.key)
+                    const index = parent.children.findIndex(item => (item as any).getMeta().field === cell.key)
                     if (index < startIndex || startIndex === -1) {
                         startIndex = index
                     }
@@ -548,7 +554,7 @@ const renderTable = (chart: ChartObj) => {
                 })
             } else {
                 activeColumns.forEach(cell => {
-                    const index = parent.children.findIndex(item => item.key === cell.key)
+                    const index = (parent as any).children.findIndex(item => item.key === cell.key)
                     if (index < startIndex || startIndex === -1) {
                         startIndex = index
                     }
@@ -605,14 +611,14 @@ const renderTable = (chart: ChartObj) => {
                                 key: newKey,
                                 name: groupName,
                                 children: filledChildren
-                            })
+                            } as CustomColumnNode)
                         } else {
                             const [parentColumn] = getColumns([parent.field], curColumns)
                             parentColumn.children?.splice(startIndex, endIndex - startIndex + 1, {
                                 key: newKey,
                                 name: groupName,
                                 children: filledChildren
-                            })
+                            } as CustomColumnNode)
                         }
                         curMeta.push({
                             field: newKey,
@@ -676,7 +682,7 @@ const renderTable = (chart: ChartObj) => {
             const activeCells = parent.children.slice(startIndex, endIndex + 1)
             s2.interaction.clearState()
             activeCells.forEach(cell => {
-                s2.interaction.selectHeaderCell({ cell: cell.belongsCell, isMultiSelection: true })
+                s2.interaction.selectHeaderCell({ cell: (cell as any).belongsCell, isMultiSelection: true })
             })
         }
     })
@@ -690,17 +696,17 @@ const renderTable = (chart: ChartObj) => {
     });
 }
 
-const getNonLeafNodes = (tree: Array<ColumnNode>): string[] => {
+const getNonLeafNodes = (tree: Array<CustomColumnNode>): string[] => {
     const result: string[] = []
 
-    const inorderTraversal = (node: ColumnNode) => {
+    const inorderTraversal = (node: CustomColumnNode) => {
         // 如果有子节点，则为非叶子节点
         if (node.children?.length > 0) {
             result.push(node.key)
 
             // 递归处理子节点
             for (let i = 0; i < node.children.length; i++) {
-                inorderTraversal(node.children[i] as ColumnNode)
+                inorderTraversal(node.children[i] as CustomColumnNode)
             }
         }
     }
@@ -711,17 +717,17 @@ const getNonLeafNodes = (tree: Array<ColumnNode>): string[] => {
     return result
 }
 
-const getTreesMaxDepth = (nodes: Array<ColumnNode>): number => {
+const getTreesMaxDepth = (nodes: Array<CustomColumnNode>): number => {
     if (!nodes?.length) {
         return 0
     }
 
     // 获取单个节点的最大子树深度
-    const getNodeMaxDepth = (node: ColumnNode): number => {
+    const getNodeMaxDepth = (node: CustomColumnNode): number => {
         if (!node.children || node.children.length === 0) {
             return 0
         }
-        const childrenDepths = node.children.map(child => getNodeMaxDepth(child as ColumnNode))
+        const childrenDepths = node.children.map(child => getNodeMaxDepth(child as CustomColumnNode))
         return Math.max(...childrenDepths) + 1
     }
 
@@ -745,10 +751,10 @@ onMounted(() => {
 
     // 添加：如果存在补丁修复函数，则等待表格渲染后手动调用
     setTimeout(() => {
-        if (window.fixS2TableHeaders) {
+        if (window['fixS2TableHeaders']) {
             console.log('[表头分组设置] 检测到补丁函数，自动调用修复');
-            window.fixS2TableHeaders.collectMappings();
-            window.fixS2TableHeaders.fix();
+            window['fixS2TableHeaders'].collectMappings();
+            window['fixS2TableHeaders'].fix();
         }
     }, 500);
 
