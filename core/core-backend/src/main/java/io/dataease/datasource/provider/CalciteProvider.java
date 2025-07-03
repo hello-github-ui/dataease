@@ -94,6 +94,8 @@ public class CalciteProvider extends Provider {
         } catch (Exception e) {
 
         }
+        // 自动注册所有数据源到Calcite内存池
+        initConnectionPool();
     }
 
     @Override

@@ -350,6 +350,8 @@ public class DatasourceServer implements DatasourceApi {
             checkParams(dataSourceDTO.getConfiguration());
             calciteProvider.update(dataSourceDTO);
         }
+        // 调用 calciteProvider.updateDsPoolAfterCheckStatus(dataSourceDTO) 方法，更新数据源池
+        calciteProvider.updateDsPoolAfterCheckStatus(dataSourceDTO);
         return dataSourceDTO;
     }
 
@@ -485,6 +487,9 @@ public class DatasourceServer implements DatasourceApi {
             dataSourceManage.innerEdit(requestDatasource);
             calciteProvider.update(dataSourceDTO);
         }
+
+        // 调用 calciteProvider.updateDsPoolAfterCheckStatus(dataSourceDTO) 方法，更新数据源池
+        calciteProvider.updateDsPoolAfterCheckStatus(dataSourceDTO);
         return dataSourceDTO;
     }
 
